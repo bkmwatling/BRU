@@ -4,8 +4,8 @@ DFLAGS = # -DDEBUG
 FLAGS = $(CFLAGS) $(DFLAGS)
 RM = rm -rf
 
-PARSER = parser
-COMPILER = compiler
+PARSER = parse
+COMPILER = compile
 SRVM = srvm
 
 SRC = src
@@ -14,18 +14,23 @@ BIN = bin
 
 SRCS = $(wildcard $(SRC)/*.c)
 OBJS = $(patsubst $(SRC)/%.c,$(OBJ)/%.o,$(SRCS))
-EXES = $(BIN)/$(PARSER) $(BIN)/$(COMPILER) $(BIN)/$(SRVM)
+BINS = $(BIN)/$(PARSER) $(BIN)/$(COMPILER) $(BIN)/$(SRVM)
+
+PARSER_OBJS = $(filter-out $(patsubst $(BIN)/%,$(OBJ)/%.o,$(BINS)),$(OBJS))
+COMPILER_OBJS = $(filter-out $(OBJ)/$(SRVM).o $(OBJ)/$(COMPILER).o,$(OBJS))
+SRVM_OBJS = $(filter-out $(OBJ)/$(SRVM).o,$(OBJS))
+
 
 all: $(PARSER) $(COMPILER) $(SRVM)
 
-$(SRVM): $(OBJS) $(BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(OBJS)
+$(SRVM): $(SRVM_OBJS) $(BIN)
+	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(SRVM_OBJS)
 
-$(COMPILER): $(OBJS) $(BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(OBJS)
+$(COMPILER): $(OBJS) $(COMPILER_BIN)
+	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(COMPILER_OBJS)
 
-$(PARSER): $(OBJS) $(BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(OBJS)
+$(PARSER): $(OBJS) $(PARSER_BIN)
+	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(PARSER_OBJS)
 
 $(OBJ)/%.o: $(SRC)/%.c $(OBJ)
 	$(CC) $(FLAGS) -c -o $@ $<
@@ -44,6 +49,6 @@ cleanobj:
 	$(RM) $(OBJS)
 
 cleanbin:
-	$(RM) $(EXES)
+	$(RM) $(BINS)
 
 .PHONY: all $(SRVM) $(COMPILER) $(PARSER) clean cleanobj cleanbin

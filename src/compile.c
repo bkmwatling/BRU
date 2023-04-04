@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-int main (int argc, char **argv)
+int main(void)
 {
-    printf ("compiler");
+    printf("compiler\n");
     return 0;
 }
