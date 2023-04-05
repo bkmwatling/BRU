@@ -2,6 +2,6 @@
 
 int main(void)
 {
-    printf("compiler\n");
+    printf("compile\n");
     return 0;
 }

@@ -2,10 +2,10 @@ CC = clang
 CFLAGS = -pedantic -Wall -Wextra
 DFLAGS = # -DDEBUG
 FLAGS = $(CFLAGS) $(DFLAGS)
-RM = rm -rf
+RM = rm -f
 
-PARSER = parse
-COMPILER = compile
+PARSE = parse
+COMPILE = compile
 SRVM = srvm
 
 SRC = src
@@ -13,26 +13,25 @@ OBJ = obj
 BIN = bin
 
 SRCS = $(wildcard $(SRC)/*.c)
-OBJS = $(patsubst $(SRC)/%.c,$(OBJ)/%.o,$(SRCS))
-BINS = $(BIN)/$(PARSER) $(BIN)/$(COMPILER) $(BIN)/$(SRVM)
+OBJS = $(patsubst $(SRC)/%.c,$(OBJ)/%.o,$(filter-out $(BIN_SRCS),$(SRCS)))
+BINS = $(BIN)/$(PARSE) $(BIN)/$(COMPILE) $(BIN)/$(SRVM)
+BIN_SRCS = $(patsubst $(BIN)/%,$(SRC)/%.c,$(BINS))
 
-PARSER_OBJS = $(filter-out $(patsubst $(BIN)/%,$(OBJ)/%.o,$(BINS)),$(OBJS))
-COMPILER_OBJS = $(filter-out $(OBJ)/$(SRVM).o $(OBJ)/$(COMPILER).o,$(OBJS))
-SRVM_OBJS = $(filter-out $(OBJ)/$(SRVM).o,$(OBJS))
+PARSE_OBJS = $(filter-out $(OBJ)/compiler.o,$(OBJS))
 
 
-all: $(PARSER) $(COMPILER) $(SRVM)
+all: $(PARSE) $(COMPILE) $(SRVM)
 
-$(SRVM): $(SRVM_OBJS) $(BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(SRVM_OBJS)
+$(SRVM): $(OBJS) | $(BIN)
+	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(OBJS)
 
-$(COMPILER): $(OBJS) $(COMPILER_BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(COMPILER_OBJS)
+$(COMPILE): $(OBJS) | $(BIN)
+	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(OBJS)
 
-$(PARSER): $(OBJS) $(PARSER_BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(PARSER_OBJS)
+$(PARSE): $(PARSE_OBJS) | $(BIN)
+	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(PARSE_OBJS)
 
-$(OBJ)/%.o: $(SRC)/%.c $(OBJ)
+$(OBJ)/%.o: $(SRC)/%.c | $(OBJ)
 	$(CC) $(FLAGS) -c -o $@ $<
 
 
@@ -51,4 +50,4 @@ cleanobj:
 cleanbin:
 	$(RM) $(BINS)
 
-.PHONY: all $(SRVM) $(COMPILER) $(PARSER) clean cleanobj cleanbin
+.PHONY: all $(SRVM) $(COMPILE) $(PARSE) clean cleanobj cleanbin

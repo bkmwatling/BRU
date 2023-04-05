@@ -1,7 +1,3 @@
 #include <stdio.h>
 
-int main(void)
-{
-    printf("sre\n");
-    return 0;
-}
+void print_re() { printf("re\n"); }

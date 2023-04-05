@@ -2,6 +2,6 @@
 
 int main(void)
 {
-    printf("parser\n");
+    printf("parse\n");
     return 0;
 }
