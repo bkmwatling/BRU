@@ -3,6 +3,7 @@
 
 #include "sre.h"
 #include "types.h"
+#include "utf8.h"
 
 typedef struct {
     int in_group;
@@ -10,17 +11,15 @@ typedef struct {
 } ParseState;
 
 typedef struct {
-    uint *regex;
+    utf8 *regex;
     int   only_counters;
     int   unbounded_counters;
     int   whole_match_capture;
 } Parser;
 
-uint *str_to_regex(char *s);
-
 ParseState *parse_state(int in_group, int in_lookahead);
 
-Parser    *parser(uint *regex,
+Parser    *parser(utf8 *regex,
                   int   only_counters,
                   int   unbounded_counters,
                   int   whole_match_capture);

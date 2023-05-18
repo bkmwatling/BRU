@@ -21,17 +21,6 @@ RegexTree *parse_predefined_cc(Parser *p, uint idx, int neg);
 RegexTree *parse_parens(Parser *p, uint idx, ParseState *ps);
 RegexTree *parse_curly(Parser *p, uint idx);
 
-uint *str_to_regex(char *s)
-{
-    uint *regex = malloc((strlen(s) + 1) * sizeof(uint));
-    uint *r     = regex;
-
-    while (*s) { *r++ = (uint) *s++; }
-    *r = 0;
-
-    return regex;
-}
-
 ParseState *parse_state(int in_group, int in_lookahead)
 {
     ParseState *ps   = malloc(sizeof(ParseState));
@@ -40,7 +29,7 @@ ParseState *parse_state(int in_group, int in_lookahead)
     return ps;
 }
 
-Parser *parser(uint *regex,
+Parser *parser(utf8 *regex,
                int   only_counters,
                int   unbounded_counters,
                int   whole_match_capture)

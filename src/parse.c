@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "parser.h"
+#include "utf8.h"
 
 int main(int argc, char **argv)
 {
@@ -10,12 +11,13 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    uint   *regex = str_to_regex(argv[1]);
-    Parser *p     = parser(regex, 0, 0, 0);
+    utf8   *regex = utf8_from_str(argv[1]), *r = regex;
+    Parser *p = parser(regex, 0, 0, 0);
 
-    printf("regex:");
-    while (*regex) { printf(" %u", *regex++); }
-    printf("\nparsed regex: %p\n", (void *) parse(p));
+    printf("utf8 regex:");
+    while (*r) { printf(" 0x%x", *r++); }
+    printf("\nregex: %s\n", utf8_to_str(regex));
+    printf("parsed regex: %p\n", (void *) parse(p));
 
     return EXIT_SUCCESS;
 }

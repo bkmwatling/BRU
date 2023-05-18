@@ -2,13 +2,14 @@
 #define SRE_H
 
 #include "types.h"
+#include "utf8.h"
 
 typedef struct regex_tree RegexTree;
 
 typedef struct {
     int  neg;
-    uint lbound;
-    uint ubound;
+    utf8 lbound;
+    utf8 ubound;
 } Interval;
 
 typedef enum {
@@ -30,7 +31,7 @@ struct regex_tree {
     RegexKind kind;
 
     union {
-        int        ch;
+        utf8       ch;
         Interval  *intervals;
         RegexTree *child;
     };
@@ -44,10 +45,10 @@ struct regex_tree {
     uint max;
 };
 
-Interval *interval(int neg, uint lbound, uint ubound);
+Interval *interval(int neg, utf8 lbound, utf8 ubound);
 
 RegexTree *regex_tree_anchor(RegexKind kind);
-RegexTree *regex_tree_literal(int ch);
+RegexTree *regex_tree_literal(utf8 ch);
 RegexTree *regex_tree_cc(Interval *intervals);
 RegexTree *
 regex_tree_branch(RegexKind kind, RegexTree *left, RegexTree *right);
