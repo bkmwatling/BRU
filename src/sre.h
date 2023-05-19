@@ -38,6 +38,7 @@ struct regex_tree {
 
     union {
         int        pos;
+        size_t     cc_len;
         RegexTree *child_;
     };
 
@@ -45,13 +46,12 @@ struct regex_tree {
     uint max;
 };
 
-Interval *interval(int neg, utf8 lbound, utf8 ubound);
+Interval interval(int neg, utf8 lbound, utf8 ubound);
 
 RegexTree *regex_tree_anchor(RegexKind kind);
 RegexTree *regex_tree_literal(utf8 ch);
-RegexTree *regex_tree_cc(Interval *intervals);
-RegexTree *
-regex_tree_branch(RegexKind kind, RegexTree *left, RegexTree *right);
+RegexTree *regex_tree_cc(Interval *intervals, size_t len);
+RegexTree *regex_tree_branch(RegexKind kind, RegexTree *left, RegexTree *right);
 RegexTree *regex_tree_single_child(RegexKind kind, RegexTree *child, int pos);
 RegexTree *regex_tree_counter(RegexTree *child, int pos, uint min, uint max);
 

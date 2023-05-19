@@ -11,10 +11,11 @@ typedef struct {
 } ParseState;
 
 typedef struct {
-    utf8 *regex;
-    int   only_counters;
-    int   unbounded_counters;
-    int   whole_match_capture;
+    utf8  *regex;
+    size_t regex_len;
+    int    only_counters;
+    int    unbounded_counters;
+    int    whole_match_capture;
 } Parser;
 
 ParseState *parse_state(int in_group, int in_lookahead);
