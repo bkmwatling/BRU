@@ -11,13 +11,15 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    utf8   *regex = utf8_from_str(argv[1]), *r = regex;
-    Parser *p = parser(regex, 0, 0, 0);
+    Parser    *p           = parser(utf8_from_str(argv[1]), 0, 0, 0);
+    RegexTree *re_tree     = parse(p);
+    char      *re_tree_str = regex_tree_to_tree_str(re_tree, 0);
 
-    printf("utf8 regex:");
-    while (*r) { printf(" 0x%x", *r++); }
-    printf("\nregex: %s\n", utf8_to_str(regex));
-    printf("parsed regex: %p\n", (void *) parse(p));
+    printf("%s\n", re_tree_str);
+
+    parser_free(p);
+    regex_tree_free(re_tree);
+    free(re_tree_str);
 
     return EXIT_SUCCESS;
 }

@@ -5,32 +5,25 @@
 
 #include "parser.h"
 #include "sre.h"
+#include "utils.h"
 
 #define EOS "Reached end-of-string before completing regex!"
 
 #define CONCAT(tree, node) tree ? regex_tree_branch(CONCAT, tree, node) : node
 
-#define ENSURE_SPACE(intervals, len, cc_alloc)                           \
-    if ((len) >= (cc_alloc)) {                                           \
-        do {                                                             \
-            cc_alloc *= 2;                                               \
-        } while ((len) >= (cc_alloc));                                   \
-        intervals = realloc((intervals), (cc_alloc) * sizeof(Interval)); \
-    }
+RegexTree *parse_alt(Parser *p, const utf8 **const regex, ParseState *ps);
+RegexTree *parse_concat(Parser *p, const utf8 **const regex, ParseState *ps);
+RegexTree *parse_terminal(const utf8 ch, const utf8 **const regex);
+RegexTree *parse_cc(const utf8 **const regex);
+Interval  *parse_predefined_cc(const utf8 **const regex,
+                               int                neg,
+                               Interval          *interval,
+                               size_t            *cc_len,
+                               size_t            *cc_alloc);
+RegexTree *parse_parens(Parser *p, const utf8 **const regex, ParseState *ps);
+void       parse_curly(const utf8 **const regex, uint *min, uint *max);
 
-#define PUSH(intervals, cc_len, cc_alloc, interval)  \
-    ENSURE_SPACE(intervals, (cc_len) + 1, cc_alloc); \
-    intervals[cc_len++] = (interval)
-
-RegexTree *parse_alt(Parser *p, size_t idx, ParseState *ps);
-RegexTree *parse_concat(Parser *p, size_t idx, ParseState *ps);
-RegexTree *parse_terminal(Parser *p, utf8 ch, size_t idx);
-RegexTree *parse_cc(Parser *p, size_t idx);
-Interval  *parse_predefined_cc(Parser *p, size_t idx, int neg, size_t *cc_len);
-RegexTree *parse_parens(Parser *p, size_t idx, ParseState *ps);
-RegexTree *parse_curly(Parser *p, size_t idx, uint *min, uint *max);
-
-Interval *dot()
+Interval *dot(void)
 {
     Interval *dot = malloc(2 * sizeof(Interval));
     dot[0]        = interval(1, 0, 0);
@@ -46,24 +39,30 @@ ParseState *parse_state(int in_group, int in_lookahead)
     return ps;
 }
 
-Parser *parser(utf8 *regex,
-               int   only_counters,
-               int   unbounded_counters,
-               int   whole_match_capture)
+Parser *parser(const utf8 *regex,
+               int         only_counters,
+               int         unbounded_counters,
+               int         whole_match_capture)
 {
     Parser *p              = malloc(sizeof(Parser));
     p->regex               = regex;
-    p->regex_len           = utf8len(regex);
     p->only_counters       = only_counters;
     p->unbounded_counters  = unbounded_counters;
     p->whole_match_capture = whole_match_capture;
     return p;
 }
 
+void parser_free(Parser *p)
+{
+    free((void *) p->regex);
+    free(p);
+}
+
 RegexTree *parse(Parser *p)
 {
-    ParseState ps      = { 0, 0 };
-    RegexTree *re_tree = parse_alt(p, 0, &ps);
+    const utf8 *r       = p->regex;
+    ParseState  ps      = { 0, 0 };
+    RegexTree  *re_tree = parse_alt(p, &r, &ps);
 
     if (p->whole_match_capture && re_tree) {
         re_tree = regex_tree_single_child(CAPTURE, re_tree, 0);
@@ -71,86 +70,77 @@ RegexTree *parse(Parser *p)
     return re_tree;
 }
 
-RegexTree *parse_alt(Parser *p, size_t idx, ParseState *ps)
+RegexTree *parse_alt(Parser *p, const utf8 **const regex, ParseState *ps)
 {
     RegexTree *tree = NULL;
 
-    while (idx < p->regex_len) {
-        switch (p->regex[idx]) {
-            case '|':
-                tree = regex_tree_branch(ALT, tree, parse_concat(p, ++idx, ps));
-                break;
-
-            default:
-                if (p->regex[idx] == ')' && ps->in_group) {
-                    return tree;
-                } else {
-                    tree = parse_concat(p, idx, ps);
-                }
+    while (**regex) {
+        if (**regex == '|') {
+            ++*regex;
+            tree = regex_tree_branch(ALT, tree, parse_concat(p, regex, ps));
+        } else if (**regex == ')' && ps->in_group) {
+            return tree;
+        } else {
+            tree = parse_concat(p, regex, ps);
         }
     }
 
     return tree;
 }
 
-RegexTree *parse_concat(Parser *p, size_t idx, ParseState *ps)
+RegexTree *parse_concat(Parser *p, const utf8 **const regex, ParseState *ps)
 {
     RegexTree *tree = NULL, *subtree = NULL;
     utf8       ch;
     uint       min, max;
     int        greedy;
 
-    while (idx < p->regex_len) {
-        switch ((ch = p->regex[idx])) {
-            case '|': return tree;
+    while (**regex) {
+        switch ((ch = *(*regex)++)) {
+            case '|': --*regex; return tree;
 
-            case '(': subtree = parse_parens(p, ++idx, ps); break;
+            case '(': subtree = parse_parens(p, regex, ps); break;
 
-            case '^':
-                ++idx;
-                subtree = regex_tree_anchor(CARET);
-                break;
+            case '^': subtree = regex_tree_anchor(CARET); break;
 
-            case '$':
-                ++idx;
-                subtree = regex_tree_anchor(DOLLAR);
-                break;
+            case '$': subtree = regex_tree_anchor(DOLLAR); break;
 
             default:
                 if (ch == ')' && ps->in_group) {
+                    --*regex;
                     return tree;
                 } else {
-                    subtree = parse_terminal(p, ch, ++idx);
+                    subtree = parse_terminal(ch, regex);
                 }
         }
 
-        switch (p->regex[idx]) {
+        switch (*(*regex)++) {
             case '*':
-                ++idx;
                 min = 0;
                 max = UINT_MAX;
                 break;
 
             case '+':
-                ++idx;
                 min = 1;
                 max = UINT_MAX;
                 break;
 
             case '?':
-                ++idx;
                 min = 0;
                 max = 1;
                 break;
 
-            case '{': parse_curly(p, ++idx, &min, &max); break;
+            case '{': parse_curly(regex, &min, &max); break;
 
-            default: min = 1; max = 1;
+            default:
+                --*regex;
+                min = 1;
+                max = 1;
         }
 
-        switch (p->regex[idx]) {
+        switch (**regex) {
             case '?':
-                ++idx;
+                ++*regex;
                 greedy = FALSE;
                 break;
 
@@ -189,16 +179,16 @@ RegexTree *parse_concat(Parser *p, size_t idx, ParseState *ps)
     return tree;
 }
 
-RegexTree *parse_terminal(Parser *p, utf8 ch, size_t idx)
+RegexTree *parse_terminal(const utf8 ch, const utf8 **const regex)
 {
     size_t cc_len;
 
     switch (ch) {
-        case '[': return parse_cc(p, idx);
+        case '[': return parse_cc(regex);
 
         case '\\':
-            return regex_tree_cc(parse_predefined_cc(p, idx, FALSE, &cc_len),
-                                 cc_len);
+            return regex_tree_cc(
+                parse_predefined_cc(regex, FALSE, NULL, &cc_len, NULL), cc_len);
 
         case '.': return regex_tree_cc(dot(), 2);
 
@@ -206,42 +196,38 @@ RegexTree *parse_terminal(Parser *p, utf8 ch, size_t idx)
     }
 }
 
-RegexTree *parse_cc(Parser *p, size_t idx)
+RegexTree *parse_cc(const utf8 **const regex)
 {
     utf8      ch;
     int       neg;
-    size_t    cc_alloc = 4, cc_len = 0, tmp_len;
-    Interval *intervals = malloc(cc_alloc * sizeof(Interval)), *tmp;
+    size_t    cc_alloc = 4, cc_len = 0;
+    Interval *intervals = malloc(cc_alloc * sizeof(Interval));
 
-    if ((neg = (idx < p->regex_len && p->regex[idx] == '^'))) { ++idx; }
+    if ((neg = **regex == '^')) { ++*regex; }
 
-    if (p->regex[idx] == ']') {
-        ++idx;
+    if (**regex == ']') {
+        ++*regex;
         intervals[cc_len++] = interval(neg, ']', ']');
     }
 
-    while (idx < p->regex_len) {
-        switch ((ch = p->regex[idx++])) {
+    while (**regex) {
+        switch ((ch = *(*regex)++)) {
             case '-':
                 PUSH(intervals, cc_len, cc_alloc, interval(neg, '-', '-'));
                 break;
 
             case '\\':
-                tmp = parse_predefined_cc(p, idx, neg, &tmp_len);
-                ENSURE_SPACE(intervals, cc_len + tmp_len, cc_alloc);
-                memcpy(intervals + cc_len, tmp, tmp_len * sizeof(Interval));
-                free(tmp);
+                parse_predefined_cc(regex, neg, intervals, &cc_len, &cc_alloc);
                 break;
 
             case ']': return regex_tree_cc(intervals, cc_len);
 
             default:
-                if (idx + 1 < p->regex_len && p->regex[idx] == '-') {
-                    switch (p->regex[++idx]) {
+                if (**regex == '-' && (*regex)[1]) {
+                    switch (*(++*regex)) {
                         case '\\':
-                            if (idx + 1 < p->regex_len &&
-                                p->regex[idx + 1] == '\\') {
-                                ++idx;
+                            if ((*regex)[1] == '\\') {
+                                ++*regex;
                                 PUSH(intervals, cc_len, cc_alloc,
                                      interval(neg, ch, '\\'));
                                 break;
@@ -255,9 +241,9 @@ RegexTree *parse_cc(Parser *p, size_t idx)
 
                         default:
                             PUSH(intervals, cc_len, cc_alloc,
-                                 interval(neg, ch, p->regex[idx++]));
+                                 interval(neg, ch, *(*regex)++));
                     }
-                } else if (idx < p->regex_len) {
+                } else if (**regex) {
                     PUSH(intervals, cc_len, cc_alloc, interval(neg, ch, ch));
                 }
         }
@@ -265,4 +251,175 @@ RegexTree *parse_cc(Parser *p, size_t idx)
 
     free(intervals);
     return NULL;
+}
+
+Interval *parse_predefined_cc(const utf8 **const regex,
+                              int                neg,
+                              Interval          *intervals,
+                              size_t            *cc_len,
+                              size_t            *cc_alloc)
+{
+    utf8 ch;
+    int  cc_len_null = FALSE, cc_alloc_null = FALSE;
+
+    if (**regex) {
+        if (cc_len == NULL) {
+            cc_len_null = TRUE;
+            cc_len      = malloc(sizeof(size_t));
+            *cc_len     = 0;
+        }
+
+        if (cc_alloc == NULL) {
+            cc_alloc_null = TRUE;
+            cc_alloc      = malloc(sizeof(size_t));
+            *cc_alloc     = 4;
+        }
+
+        if (intervals == NULL) {
+            *cc_len = 0;
+            if (*cc_alloc == 0) { *cc_alloc = 4; }
+            intervals = malloc(*cc_alloc * sizeof(Interval));
+        }
+
+        switch ((ch = *(*regex)++)) {
+            case 'd':
+            case 'D':
+                PUSH(intervals, *cc_len, *cc_alloc,
+                     interval((ch == 'D') != neg, '0', '9'));
+                break;
+
+            case 'N':
+                PUSH(intervals, *cc_len, *cc_alloc, interval(!neg, '\n', '\n'));
+                break;
+
+            case 'h':
+            case 'H':
+                neg = (ch == 'H') != neg;
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, ' ', ' '));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '\t', '\t'));
+                break;
+
+            case 'v':
+            case 'V':
+                neg = (ch == 'V') != neg;
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '\n', '\n'));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '\r', '\r'));
+                PUSH(intervals, *cc_len, *cc_alloc,
+                     interval(neg, 0x000b, 0x000b));
+                PUSH(intervals, *cc_len, *cc_alloc,
+                     interval(neg, 0x000c, 0x000c));
+                break;
+
+            case 's':
+            case 'S':
+                neg = (ch == 'S') != neg;
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, ' ', ' '));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '\t', '\t'));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '\n', '\n'));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '\r', '\r'));
+                PUSH(intervals, *cc_len, *cc_alloc,
+                     interval(neg, 0x000b, 0x000b));
+                PUSH(intervals, *cc_len, *cc_alloc,
+                     interval(neg, 0x000c, 0x000c));
+                break;
+
+            case 'w':
+            case 'W':
+                neg = (ch == 'W') != neg;
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, 'a', 'z'));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, 'A', 'Z'));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '_', '_'));
+                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, '0', '9'));
+                break;
+
+            default: PUSH(intervals, *cc_len, *cc_alloc, interval(neg, ch, ch));
+        }
+
+        if (cc_len_null) { free(cc_len); }
+        if (cc_alloc_null) { free(cc_alloc); }
+
+        return intervals;
+    } else {
+        return NULL;
+    }
+}
+
+RegexTree *parse_parens(Parser *p, const utf8 **const regex, ParseState *ps)
+{
+    RegexTree  *tree;
+    ParseState *ps_tmp;
+    utf8        ch;
+
+    if (**regex == '?' && (*regex)[1]) {
+        ++*regex;
+        switch ((ch = *(*regex)++)) {
+            case ':':
+            case '|':
+                ps_tmp = parse_state(TRUE, ps->in_lookahead);
+                tree   = parse_alt(p, regex, ps_tmp);
+                free(ps_tmp);
+                break;
+
+            case '=':
+            case '!':
+                ps_tmp = parse_state(TRUE, TRUE);
+                if ((tree = parse_alt(p, regex, ps_tmp))) {
+                    tree = regex_tree_single_child(LOOKAHEAD, tree, ch == '=');
+                }
+                free(ps_tmp);
+                break;
+
+            default:
+                fprintf(stderr, "Invalid symbol after ? in parentheses!");
+                exit(EXIT_FAILURE);
+        }
+    } else {
+        ps_tmp = parse_state(TRUE, ps->in_lookahead);
+        if ((tree = parse_alt(p, regex, ps_tmp)) && !ps->in_lookahead) {
+            tree = regex_tree_single_child(CAPTURE, tree, FALSE);
+        }
+        free(ps_tmp);
+    }
+
+    if (**regex == ')') { ++*regex; }
+
+    return tree;
+}
+
+void parse_curly(const utf8 **const regex, uint *min, uint *max)
+{
+    utf8 ch;
+
+    *min = 0;
+    while (**regex) {
+        if ((ch = *(*regex)++) >= '0' && ch <= '9') {
+            *min = *min * 10 + (ch - '0');
+        } else {
+            switch (ch) {
+                case ',': goto max;
+
+                case '}': *max = *min; return;
+
+                default:
+                    fprintf(stderr, "Invalid symbol in curly braces!");
+                    exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+max:
+    *max = 0;
+    while (**regex) {
+        if ((ch = *(*regex)++) >= '0' && ch <= '9') {
+            *max = *max * 10 + (ch - '0');
+        } else {
+            switch (ch) {
+                case '}': return;
+
+                default:
+                    fprintf(stderr, "Invalid symbol in curly braces!");
+                    exit(EXIT_FAILURE);
+            }
+        }
+    }
 }

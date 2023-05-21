@@ -24,6 +24,7 @@ utf8  *utf8_from_str(const char *s);
 size_t utf8_charlen(const utf8 utf8_c);
 size_t utf8_strlen(const utf8 *utf8_s);
 size_t utf8len(const utf8 *utf8_s);
+char  *utf8_to_char(const utf8 utf8_c);
 char  *utf8_to_str(const utf8 *utf8_s);
 
 #endif /* UTF8_H */

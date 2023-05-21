@@ -109,10 +109,26 @@ size_t utf8len(const utf8 *utf8_s)
     return p - utf8_s;
 }
 
+char *utf8_to_char(const utf8 utf8_c)
+{
+    char  *s = NULL, *p;
+    size_t i, len;
+
+    if ((len = utf8_charlen(utf8_c))) {
+        s = malloc((len + 1) * sizeof(char));
+        p = s;
+        for (i = 0; i < len; ++i) {
+            *p++ = (char) (utf8_c >> (8 * (len - 1 - i)));
+        }
+        *p = '\0';
+    }
+
+    return s;
+}
+
 char *utf8_to_str(const utf8 *utf8_s)
 {
-    char  *s = malloc((utf8_strlen(utf8_s) + 1) * sizeof(char));
-    char  *p = s;
+    char  *s = malloc((utf8_strlen(utf8_s) + 1) * sizeof(char)), *p = s;
     size_t i, len;
 
     while (*utf8_s) {

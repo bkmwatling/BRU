@@ -53,6 +53,9 @@ RegexTree *regex_tree_literal(utf8 ch);
 RegexTree *regex_tree_cc(Interval *intervals, size_t len);
 RegexTree *regex_tree_branch(RegexKind kind, RegexTree *left, RegexTree *right);
 RegexTree *regex_tree_single_child(RegexKind kind, RegexTree *child, int pos);
-RegexTree *regex_tree_counter(RegexTree *child, int pos, uint min, uint max);
+RegexTree *regex_tree_counter(RegexTree *child, int greedy, uint min, uint max);
+
+char *regex_tree_to_tree_str(RegexTree *re_tree, size_t indent);
+void  regex_tree_free(RegexTree *re_tree);
 
 #endif /* SRE_H */

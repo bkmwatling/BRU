@@ -3,7 +3,7 @@
 
 #define TRUE     1
 #define FALSE    0
-#define UINT_MAX (~0)
+#define UINT_MAX ((uint) ~0)
 
 typedef unsigned int uint;
 
