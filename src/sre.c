@@ -6,7 +6,8 @@
 #include "sre.h"
 #include "utils.h"
 
-#define BUF 2048
+#define BUF              2048
+#define INTERVAL_MAX_BUF 13
 
 #define STR_PUSH(s, len, alloc, str)                             \
     ENSURE_SPACE(s, len + strlen(str) + 1, alloc, sizeof(char)); \
@@ -20,6 +21,44 @@ Interval interval(int neg, utf8 lbound, utf8 ubound)
 {
     Interval interval = { neg, lbound, ubound };
     return interval;
+}
+
+char *interval_to_str(Interval *interval)
+{
+    char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s, *q, *r;
+
+    if (interval->neg) { *p++ = '^'; }
+
+    q  = utf8_to_char(interval->lbound);
+    r  = utf8_to_char(interval->ubound);
+    p += sprintf(p, "(%s, %s)", q, r);
+    free(q);
+    free(r);
+
+    return s;
+}
+
+char *intervals_to_str(Interval *intervals, size_t len)
+{
+    size_t i, slen = 0, alloc = 3 + 2 * INTERVAL_MAX_BUF;
+    char  *s = malloc(alloc * sizeof(char)), *p;
+
+    s[slen++] = '[';
+    for (i = 0; i < len; ++i) {
+        p = interval_to_str(intervals + i);
+        ENSURE_SPACE(s, slen + INTERVAL_MAX_BUF + 3, alloc, sizeof(char));
+        if (i < len - 1) {
+            slen += sprintf(s + slen, "%s, ", p);
+        } else {
+            slen += sprintf(s + slen, "%s", p);
+        }
+        free(p);
+    }
+    ENSURE_SPACE(s, slen + 2, alloc, sizeof(char));
+    s[slen++] = ']';
+    s[slen]   = '\0';
+
+    return s;
 }
 
 RegexTree *regex_tree_anchor(RegexKind kind)
@@ -118,7 +157,12 @@ char *regex_tree_to_tree_str(RegexTree *re_tree, size_t indent)
             free(p);
             break;
 
-        case CHAR_CLASS: /* TODO: */ break;
+        case CHAR_CLASS:
+            p = intervals_to_str(re_tree->intervals, re_tree->cc_len);
+            ENSURE_SPACE(s, len + 12 + strlen(p), alloc, sizeof(char));
+            len += sprintf(s + len, "CharClass(%s)", p);
+            free(p);
+            break;
 
         case ALT: STR_PUSH(s, len, alloc, "Alternation\n");
         case CONCAT:

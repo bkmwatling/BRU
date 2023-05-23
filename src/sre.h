@@ -48,6 +48,9 @@ struct regex_tree {
 
 Interval interval(int neg, utf8 lbound, utf8 ubound);
 
+char *interval_to_str(Interval *interval);
+char *intervals_to_str(Interval *intervals, size_t len);
+
 RegexTree *regex_tree_anchor(RegexKind kind);
 RegexTree *regex_tree_literal(utf8 ch);
 RegexTree *regex_tree_cc(Interval *intervals, size_t len);
