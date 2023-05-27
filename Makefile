@@ -15,7 +15,7 @@ BIN = bin
 SRCS = $(wildcard $(SRC)/*.c)
 OBJS = $(patsubst $(SRC)/%.c,$(OBJ)/%.o,$(filter-out $(BIN_SRCS),$(SRCS)))
 BINS = $(BIN)/$(PARSE) $(BIN)/$(COMPILE) $(BIN)/$(SRVM)
-BIN_SRCS = $(patsubst $(BIN)/%,$(SRC)/%.c,$(BINS))
+BIN_SRCS = $(BINS:$(BIN)/%=$(SRC)/%.c)
 
 PARSE_OBJS = $(filter-out $(OBJ)/compiler.o,$(OBJS))
 

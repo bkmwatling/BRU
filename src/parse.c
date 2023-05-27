@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 
     Parser    *p           = parser(utf8_from_str(argv[1]), 0, 0, 0);
     RegexTree *re_tree     = parse(p);
-    char      *re_tree_str = regex_tree_to_tree_str(re_tree, 0);
+    char      *re_tree_str = regex_tree_to_tree_str(re_tree);
 
     printf("%s\n", re_tree_str);
 

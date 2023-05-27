@@ -16,7 +16,8 @@ typedef enum {
 } Order;
 
 typedef struct {
-    Interval *interval;
+    Interval *intervals;
+    size_t    len;
     Inst     *x;
 } Lookup;
 
