@@ -74,17 +74,17 @@ typedef struct {
     size_t  mem_len;
 } Program;
 
-Inst  inst_default(InstKind kind);
-Inst  inst_pred(Interval *intervals, size_t len);
-Inst  inst_save(const char **k);
-Inst  inst_jmp(Inst *x);
-Inst  inst_split(Inst *x, Inst *y);
-Inst  inst_tswitch(Inst **insts, size_t len);
-Inst  inst_lswitch(Lookup *lookups, size_t len);
-Inst  inst_eps(InstKind kind, size_t *c);
-Inst  inst_reset(size_t *c, size_t val);
-Inst  inst_cmp(size_t *c, size_t val, Order order);
-Inst  inst_zwa(Inst *x, Inst *y, int pos);
+void  inst_default(Inst *inst, InstKind kind);
+void  inst_pred(Inst *inst, Interval *intervals, size_t len);
+void  inst_save(Inst *inst, const char **k);
+void  inst_jmp(Inst *inst, Inst *x);
+void  inst_split(Inst *inst, Inst *x, Inst *y);
+void  inst_tswitch(Inst *inst, Inst **xs, size_t len);
+void  inst_lswitch(Inst *inst, Lookup *lookups, size_t len);
+int   inst_eps(Inst *inst, InstKind kind, size_t *c);
+void  inst_reset(Inst *inst, size_t *c, size_t val);
+void  inst_cmp(Inst *inst, size_t *c, size_t val, Order order);
+void  inst_zwa(Inst *inst, Inst *x, Inst *y, int pos);
 char *inst_to_str(Inst *inst);
 void  inst_free(Inst *inst);
 
