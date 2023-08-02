@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "sre.h"
+#include "utf8.h"
 #include "utils.h"
 
 #define BUF              2048
@@ -15,7 +16,7 @@
 
 char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent);
 
-Interval interval(int neg, utf8 lbound, utf8 ubound)
+Interval interval(int neg, const char *lbound, const char *ubound)
 {
     Interval interval = { neg, lbound, ubound };
     return interval;
@@ -23,12 +24,13 @@ Interval interval(int neg, utf8 lbound, utf8 ubound)
 
 char *interval_to_str(Interval *interval)
 {
-    char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s, *q, *r;
+    char  *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s, *q, *r;
 
     if (interval->neg) { *p++ = '^'; }
 
-    q  = utf8_to_char(interval->lbound);
-    r  = utf8_to_char(interval->ubound);
+    q = utf8_to_str(interval->lbound);
+    r = utf8_to_str(interval->ubound);
+
     p += snprintf(p, INTERVAL_MAX_BUF + 1, "(%s, %s)", q, r);
     free(q);
     free(r);
@@ -71,7 +73,7 @@ RegexTree *regex_tree_anchor(RegexKind kind)
     return re_tree;
 }
 
-RegexTree *regex_tree_literal(utf8 ch)
+RegexTree *regex_tree_literal(const char *ch)
 {
     RegexTree *re_tree = malloc(sizeof(RegexTree));
 
@@ -156,7 +158,7 @@ char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent)
 
         case LITERAL:
             ENSURE_SPACE(s, len + 14, alloc, sizeof(char));
-            p    = utf8_to_char(re_tree->ch);
+            p    = utf8_to_str(re_tree->ch);
             len += snprintf(s + len, alloc - len, "Literal(%s)", p);
             free(p);
             break;

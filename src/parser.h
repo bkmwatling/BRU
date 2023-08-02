@@ -11,7 +11,7 @@ typedef struct {
 } ParseState;
 
 typedef struct {
-    const utf8 *regex;
+    const char *regex;
     int         only_counters;
     int         unbounded_counters;
     int         whole_match_capture;
@@ -19,7 +19,7 @@ typedef struct {
 
 ParseState *parse_state(int in_group, int in_lookahead);
 
-Parser    *parser(const utf8 *regex,
+Parser    *parser(const char *regex,
                   int         only_counters,
                   int         unbounded_counters,
                   int         whole_match_capture);

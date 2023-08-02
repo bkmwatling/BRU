@@ -2,7 +2,6 @@
 #define SRVM_H
 
 #include "sre.h"
-#include "utf8.h"
 
 typedef struct inst_s Inst;
 
@@ -45,12 +44,12 @@ struct inst_s {
     InstKind kind;
 
     union {
-        Interval *intervals;
-        Inst    **xs;
-        Lookup   *lookups;
-        Inst     *x;
-        utf8    **k;
-        size_t   *c;
+        Interval    *intervals;
+        Inst       **xs;
+        Lookup      *lookups;
+        Inst        *x;
+        const char **k;
+        size_t      *c;
     };
 
     union {
@@ -77,7 +76,7 @@ typedef struct {
 
 Inst  inst_default(InstKind kind);
 Inst  inst_pred(Interval *intervals, size_t len);
-Inst  inst_save(utf8 **k);
+Inst  inst_save(const char **k);
 Inst  inst_jmp(Inst *x);
 Inst  inst_split(Inst *x, Inst *y);
 Inst  inst_tswitch(Inst **insts, size_t len);
