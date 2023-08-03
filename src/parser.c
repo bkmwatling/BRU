@@ -396,14 +396,15 @@ RegexTree *parse_parens(Parser *p, const char **const regex, ParseState *ps)
 void parse_curly(const char **const regex, uint *min, uint *max)
 {
     const char *ch;
+    int         process_min = TRUE;
 
     *min = 0;
-    while (**regex) {
+    while (**regex && process_min) {
         if (*(ch = (*regex)++) >= '0' && *ch <= '9') {
             *min = *min * 10 + (*ch - '0');
         } else {
             switch (*ch) {
-                case ',': goto max;
+                case ',': process_min = FALSE; break;
 
                 case '}': *max = *min; return;
 
@@ -414,7 +415,6 @@ void parse_curly(const char **const regex, uint *min, uint *max)
         }
     }
 
-max:
     *max = 0;
     while (**regex) {
         if (*(ch = (*regex)++) >= '0' && *ch <= '9') {
