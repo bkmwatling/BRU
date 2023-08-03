@@ -4,6 +4,8 @@
 #include "stddef.h"
 #include "types.h"
 
+/* --- Type definitions ----------------------------------------------------- */
+
 typedef struct regex_tree RegexTree;
 
 typedef struct {
@@ -46,10 +48,14 @@ struct regex_tree {
     uint max;
 };
 
+/* --- Interval function prototypes ----------------------------------------- */
+
 Interval interval(int neg, const char *lbound, const char *ubound);
 
 char *interval_to_str(Interval *interval);
 char *intervals_to_str(Interval *intervals, size_t len);
+
+/* --- RegexTree function prototypes ---------------------------------------- */
 
 RegexTree *regex_tree_anchor(RegexKind kind);
 RegexTree *regex_tree_literal(const char *ch);

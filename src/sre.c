@@ -16,6 +16,8 @@
 
 char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent);
 
+/* --- Interval ------------------------------------------------------------- */
+
 Interval interval(int neg, const char *lbound, const char *ubound)
 {
     Interval interval = { neg, lbound, ubound };
@@ -24,7 +26,7 @@ Interval interval(int neg, const char *lbound, const char *ubound)
 
 char *interval_to_str(Interval *interval)
 {
-    char  *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s, *q, *r;
+    char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s, *q, *r;
 
     if (interval->neg) { *p++ = '^'; }
 
@@ -60,6 +62,8 @@ char *intervals_to_str(Interval *intervals, size_t len)
 
     return s;
 }
+
+/* --- RegexTree ------------------------------------------------------------ */
 
 RegexTree *regex_tree_anchor(RegexKind kind)
 {

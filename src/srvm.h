@@ -3,6 +3,8 @@
 
 #include "sre.h"
 
+/* --- Type definitions ----------------------------------------------------- */
+
 typedef struct inst_s Inst;
 
 typedef enum {
@@ -15,9 +17,9 @@ typedef enum {
 } Order;
 
 typedef struct {
-    Interval *intervals;
-    size_t    len;
-    Inst     *x;
+    Inst    *x;
+    size_t   len;
+    Interval intervals[1];
 } Lookup;
 
 typedef enum {
@@ -44,23 +46,23 @@ struct inst_s {
     InstKind kind;
 
     union {
-        Interval    *intervals;
-        Inst       **xs;
-        Lookup      *lookups;
-        Inst        *x;
-        const char **k;
-        size_t      *c;
+        int   pos;   /* for zero-width assertions */
+        Order order; /* for cmp */
     };
 
     union {
-        size_t len;
-        size_t val;
-        Inst  *y;
+        size_t len; /* for arrays (pred, tswitch, lswitch) */
+        size_t val; /* for setting counter (reset) */
+        Inst  *x;   /* for jumping to another instruction (jmp, split, zwa) */
     };
 
     union {
-        int   pos;
-        Order order;
+        Inst        *y; /* for jumping to another instruction (split, zwa) */
+        const char **k; /* double pointer to update capture info */
+        size_t      *c; /* pointer to memory for counters or checks */
+        Interval     intervals[1]; /* dynamically sized array for predicate */
+        Inst        *xs[1];        /* dynamically sized array for tswitch */
+        Lookup       lookups[1];   /* dynamically sized array for lswitch */
     };
 };
 
@@ -74,22 +76,33 @@ typedef struct {
     size_t  mem_len;
 } Program;
 
-void  inst_default(Inst *inst, InstKind kind);
-void  inst_pred(Inst *inst, Interval *intervals, size_t len);
-void  inst_save(Inst *inst, const char **k);
-void  inst_jmp(Inst *inst, Inst *x);
-void  inst_split(Inst *inst, Inst *x, Inst *y);
-void  inst_tswitch(Inst *inst, Inst **xs, size_t len);
-void  inst_lswitch(Inst *inst, Lookup *lookups, size_t len);
-int   inst_eps(Inst *inst, InstKind kind, size_t *c);
-void  inst_reset(Inst *inst, size_t *c, size_t val);
-void  inst_cmp(Inst *inst, size_t *c, size_t val, Order order);
-void  inst_zwa(Inst *inst, Inst *x, Inst *y, int pos);
-char *inst_to_str(Inst *inst);
-void  inst_free(Inst *inst);
+/* --- Lookup function prototypes ------------------------------------------- */
+
+size_t lookup_next(Lookup **lookup);
+
+/* --- Instruction function prototypes -------------------------------------- */
+
+void inst_default(Inst *inst, InstKind kind);
+void inst_pred(Inst *inst, Interval *intervals, size_t len);
+void inst_save(Inst *inst, const char **k);
+void inst_jmp(Inst *inst, Inst *x);
+void inst_split(Inst *inst, Inst *x, Inst *y);
+void inst_tswitch(Inst *inst, Inst **xs, size_t len);
+void inst_lswitch(Inst *inst, Lookup *lookups, size_t len);
+int  inst_eps(Inst *inst, InstKind kind, size_t *c);
+void inst_reset(Inst *inst, size_t *c, size_t val);
+void inst_cmp(Inst *inst, size_t *c, size_t val, Order order);
+void inst_zwa(Inst *inst, Inst *x, Inst *y, int pos);
+
+size_t inst_next(Inst **inst);
+char  *inst_to_str(Inst *inst);
+void   inst_free(Inst *inst);
+
+/* --- Program function prototypes ------------------------------------------ */
 
 Program *program(void);
-char    *program_to_str(Program *prog);
-void     program_free(Program *prog);
+
+char *program_to_str(Program *prog);
+void  program_free(Program *prog);
 
 #endif /* SRVM_H */
