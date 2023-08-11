@@ -17,9 +17,9 @@ typedef enum {
 } Order;
 
 typedef struct {
-    Inst    *x;
-    size_t   len;
-    Interval intervals[1];
+    Inst     *x;
+    size_t    len;
+    Interval *intervals;
 } Lookup;
 
 typedef enum {
@@ -46,29 +46,29 @@ struct inst_s {
     InstKind kind;
 
     union {
-        int   pos;   /* for zero-width assertions */
-        Order order; /* for cmp */
+        void        *aux; /* pointer to aux array (pred, tswitch, lswitch) */
+        Inst        *x;   /* for jumping to another instruction (split, zwa) */
+        const char **k;   /* double pointer to update capture info */
+        size_t      *c;   /* pointer to memory for counters or checks */
     };
 
     union {
         size_t len; /* for arrays (pred, tswitch, lswitch) */
         size_t val; /* for setting counter (reset) */
-        Inst  *x;   /* for jumping to another instruction (jmp, split, zwa) */
+        Inst  *y;   /* for jumping to another instruction (jmp, split, zwa) */
     };
 
     union {
-        Inst        *y; /* for jumping to another instruction (split, zwa) */
-        const char **k; /* double pointer to update capture info */
-        size_t      *c; /* pointer to memory for counters or checks */
-        Interval     intervals[1]; /* dynamically sized array for predicate */
-        Inst        *xs[1];        /* dynamically sized array for tswitch */
-        Lookup       lookups[1];   /* dynamically sized array for lswitch */
+        int   pos;   /* for zero-width assertions */
+        Order order; /* for cmp */
     };
 };
 
 typedef struct {
     Inst   *insts;
     size_t  insts_len;
+    char   *aux;
+    size_t  aux_len;
     size_t  grp_cnt;
     size_t *counters;
     size_t  counters_len;
