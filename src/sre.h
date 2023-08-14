@@ -6,7 +6,7 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-typedef struct regex_tree RegexTree;
+typedef struct regex_s Regex;
 
 typedef struct {
     int         neg;
@@ -18,7 +18,7 @@ typedef enum {
     CARET,
     DOLLAR,
     LITERAL,
-    CHAR_CLASS,
+    CC,
     ALT,
     CONCAT,
     CAPTURE,
@@ -27,21 +27,21 @@ typedef enum {
     QUES,
     COUNTER,
     LOOKAHEAD
-} RegexKind;
+} RegexType;
 
-struct regex_tree {
-    RegexKind kind;
+struct regex_s {
+    RegexType type;
 
     union {
         const char *ch;
         Interval   *intervals;
-        RegexTree  *child;
+        Regex      *left;
     };
 
     union {
-        int        pos;
-        size_t     cc_len;
-        RegexTree *child_;
+        int    pos;
+        size_t cc_len;
+        Regex *right;
     };
 
     uint min;
@@ -57,14 +57,14 @@ char *intervals_to_str(Interval *intervals, size_t len);
 
 /* --- RegexTree function prototypes ---------------------------------------- */
 
-RegexTree *regex_tree_anchor(RegexKind kind);
-RegexTree *regex_tree_literal(const char *ch);
-RegexTree *regex_tree_cc(Interval *intervals, size_t len);
-RegexTree *regex_tree_branch(RegexKind kind, RegexTree *left, RegexTree *right);
-RegexTree *regex_tree_single_child(RegexKind kind, RegexTree *child, int pos);
-RegexTree *regex_tree_counter(RegexTree *child, int greedy, uint min, uint max);
+Regex *regex_anchor(RegexType kind);
+Regex *regex_literal(const char *ch);
+Regex *regex_cc(Interval *intervals, size_t len);
+Regex *regex_branch(RegexType kind, Regex *left, Regex *right);
+Regex *regex_single_child(RegexType kind, Regex *child, int pos);
+Regex *regex_counter(Regex *child, int greedy, uint min, uint max);
 
-char *regex_tree_to_tree_str(RegexTree *re_tree);
-void  regex_tree_free(RegexTree *re_tree);
+char *regex_to_tree_str(Regex *re);
+void  regex_free(Regex *re);
 
 #endif /* SRE_H */

@@ -10,11 +10,11 @@
 #define BUF              2048
 #define INTERVAL_MAX_BUF 13
 
-#define STR_PUSH(s, len, alloc, str)                             \
-    ENSURE_SPACE(s, len + strlen(str) + 1, alloc, sizeof(char)); \
+#define STR_PUSH(s, len, alloc, str)                               \
+    ENSURE_SPACE(s, (len) + strlen(str) + 1, alloc, sizeof(char)); \
     len += snprintf((s) + (len), (alloc) - (len), (str))
 
-char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent);
+char *regex_to_tree_str_indent(Regex *re, int indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
@@ -65,89 +65,86 @@ char *intervals_to_str(Interval *intervals, size_t len)
 
 /* --- RegexTree ------------------------------------------------------------ */
 
-RegexTree *regex_tree_anchor(RegexKind kind)
+Regex *regex_anchor(RegexType type)
 {
-    RegexTree *re_tree = malloc(sizeof(RegexTree));
+    Regex *re = malloc(sizeof(Regex));
 
-    /* check `kind` to make sure correct node type */
-    assert(kind == CARET || kind == DOLLAR);
+    /* check `type` to make sure correct node type */
+    assert(type == CARET || type == DOLLAR);
 
-    re_tree->kind = kind;
+    re->type = type;
 
-    return re_tree;
+    return re;
 }
 
-RegexTree *regex_tree_literal(const char *ch)
+Regex *regex_literal(const char *ch)
 {
-    RegexTree *re_tree = malloc(sizeof(RegexTree));
+    Regex *re = malloc(sizeof(Regex));
 
-    re_tree->kind = LITERAL;
-    re_tree->ch   = ch;
+    re->type = LITERAL;
+    re->ch   = ch;
 
-    return re_tree;
+    return re;
 }
 
-RegexTree *regex_tree_cc(Interval *intervals, size_t len)
+Regex *regex_cc(Interval *intervals, size_t len)
 {
-    RegexTree *re_tree = malloc(sizeof(RegexTree));
+    Regex *re = malloc(sizeof(Regex));
 
-    re_tree->kind      = CHAR_CLASS;
-    re_tree->intervals = intervals;
-    re_tree->cc_len    = len;
+    re->type      = CC;
+    re->intervals = intervals;
+    re->cc_len    = len;
 
-    return re_tree;
+    return re;
 }
 
-RegexTree *regex_tree_branch(RegexKind kind, RegexTree *left, RegexTree *right)
+Regex *regex_branch(RegexType type, Regex *left, Regex *right)
 {
-    RegexTree *re_tree = malloc(sizeof(RegexTree));
+    Regex *re = malloc(sizeof(Regex));
 
-    /* check `kind` to make sure correct node type */
-    assert(kind == ALT || kind == CONCAT);
+    /* check `type` to make sure correct node type */
+    assert(type == ALT || type == CONCAT);
 
-    re_tree->kind   = kind;
-    re_tree->child  = left;
-    re_tree->child_ = right;
+    re->type  = type;
+    re->left  = left;
+    re->right = right;
 
-    return re_tree;
+    return re;
 }
 
-RegexTree *regex_tree_single_child(RegexKind kind, RegexTree *child, int pos)
+Regex *regex_single_child(RegexType type, Regex *child, int pos)
 {
-    RegexTree *re_tree = malloc(sizeof(RegexTree));
+    Regex *re = malloc(sizeof(Regex));
 
-    /* check `kind` to make sure correct node type */
-    assert(kind == CAPTURE || kind == STAR || kind == PLUS || kind == QUES ||
-           kind == LOOKAHEAD);
+    /* check `type` to make sure correct node type */
+    assert(type == CAPTURE || type == STAR || type == PLUS || type == QUES ||
+           type == LOOKAHEAD);
 
-    re_tree->kind  = kind;
-    re_tree->child = child;
-    re_tree->pos   = pos;
+    re->type = type;
+    re->left = child;
+    re->pos  = pos;
 
-    return re_tree;
+    return re;
 }
 
-RegexTree *regex_tree_counter(RegexTree *child, int greedy, uint min, uint max)
+Regex *regex_counter(Regex *child, int greedy, uint min, uint max)
 {
-    RegexTree *re_tree = malloc(sizeof(RegexTree));
+    Regex *re = malloc(sizeof(Regex));
 
-    re_tree->kind  = COUNTER;
-    re_tree->child = child;
-    re_tree->pos   = greedy;
-    re_tree->min   = min;
-    re_tree->max   = max;
+    re->type = COUNTER;
+    re->left = child;
+    re->pos  = greedy;
+    re->min  = min;
+    re->max  = max;
 
-    return re_tree;
+    return re;
 }
 
-char *regex_tree_to_tree_str(RegexTree *re_tree)
-{
-    return regex_tree_to_tree_str_indent(re_tree, 0);
-}
+char *regex_to_tree_str(Regex *re) { return regex_to_tree_str_indent(re, 0); }
 
-char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent)
+char *regex_to_tree_str_indent(Regex *re, int indent)
 {
-    if (re_tree == NULL) { return NULL; }
+    if (re == NULL) { return NULL; }
 
     size_t len = 0, alloc = BUF;
     char  *s = malloc(alloc * sizeof(char)), *p;
@@ -155,20 +152,20 @@ char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent)
     ENSURE_SPACE(s, len + indent + 1, alloc, sizeof(char));
     len += snprintf(s + len, alloc - len, "%*s", indent, "");
 
-    switch (re_tree->kind) {
+    switch (re->type) {
         case CARET: STR_PUSH(s, len, alloc, "Caret"); break;
 
         case DOLLAR: STR_PUSH(s, len, alloc, "Dollar"); break;
 
         case LITERAL:
             ENSURE_SPACE(s, len + 14, alloc, sizeof(char));
-            p    = utf8_to_str(re_tree->ch);
+            p    = utf8_to_str(re->ch);
             len += snprintf(s + len, alloc - len, "Literal(%s)", p);
             free(p);
             break;
 
-        case CHAR_CLASS:
-            p = intervals_to_str(re_tree->intervals, re_tree->cc_len);
+        case CC:
+            p = intervals_to_str(re->intervals, re->cc_len);
             ENSURE_SPACE(s, len + 12 + strlen(p), alloc, sizeof(char));
             len += snprintf(s + len, alloc - len, "CharClass(%s)", p);
             free(p);
@@ -176,11 +173,10 @@ char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent)
 
         case ALT: STR_PUSH(s, len, alloc, "Alternation");
         case CONCAT:
-            if (re_tree->kind == CONCAT) {
+            if (re->type == CONCAT) {
                 STR_PUSH(s, len, alloc, "Concatenation");
             }
-            if ((p = regex_tree_to_tree_str_indent(re_tree->child,
-                                                   indent + 2))) {
+            if ((p = regex_to_tree_str_indent(re->left, indent + 2))) {
                 ENSURE_SPACE(s, len + indent + strlen(p) + 7, alloc,
                              sizeof(char));
                 len += snprintf(s + len, alloc - len, "\n%*sleft:\n%s", indent,
@@ -188,8 +184,7 @@ char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent)
                 free(p);
             }
 
-            if ((p = regex_tree_to_tree_str_indent(re_tree->child_,
-                                                   indent + 2))) {
+            if ((p = regex_to_tree_str_indent(re->right, indent + 2))) {
                 ENSURE_SPACE(s, len + indent + strlen(p) + 8, alloc,
                              sizeof(char));
                 len += snprintf(s + len, alloc - len, "\n%*sright:\n%s", indent,
@@ -201,39 +196,37 @@ char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent)
         /* TODO: make prettier */
         case CAPTURE: STR_PUSH(s, len, alloc, "Capture");
         case STAR:
-            if (re_tree->kind == STAR) {
+            if (re->type == STAR) {
                 ENSURE_SPACE(s, len + 9, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Star(%d)", re_tree->pos);
+                len += snprintf(s + len, alloc - len, "Star(%d)", re->pos);
             }
         case PLUS:
-            if (re_tree->kind == PLUS) {
+            if (re->type == PLUS) {
                 ENSURE_SPACE(s, len + 9, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Plus(%d)", re_tree->pos);
+                len += snprintf(s + len, alloc - len, "Plus(%d)", re->pos);
             }
         case QUES:
-            if (re_tree->kind == QUES) {
+            if (re->type == QUES) {
                 ENSURE_SPACE(s, len + 9, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Ques(%d)", re_tree->pos);
+                len += snprintf(s + len, alloc - len, "Ques(%d)", re->pos);
             }
         case COUNTER:
-            if (re_tree->kind == COUNTER) {
+            if (re->type == COUNTER) {
                 ENSURE_SPACE(s, len + 55, alloc, sizeof(char));
                 len += snprintf(s + len, alloc - len, "Counter(%d, %u, ",
-                                re_tree->pos, re_tree->min);
-                if (re_tree->max == UINT_MAX) {
+                                re->pos, re->min);
+                if (re->max == UINT_MAX) {
                     len += snprintf(s + len, alloc - len, "inf)");
                 } else {
-                    len += snprintf(s + len, alloc - len, "%u)", re_tree->max);
+                    len += snprintf(s + len, alloc - len, "%u)", re->max);
                 }
             }
         case LOOKAHEAD:
-            if (re_tree->kind == LOOKAHEAD) {
+            if (re->type == LOOKAHEAD) {
                 ENSURE_SPACE(s, len + 14, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Lookahead(%d)",
-                                re_tree->pos);
+                len += snprintf(s + len, alloc - len, "Lookahead(%d)", re->pos);
             }
-            if ((p = regex_tree_to_tree_str_indent(re_tree->child,
-                                                   indent + 2))) {
+            if ((p = regex_to_tree_str_indent(re->left, indent + 2))) {
                 ENSURE_SPACE(s, len + indent + strlen(p) + 7, alloc,
                              sizeof(char));
                 len += snprintf(s + len, alloc - len, "\n%*sbody:\n%s", indent,
@@ -246,19 +239,19 @@ char *regex_tree_to_tree_str_indent(RegexTree *re_tree, int indent)
     return s;
 }
 
-void regex_tree_free(RegexTree *re_tree)
+void regex_free(Regex *re)
 {
-    switch (re_tree->kind) {
+    switch (re->type) {
         case CARET:
         case DOLLAR:
         case LITERAL: break;
 
-        case CHAR_CLASS: free(re_tree->intervals); break;
+        case CC: free(re->intervals); break;
 
         case ALT:
         case CONCAT:
-            regex_tree_free(re_tree->child);
-            regex_tree_free(re_tree->child_);
+            regex_free(re->left);
+            regex_free(re->right);
             break;
 
         case CAPTURE:
@@ -266,8 +259,8 @@ void regex_tree_free(RegexTree *re_tree)
         case PLUS:
         case QUES:
         case COUNTER:
-        case LOOKAHEAD: regex_tree_free(re_tree->child); break;
+        case LOOKAHEAD: regex_free(re->left); break;
     }
 
-    free(re_tree);
+    free(re);
 }

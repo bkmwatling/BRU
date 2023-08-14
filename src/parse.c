@@ -16,15 +16,15 @@ int main(int argc, char **argv)
 
     regex = malloc((strlen(argv[1]) + 1) * sizeof(char));
     strcpy(regex, argv[1]);
-    Parser    *p           = parser(regex, 0, 0, 0);
-    RegexTree *re_tree     = parse(p);
-    char      *re_tree_str = regex_tree_to_tree_str(re_tree);
+    Parser *p       = parser(regex, 0, 0, 0);
+    Regex  *re      = parse(p);
+    char   *re_tree = regex_to_tree_str(re);
 
-    printf("%s\n", re_tree_str);
+    printf("%s\n", re_tree);
 
     parser_free(p);
-    regex_tree_free(re_tree);
-    free(re_tree_str);
+    regex_free(re);
+    free(re_tree);
 
     return EXIT_SUCCESS;
 }

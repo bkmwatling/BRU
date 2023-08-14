@@ -19,11 +19,11 @@ typedef struct {
 
 ParseState *parse_state(int in_group, int in_lookahead);
 
-Parser    *parser(const char *regex,
-                  int         only_counters,
-                  int         unbounded_counters,
-                  int         whole_match_capture);
-void       parser_free(Parser *p);
-RegexTree *parse(Parser *p);
+Parser *parser(const char *regex,
+               int         only_counters,
+               int         unbounded_counters,
+               int         whole_match_capture);
+void    parser_free(Parser *p);
+Regex  *parse(Parser *p);
 
 #endif /* PARSER_H */

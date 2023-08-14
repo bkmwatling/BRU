@@ -40,10 +40,10 @@ typedef enum {
     CMP,
     INC,
     ZWA,
-} InstType;
+} Bytecode;
 
 struct inst_s {
-    InstType type;
+    Bytecode bytecode;
 
     union {
         Interval    *intervals; /* pointer to interval array (pred) */
@@ -80,14 +80,14 @@ typedef struct {
 
 /* --- Instruction function prototypes -------------------------------------- */
 
-void inst_default(Inst *inst, InstType type);
+void inst_default(Inst *inst, Bytecode type);
 void inst_pred(Inst *inst, Interval *intervals, size_t len);
 void inst_save(Inst *inst, const char **k);
 void inst_jmp(Inst *inst, Inst *x);
 void inst_split(Inst *inst, Inst *x, Inst *y);
 void inst_tswitch(Inst *inst, Inst **xs, size_t len);
 void inst_lswitch(Inst *inst, Lookup *lookups, size_t len);
-int  inst_eps(Inst *inst, InstType type, size_t *c);
+int  inst_eps(Inst *inst, Bytecode type, size_t *c);
 void inst_reset(Inst *inst, size_t *c, size_t val);
 void inst_cmp(Inst *inst, size_t *c, size_t val, Order order);
 void inst_zwa(Inst *inst, Inst *x, Inst *y, int pos);

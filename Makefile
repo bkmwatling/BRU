@@ -6,7 +6,7 @@ RM = rm -f
 
 PARSE = parse
 COMPILE = compile
-SRVM = srvm
+MATCH = match
 
 SRC = src
 OBJ = obj
@@ -14,15 +14,15 @@ BIN = bin
 
 SRCS = $(wildcard $(SRC)/*.c)
 OBJS = $(patsubst $(SRC)/%.c,$(OBJ)/%.o,$(filter-out $(BIN_SRCS),$(SRCS)))
-BINS = $(BIN)/$(PARSE) $(BIN)/$(COMPILE) $(BIN)/$(SRVM)
+BINS = $(BIN)/$(PARSE) $(BIN)/$(COMPILE) $(BIN)/$(MATCH)
 BIN_SRCS = $(BINS:$(BIN)/%=$(SRC)/%.c)
 
-PARSE_OBJS = $(filter-out $(OBJ)/compiler.o,$(OBJS))
+PARSE_OBJS = $(filter-out $(OBJ)/compiler.o $(OBJ)/srvm.o,$(OBJS))
 
 
-all: $(PARSE) $(COMPILE) $(SRVM)
+all: $(PARSE) $(COMPILE) $(MATCH)
 
-$(SRVM): $(OBJS) | $(BIN)
+$(MATCH): $(OBJS) | $(BIN)
 	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(OBJS)
 
 $(COMPILE): $(OBJS) | $(BIN)
