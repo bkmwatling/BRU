@@ -51,7 +51,8 @@ struct inst_s {
         Lookup      *lookups;   /* pointer to lookup array (lswitch) */
         Inst        *x; /* for jumping to an instruction (jmp, split, zwa) */
         const char **k; /* double pointer to update capture info */
-        size_t      *c; /* pointer to memory for counters or checks */
+        cntr_t      *c; /* pointer to memory for counters */
+        size_t      *n; /* pointer to memory for checks */
     };
 
     union {
@@ -72,7 +73,7 @@ typedef struct {
     char   *aux;
     size_t  aux_len;
     size_t  grp_cnt;
-    size_t *counters;
+    cntr_t *counters;
     size_t  counters_len;
     size_t *memory;
     size_t  mem_len;
@@ -80,16 +81,16 @@ typedef struct {
 
 /* --- Instruction function prototypes -------------------------------------- */
 
-void inst_default(Inst *inst, Bytecode type);
+void inst_default(Inst *inst, Bytecode bytecode);
 void inst_pred(Inst *inst, Interval *intervals, size_t len);
 void inst_save(Inst *inst, const char **k);
 void inst_jmp(Inst *inst, Inst *x);
 void inst_split(Inst *inst, Inst *x, Inst *y);
 void inst_tswitch(Inst *inst, Inst **xs, size_t len);
 void inst_lswitch(Inst *inst, Lookup *lookups, size_t len);
-int  inst_eps(Inst *inst, Bytecode type, size_t *c);
-void inst_reset(Inst *inst, size_t *c, size_t val);
-void inst_cmp(Inst *inst, size_t *c, size_t val, Order order);
+int  inst_eps(Inst *inst, Bytecode bytecode, size_t *n);
+void inst_reset(Inst *inst, cntr_t *c, cntr_t val);
+void inst_cmp(Inst *inst, cntr_t *c, cntr_t val, Order order);
 void inst_zwa(Inst *inst, Inst *x, Inst *y, int pos);
 
 char *inst_to_str(Inst *inst);

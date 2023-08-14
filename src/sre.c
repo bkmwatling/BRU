@@ -63,7 +63,7 @@ char *intervals_to_str(Interval *intervals, size_t len)
     return s;
 }
 
-/* --- RegexTree ------------------------------------------------------------ */
+/* --- Regex ---------------------------------------------------------------- */
 
 Regex *regex_anchor(RegexType type)
 {
@@ -127,7 +127,7 @@ Regex *regex_single_child(RegexType type, Regex *child, int pos)
     return re;
 }
 
-Regex *regex_counter(Regex *child, int greedy, uint min, uint max)
+Regex *regex_counter(Regex *child, int greedy, cntr_t min, cntr_t max)
 {
     Regex *re = malloc(sizeof(Regex));
 
@@ -213,12 +213,13 @@ char *regex_to_tree_str_indent(Regex *re, int indent)
         case COUNTER:
             if (re->type == COUNTER) {
                 ENSURE_SPACE(s, len + 55, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Counter(%d, %u, ",
-                                re->pos, re->min);
+                len += snprintf(s + len, alloc - len,
+                                "Counter(%d, " CNTR_FMT ", ", re->pos, re->min);
                 if (re->max == UINT_MAX) {
                     len += snprintf(s + len, alloc - len, "inf)");
                 } else {
-                    len += snprintf(s + len, alloc - len, "%u)", re->max);
+                    len +=
+                        snprintf(s + len, alloc - len, CNTR_FMT ")", re->max);
                 }
             }
         case LOOKAHEAD:

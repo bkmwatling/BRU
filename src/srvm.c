@@ -48,24 +48,24 @@ void inst_lswitch(Inst *inst, Lookup *lookups, size_t len)
     memcpy(inst->lookups, lookups, len * sizeof(Lookup));
 }
 
-int inst_eps(Inst *inst, Bytecode bytecode, size_t *c)
+int inst_eps(Inst *inst, Bytecode bytecode, size_t *n)
 {
     if (bytecode < EPSSET || bytecode > EPSSET) { return FALSE; }
 
     inst->bytecode = bytecode;
-    inst->c        = c;
+    inst->n        = n;
 
     return TRUE;
 }
 
-void inst_reset(Inst *inst, size_t *c, size_t val)
+void inst_reset(Inst *inst, cntr_t *c, cntr_t val)
 {
     inst->bytecode = RESET;
     inst->c        = c;
     inst->val      = val;
 }
 
-void inst_cmp(Inst *inst, size_t *c, size_t val, Order order)
+void inst_cmp(Inst *inst, cntr_t *c, cntr_t val, Order order)
 {
     inst->bytecode = CMP;
     inst->c        = c;
