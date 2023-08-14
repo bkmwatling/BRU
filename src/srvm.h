@@ -40,22 +40,24 @@ typedef enum {
     CMP,
     INC,
     ZWA,
-} InstKind;
+} InstType;
 
 struct inst_s {
-    InstKind kind;
+    InstType type;
 
     union {
-        void        *aux; /* pointer to aux array (pred, tswitch, lswitch) */
-        Inst        *x;   /* for jumping to another instruction (split, zwa) */
-        const char **k;   /* double pointer to update capture info */
-        size_t      *c;   /* pointer to memory for counters or checks */
+        Interval    *intervals; /* pointer to interval array (pred) */
+        Inst       **xs;        /* pointer to inst pointer array (tswitch) */
+        Lookup      *lookups;   /* pointer to lookup array (lswitch) */
+        Inst        *x; /* for jumping to an instruction (jmp, split, zwa) */
+        const char **k; /* double pointer to update capture info */
+        size_t      *c; /* pointer to memory for counters or checks */
     };
 
     union {
         size_t len; /* for arrays (pred, tswitch, lswitch) */
         size_t val; /* for setting counter (reset) */
-        Inst  *y;   /* for jumping to another instruction (jmp, split, zwa) */
+        Inst  *y;   /* for jumping to another instruction (split, zwa) */
     };
 
     union {
@@ -76,27 +78,22 @@ typedef struct {
     size_t  mem_len;
 } Program;
 
-/* --- Lookup function prototypes ------------------------------------------- */
-
-size_t lookup_next(Lookup **lookup);
-
 /* --- Instruction function prototypes -------------------------------------- */
 
-void inst_default(Inst *inst, InstKind kind);
+void inst_default(Inst *inst, InstType type);
 void inst_pred(Inst *inst, Interval *intervals, size_t len);
 void inst_save(Inst *inst, const char **k);
 void inst_jmp(Inst *inst, Inst *x);
 void inst_split(Inst *inst, Inst *x, Inst *y);
 void inst_tswitch(Inst *inst, Inst **xs, size_t len);
 void inst_lswitch(Inst *inst, Lookup *lookups, size_t len);
-int  inst_eps(Inst *inst, InstKind kind, size_t *c);
+int  inst_eps(Inst *inst, InstType type, size_t *c);
 void inst_reset(Inst *inst, size_t *c, size_t val);
 void inst_cmp(Inst *inst, size_t *c, size_t val, Order order);
 void inst_zwa(Inst *inst, Inst *x, Inst *y, int pos);
 
-size_t inst_next(Inst **inst);
-char  *inst_to_str(Inst *inst);
-void   inst_free(Inst *inst);
+char *inst_to_str(Inst *inst);
+void  inst_free(Inst *inst);
 
 /* --- Program function prototypes ------------------------------------------ */
 
