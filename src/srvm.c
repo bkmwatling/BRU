@@ -13,8 +13,6 @@ char *inst_to_str(byte *pc)
     return s;
 }
 
-void inst_free(byte *pc) {}
-
 /* --- Program -------------------------------------------------------------- */
 
 Program *program(len_t insts_size,
@@ -42,11 +40,20 @@ Program *program(len_t insts_size,
     return prog;
 }
 
-char *program_to_str(Program *prog)
+char *program_to_str(const Program *prog)
 {
-    char *s = NULL;
+    char *s = malloc(5 * sizeof(char));
+
+    strcpy(s, "prog");
 
     return s;
 }
 
-void program_free(Program *prog) {}
+void program_free(Program *prog)
+{
+    free(prog->insts);
+    free(prog->aux);
+    free(prog->counters);
+    free(prog->memory);
+    free(prog);
+}

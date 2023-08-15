@@ -1,7 +1,33 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-int main(void)
+#include "compiler.h"
+#include "parser.h"
+#include "srvm.h"
+
+int main(int argc, char **argv)
 {
-    printf("compile\n");
-    return 0;
+    char     *regex, *prog_str;
+    Compiler *c;
+    Program  *prog;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <regex>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    regex = malloc((strlen(argv[1]) + 1) * sizeof(char));
+    strcpy(regex, argv[1]);
+    c = compiler(parser(regex, FALSE, FALSE, FALSE), THOMPSON, FALSE, SC_SPLIT);
+    prog     = compile(c);
+    prog_str = program_to_str(prog);
+
+    printf("%s\n", prog_str);
+
+    compiler_free(c);
+    program_free(prog);
+    free(prog_str);
+
+    return EXIT_SUCCESS;
 }

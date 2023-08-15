@@ -15,34 +15,32 @@
 #define MATCH   1
 #define BEGIN   2
 #define END     3
-#define PRED    4
-#define SAVE    5
-#define JMP     6
-#define SPLIT   7
-#define GSPLIT  8
-#define LSPLIT  9
-#define TSWITCH 10
-#define LSWITCH 11
-#define EPSSET  12
-#define EPSCHK  13
-#define RESET   14
-#define CMP     15
-#define INC     16
-#define ZWA     17
+#define CHAR    4
+#define PRED    5
+#define SAVE    6
+#define JMP     7
+#define SPLIT   8
+#define GSPLIT  9
+#define LSPLIT  10
+#define TSWITCH 11
+#define LSWITCH 12
+#define EPSSET  13
+#define EPSCHK  14
+#define RESET   15
+#define CMP     16
+#define INC     17
+#define ZWA     18
 
-typedef struct inst_s Inst;
-
-typedef enum {
-    LT, /* less than */
-    LE, /* less than or equal */
-    EQ, /* equal */
-    NE, /* not equal */
-    GE, /* greater than or equal */
-    GT, /* greater than */
-} Order;
+/* Order for cmp */
+#define LT 1
+#define LE 2
+#define EQ 3
+#define NE 4
+#define GE 5
+#define GT 6
 
 typedef struct {
-    Inst     *x;
+    byte     *x;
     len_t     len;
     Interval *intervals;
 } Lookup;
@@ -62,7 +60,6 @@ typedef struct {
 /* --- Instruction function prototypes -------------------------------------- */
 
 char *inst_to_str(byte *pc);
-void  inst_free(byte *pc);
 
 /* --- Program function prototypes ------------------------------------------ */
 
@@ -72,7 +69,7 @@ Program *program(len_t insts_size,
                  len_t counters_len,
                  len_t mem_len);
 
-char *program_to_str(Program *prog);
+char *program_to_str(const Program *prog);
 void  program_free(Program *prog);
 
 #endif /* SRVM_H */

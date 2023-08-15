@@ -24,6 +24,6 @@ Parser *parser(const char *regex,
                int         unbounded_counters,
                int         whole_match_capture);
 void    parser_free(Parser *p);
-Regex  *parse(Parser *p);
+Regex  *parse(const Parser *p);
 
 #endif /* PARSER_H */

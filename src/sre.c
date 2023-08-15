@@ -87,7 +87,7 @@ Regex *regex_literal(const char *ch)
     return re;
 }
 
-Regex *regex_cc(Interval *intervals, size_t len)
+Regex *regex_cc(Interval *intervals, len_t len)
 {
     Regex *re = malloc(sizeof(Regex));
 
@@ -112,7 +112,7 @@ Regex *regex_branch(RegexType type, Regex *left, Regex *right)
     return re;
 }
 
-Regex *regex_single_child(RegexType type, Regex *child, int pos)
+Regex *regex_single_child(RegexType type, Regex *child, byte pos)
 {
     Regex *re = malloc(sizeof(Regex));
 
@@ -127,7 +127,7 @@ Regex *regex_single_child(RegexType type, Regex *child, int pos)
     return re;
 }
 
-Regex *regex_counter(Regex *child, int greedy, cntr_t min, cntr_t max)
+Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max)
 {
     Regex *re = malloc(sizeof(Regex));
 
