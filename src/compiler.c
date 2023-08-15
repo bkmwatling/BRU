@@ -43,8 +43,8 @@ size_t count(Regex *re, size_t *aux_size)
             n += count(re->left, aux_size);
             break;
         case COUNTER:
-            n = 9 * sizeof(char) + 5 * sizeof(Inst *) + 6 * sizeof(size_t *) +
-                3 * sizeof(cntr_t);
+            n = 9 * sizeof(char) + 5 * sizeof(Inst *) + 2 * sizeof(size_t *) +
+                4 * sizeof(cntr_t *) + 3 * sizeof(cntr_t) + 2 * sizeof(Order);
             n += count(re->left, aux_size);
             break;
         case LOOKAHEAD:
@@ -56,8 +56,23 @@ size_t count(Regex *re, size_t *aux_size)
     return n;
 }
 
-Inst *emit(Regex *re, Inst *pc) { return pc; }
+char *emit(Regex *re, char *pc, Program *prog) { return pc; }
 
-Program *compile(Compiler *compiler) { return NULL; }
+Program *compile(Compiler *compiler)
+{
+    size_t   insts_size, aux_size = 0;
+    Program *prog;
+    Regex   *re;
+
+    re         = parse(compiler->parser);
+    insts_size = count(re, &aux_size);
+
+    prog = program(insts_size, aux_size);
+    emit(re, prog->insts, prog);
+
+    regex_free(re);
+
+    return NULL;
+}
 
 void compiler_free(Compiler *compiler) { free(compiler->parser); }

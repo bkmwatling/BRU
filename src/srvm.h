@@ -68,7 +68,7 @@ struct inst_s {
 };
 
 typedef struct {
-    Inst   *insts;
+    char   *insts;
     size_t  insts_len;
     char   *aux;
     size_t  aux_len;
@@ -98,7 +98,7 @@ void  inst_free(Inst *inst);
 
 /* --- Program function prototypes ------------------------------------------ */
 
-Program *program(void);
+Program *program(size_t insts_size, size_t aux_size);
 
 char *program_to_str(Program *prog);
 void  program_free(Program *prog);

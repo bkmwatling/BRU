@@ -92,9 +92,14 @@ void inst_free(Inst *inst) {}
 
 /* --- Program -------------------------------------------------------------- */
 
-Program *program(void)
+Program *program(size_t insts_size, size_t aux_size)
 {
     Program *prog = malloc(sizeof(Program));
+
+    prog->insts     = malloc(insts_size);
+    prog->insts_len = insts_size;
+    prog->aux       = malloc(aux_size);
+    prog->aux_len   = aux_size;
 
     return prog;
 }
