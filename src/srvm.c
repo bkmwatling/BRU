@@ -6,93 +6,22 @@
 
 /* --- Instruction ---------------------------------------------------------- */
 
-void inst_default(Inst *inst, Bytecode bytecode) { inst->bytecode = bytecode; }
-
-void inst_pred(Inst *inst, Interval *intervals, size_t len)
-{
-    inst->bytecode = PRED;
-    inst->len      = len;
-    memcpy(inst->intervals, intervals, len * sizeof(Interval));
-}
-
-void inst_save(Inst *inst, const char **k)
-{
-    inst->bytecode = SAVE;
-    inst->k        = k;
-}
-
-void inst_jmp(Inst *inst, Inst *x)
-{
-    inst->bytecode = JMP;
-    inst->x        = x;
-}
-
-void inst_split(Inst *inst, Inst *x, Inst *y)
-{
-    inst->bytecode = SPLIT;
-    inst->x        = x;
-    inst->y        = y;
-}
-
-void inst_tswitch(Inst *inst, Inst **xs, size_t len)
-{
-    inst->bytecode = TSWITCH;
-    inst->len      = len;
-    memcpy(inst->xs, xs, len * sizeof(Inst));
-}
-
-void inst_lswitch(Inst *inst, Lookup *lookups, size_t len)
-{
-    inst->bytecode = LSWITCH;
-    inst->len      = len;
-    memcpy(inst->lookups, lookups, len * sizeof(Lookup));
-}
-
-int inst_eps(Inst *inst, Bytecode bytecode, size_t *n)
-{
-    if (bytecode < EPSSET || bytecode > EPSSET) { return FALSE; }
-
-    inst->bytecode = bytecode;
-    inst->n        = n;
-
-    return TRUE;
-}
-
-void inst_reset(Inst *inst, cntr_t *c, cntr_t val)
-{
-    inst->bytecode = RESET;
-    inst->c        = c;
-    inst->val      = val;
-}
-
-void inst_cmp(Inst *inst, cntr_t *c, cntr_t val, Order order)
-{
-    inst->bytecode = CMP;
-    inst->c        = c;
-    inst->val      = val;
-    inst->order    = order;
-}
-
-void inst_zwa(Inst *inst, Inst *x, Inst *y, int pos)
-{
-    inst->bytecode = ZWA;
-    inst->x        = x;
-    inst->y        = y;
-    inst->pos      = pos;
-}
-
-char *inst_to_str(Inst *inst)
+char *inst_to_str(byte *pc)
 {
     char *s = NULL;
 
     return s;
 }
 
-void inst_free(Inst *inst) {}
+void inst_free(byte *pc) {}
 
 /* --- Program -------------------------------------------------------------- */
 
-Program *program(size_t insts_size, size_t aux_size)
+Program *program(len_t insts_size,
+                 len_t aux_size,
+                 len_t grp_cnt,
+                 len_t counters_len,
+                 len_t mem_len)
 {
     Program *prog = malloc(sizeof(Program));
 
@@ -100,6 +29,15 @@ Program *program(size_t insts_size, size_t aux_size)
     prog->insts_len = insts_size;
     prog->aux       = malloc(aux_size);
     prog->aux_len   = aux_size;
+    prog->grp_cnt   = grp_cnt;
+
+    prog->counters     = malloc(counters_len * sizeof(cntr_t));
+    prog->counters_len = counters_len;
+    prog->memory       = malloc(mem_len * sizeof(size_t));
+    prog->mem_len      = mem_len;
+
+    memset(prog->counters, 0, counters_len * sizeof(cntr_t));
+    memset(prog->memory, 0, mem_len * sizeof(cntr_t));
 
     return prog;
 }

@@ -3,7 +3,32 @@
 
 #include "sre.h"
 
+// #define MEMSET(pc, type, val) *((*((type **) &(pc)))++) = (val)
+#define MEMSET(pc, type, val)  \
+    *((type *) (pc))  = (val); \
+    (pc)             += sizeof(type);
+
 /* --- Type definitions ----------------------------------------------------- */
+
+/* Bytecodes */
+#define NOOP    0
+#define MATCH   1
+#define BEGIN   2
+#define END     3
+#define PRED    4
+#define SAVE    5
+#define JMP     6
+#define SPLIT   7
+#define GSPLIT  8
+#define LSPLIT  9
+#define TSWITCH 10
+#define LSWITCH 11
+#define EPSSET  12
+#define EPSCHK  13
+#define RESET   14
+#define CMP     15
+#define INC     16
+#define ZWA     17
 
 typedef struct inst_s Inst;
 
@@ -18,87 +43,34 @@ typedef enum {
 
 typedef struct {
     Inst     *x;
-    size_t    len;
+    len_t     len;
     Interval *intervals;
 } Lookup;
 
-typedef enum {
-    MATCH,
-    BEGIN,
-    END,
-    PRED,
-    SAVE,
-    JMP,
-    SPLIT,
-    GSPLIT,
-    LSPLIT,
-    TSWITCH,
-    LSWITCH,
-    EPSSET,
-    EPSCHK,
-    RESET,
-    CMP,
-    INC,
-    ZWA,
-} Bytecode;
-
-struct inst_s {
-    Bytecode bytecode;
-
-    union {
-        Interval    *intervals; /* pointer to interval array (pred) */
-        Inst       **xs;        /* pointer to inst pointer array (tswitch) */
-        Lookup      *lookups;   /* pointer to lookup array (lswitch) */
-        Inst        *x; /* for jumping to an instruction (jmp, split, zwa) */
-        const char **k; /* double pointer to update capture info */
-        cntr_t      *c; /* pointer to memory for counters */
-        size_t      *n; /* pointer to memory for checks */
-    };
-
-    union {
-        size_t len; /* for arrays (pred, tswitch, lswitch) */
-        size_t val; /* for setting counter (reset) */
-        Inst  *y;   /* for jumping to another instruction (split, zwa) */
-    };
-
-    union {
-        int   pos;   /* for zero-width assertions */
-        Order order; /* for cmp */
-    };
-};
-
 typedef struct {
-    char   *insts;
-    size_t  insts_len;
-    char   *aux;
-    size_t  aux_len;
-    size_t  grp_cnt;
+    byte   *insts;
+    len_t   insts_len;
+    byte   *aux;
+    len_t   aux_len;
+    len_t   grp_cnt;
     cntr_t *counters;
-    size_t  counters_len;
-    size_t *memory;
-    size_t  mem_len;
+    len_t   counters_len;
+    mem_t  *memory;
+    len_t   mem_len;
 } Program;
 
 /* --- Instruction function prototypes -------------------------------------- */
 
-void inst_default(Inst *inst, Bytecode bytecode);
-void inst_pred(Inst *inst, Interval *intervals, size_t len);
-void inst_save(Inst *inst, const char **k);
-void inst_jmp(Inst *inst, Inst *x);
-void inst_split(Inst *inst, Inst *x, Inst *y);
-void inst_tswitch(Inst *inst, Inst **xs, size_t len);
-void inst_lswitch(Inst *inst, Lookup *lookups, size_t len);
-int  inst_eps(Inst *inst, Bytecode bytecode, size_t *n);
-void inst_reset(Inst *inst, cntr_t *c, cntr_t val);
-void inst_cmp(Inst *inst, cntr_t *c, cntr_t val, Order order);
-void inst_zwa(Inst *inst, Inst *x, Inst *y, int pos);
-
-char *inst_to_str(Inst *inst);
-void  inst_free(Inst *inst);
+char *inst_to_str(byte *pc);
+void  inst_free(byte *pc);
 
 /* --- Program function prototypes ------------------------------------------ */
 
-Program *program(size_t insts_size, size_t aux_size);
+Program *program(len_t insts_size,
+                 len_t aux_size,
+                 len_t grp_cnt,
+                 len_t counters_len,
+                 len_t mem_len);
 
 char *program_to_str(Program *prog);
 void  program_free(Program *prog);

@@ -6,7 +6,10 @@
 #define UINT_MAX ((uint) ~0)
 #define CNTR_FMT "%u"
 
-typedef unsigned int uint;
-typedef uint         cntr_t;
+typedef char           byte;
+typedef unsigned int   uint;
+typedef unsigned short len_t;
+typedef uint           cntr_t;
+typedef unsigned short mem_t;
 
 #endif /* TYPES_H */
