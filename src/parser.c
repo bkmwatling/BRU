@@ -119,12 +119,12 @@ Regex *parse_concat(const Parser *p, const char **const regex, ParseState *ps)
         switch (*(*regex)++) {
             case '*':
                 min = 0;
-                max = UINT_MAX;
+                max = CNTR_MAX;
                 break;
 
             case '+':
                 min = 1;
-                max = UINT_MAX;
+                max = CNTR_MAX;
                 break;
 
             case '?':
@@ -154,13 +154,13 @@ Regex *parse_concat(const Parser *p, const char **const regex, ParseState *ps)
                 if (p->only_counters) {
                     subtree = regex_counter(subtree, greedy, min, max);
                 } else {
-                    if (min == 0 && max == UINT_MAX) {
+                    if (min == 0 && max == CNTR_MAX) {
                         subtree = regex_single_child(STAR, subtree, greedy);
-                    } else if (min == 1 && max == UINT_MAX) {
+                    } else if (min == 1 && max == CNTR_MAX) {
                         subtree = regex_single_child(PLUS, subtree, greedy);
                     } else if (min == 0 && max == 1) {
                         subtree = regex_single_child(QUES, subtree, greedy);
-                    } else if (p->unbounded_counters || max < UINT_MAX) {
+                    } else if (p->unbounded_counters || max < CNTR_MAX) {
                         subtree = regex_counter(subtree, greedy, min, max);
                     } else {
                         subtree = regex_branch(

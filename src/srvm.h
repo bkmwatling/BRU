@@ -3,10 +3,14 @@
 
 #include "sre.h"
 
-// #define MEMSET(pc, type, val) *((*((type **) &(pc)))++) = (val)
-#define MEMSET(pc, type, val)  \
+// #define MEMPUSH(pc, type, val) *((*((type **) &(pc)))++) = (val)
+#define MEMPUSH(pc, type, val) \
     *((type *) (pc))  = (val); \
     (pc)             += sizeof(type);
+
+#define MEMPOP(dst, pc, type)  \
+    (dst)  = *((type *) (pc)); \
+    (pc)  += sizeof(type);
 
 /* --- Type definitions ----------------------------------------------------- */
 
@@ -56,10 +60,6 @@ typedef struct {
     mem_t  *memory;
     len_t   mem_len;
 } Program;
-
-/* --- Instruction function prototypes -------------------------------------- */
-
-char *inst_to_str(byte *pc);
 
 /* --- Program function prototypes ------------------------------------------ */
 

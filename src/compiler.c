@@ -139,16 +139,16 @@ byte *emit(Regex *re, byte *pc, Program *prog)
         /* `char` `ch` */
         case LITERAL:
             *pc++ = CHAR;
-            MEMSET(pc, const char *, re->ch);
+            MEMPUSH(pc, const char *, re->ch);
             break;
 
         /* `pred` l p */
         case CC:
             *pc++ = PRED;
-            MEMSET(pc, len_t, re->cc_len);
+            MEMPUSH(pc, len_t, re->cc_len);
             memcpy(prog->aux + prog->aux_len, re->intervals,
                    re->cc_len * sizeof(Interval));
-            MEMSET(pc, len_t, prog->aux_len);
+            MEMPUSH(pc, len_t, prog->aux_len);
             prog->aux_len += re->cc_len * sizeof(Interval);
             break;
 
@@ -185,10 +185,10 @@ byte *emit(Regex *re, byte *pc, Program *prog)
         case CAPTURE:
             *pc++ = SAVE;
             k     = prog->grp_cnt++;
-            MEMSET(pc, len_t, 2 * k);
+            MEMPUSH(pc, len_t, 2 * k);
             pc    = emit(re, pc, prog);
             *pc++ = SAVE;
-            MEMSET(pc, len_t, 2 * k + 1);
+            MEMPUSH(pc, len_t, 2 * k + 1);
             break;
 
         /*     `split` L1, L3              -- L3, L1 if non-greedy *
@@ -208,7 +208,7 @@ byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++           = EPSSET;
             k               = prog->mem_len++;
             prog->memory[k] = 0;
-            MEMSET(pc, len_t, k);
+            MEMPUSH(pc, len_t, k);
             pc = emit(re->left, pc, prog);
 
             *pc++ = SPLIT;
@@ -217,9 +217,9 @@ byte *emit(Regex *re, byte *pc, Program *prog)
 
             *r    = pc - (byte *) r;
             *pc++ = EPSCHK;
-            MEMSET(pc, len_t, k);
+            MEMPUSH(pc, len_t, k);
             *pc++ = JMP;
-            MEMSET(pc, offset_t, (byte *) p - pc);
+            MEMPUSH(pc, offset_t, (byte *) p - pc);
 
             *q = pc - (byte *) q;
             *t = pc - (byte *) t;
@@ -236,7 +236,7 @@ byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++           = EPSSET;
             k               = prog->mem_len++;
             prog->memory[k] = 0;
-            MEMSET(pc, len_t, k);
+            MEMPUSH(pc, len_t, k);
             pc = emit(re->left, pc, prog);
 
             *pc++ = SPLIT;
@@ -245,9 +245,9 @@ byte *emit(Regex *re, byte *pc, Program *prog)
 
             *p    = pc - (byte *) p;
             *pc++ = EPSCHK;
-            MEMSET(pc, len_t, k);
+            MEMPUSH(pc, len_t, k);
             *pc++ = JMP;
-            MEMSET(pc, offset_t, (byte *) r - pc);
+            MEMPUSH(pc, offset_t, (byte *) r - pc);
 
             *q = pc - (byte *) q;
             break;
@@ -278,8 +278,8 @@ byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++             = RESET;
             c                 = prog->counters_len++;
             prog->counters[c] = 0;
-            MEMSET(pc, len_t, c);
-            MEMSET(pc, cntr_t, 0);
+            MEMPUSH(pc, len_t, c);
+            MEMPUSH(pc, cntr_t, 0);
 
             *pc++ = SPLIT;
             SPLIT_LABELS_PTRS(p, q, re, pc);
@@ -288,17 +288,17 @@ byte *emit(Regex *re, byte *pc, Program *prog)
 
             p     = (offset_t *) pc;
             *pc++ = CMP;
-            MEMSET(pc, len_t, c);
-            MEMSET(pc, cntr_t, re->max);
+            MEMPUSH(pc, len_t, c);
+            MEMPUSH(pc, cntr_t, re->max);
             *pc++ = LE;
 
             *pc++           = EPSSET;
             k               = prog->mem_len++;
             prog->memory[k] = 0;
-            MEMSET(pc, len_t, k);
+            MEMPUSH(pc, len_t, k);
             pc    = emit(re->left, pc, prog);
             *pc++ = INC;
-            MEMSET(pc, len_t, c);
+            MEMPUSH(pc, len_t, c);
 
             *pc++ = SPLIT;
             SPLIT_LABELS_PTRS(r, t, re, pc);
@@ -306,15 +306,15 @@ byte *emit(Regex *re, byte *pc, Program *prog)
             *r  = pc - (byte *) r;
 
             *pc++ = EPSCHK;
-            MEMSET(pc, len_t, k);
+            MEMPUSH(pc, len_t, k);
             *pc++ = JMP;
-            MEMSET(pc, offset_t, (byte *) p - pc);
+            MEMPUSH(pc, offset_t, (byte *) p - pc);
 
             *q    = pc - (byte *) q;
             *t    = pc - (byte *) t;
             *pc++ = CMP;
-            MEMSET(pc, len_t, c);
-            MEMSET(pc, cntr_t, re->min);
+            MEMPUSH(pc, len_t, c);
+            MEMPUSH(pc, cntr_t, re->min);
             *pc++ = GE;
             break;
 

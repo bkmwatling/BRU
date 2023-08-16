@@ -7,14 +7,14 @@
 #include "utf8.h"
 #include "utils.h"
 
-#define BUF              2048
+#define BUF              512
 #define INTERVAL_MAX_BUF 13
 
-#define STR_PUSH(s, len, alloc, str)                               \
-    ENSURE_SPACE(s, (len) + strlen(str) + 1, alloc, sizeof(char)); \
-    len += snprintf((s) + (len), (alloc) - (len), (str))
-
-char *regex_to_tree_str_indent(Regex *re, int indent);
+void regex_to_tree_str_indent(char   *s,
+                              size_t *len,
+                              size_t *alloc,
+                              Regex  *re,
+                              int     indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
@@ -140,104 +140,103 @@ Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max)
     return re;
 }
 
-char *regex_to_tree_str(Regex *re) { return regex_to_tree_str_indent(re, 0); }
-
-char *regex_to_tree_str_indent(Regex *re, int indent)
+char *regex_to_tree_str(Regex *re)
 {
-    if (re == NULL) { return NULL; }
-
     size_t len = 0, alloc = BUF;
-    char  *s = malloc(alloc * sizeof(char)), *p;
 
-    ENSURE_SPACE(s, len + indent + 1, alloc, sizeof(char));
-    len += snprintf(s + len, alloc - len, "%*s", indent, "");
+    char *s = malloc(alloc * sizeof(char));
+    regex_to_tree_str_indent(s, &len, &alloc, re, 0);
+    return s;
+}
+
+void regex_to_tree_str_indent(char   *s,
+                              size_t *len,
+                              size_t *alloc,
+                              Regex  *re,
+                              int     indent)
+{
+    char *p;
+
+    if (re == NULL) { return; }
+
+    ENSURE_SPACE(s, *len + indent + 1, *alloc, sizeof(char));
+    *len += snprintf(s + *len, *alloc - *len, "%*s", indent, "");
 
     switch (re->type) {
-        case CARET: STR_PUSH(s, len, alloc, "Caret"); break;
+        case CARET: STR_PUSH(s, *len, *alloc, "Caret"); break;
 
-        case DOLLAR: STR_PUSH(s, len, alloc, "Dollar"); break;
+        case DOLLAR: STR_PUSH(s, *len, *alloc, "Dollar"); break;
 
         case LITERAL:
-            ENSURE_SPACE(s, len + 14, alloc, sizeof(char));
-            p    = utf8_to_str(re->ch);
-            len += snprintf(s + len, alloc - len, "Literal(%s)", p);
+            ENSURE_SPACE(s, *len + 14, *alloc, sizeof(char));
+            p     = utf8_to_str(re->ch);
+            *len += snprintf(s + *len, *alloc - *len, "Literal(%s)", p);
             free(p);
             break;
 
         case CC:
             p = intervals_to_str(re->intervals, re->cc_len);
-            ENSURE_SPACE(s, len + 12 + strlen(p), alloc, sizeof(char));
-            len += snprintf(s + len, alloc - len, "CharClass(%s)", p);
+            ENSURE_SPACE(s, *len + 12 + strlen(p), *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len, "CharClass(%s)", p);
             free(p);
             break;
 
-        case ALT: STR_PUSH(s, len, alloc, "Alternation");
+        case ALT: STR_PUSH(s, *len, *alloc, "Alternation");
         case CONCAT:
             if (re->type == CONCAT) {
-                STR_PUSH(s, len, alloc, "Concatenation");
+                STR_PUSH(s, *len, *alloc, "Concatenation");
             }
-            if ((p = regex_to_tree_str_indent(re->left, indent + 2))) {
-                ENSURE_SPACE(s, len + indent + strlen(p) + 7, alloc,
-                             sizeof(char));
-                len += snprintf(s + len, alloc - len, "\n%*sleft:\n%s", indent,
-                                "", p);
-                free(p);
+            if (re->left) {
+                ENSURE_SPACE(s, *len + indent + 7, *alloc, sizeof(char));
+                *len += snprintf(s + *len, *alloc - *len, "\n%*sleft:\n",
+                                 indent, "");
+                regex_to_tree_str_indent(s, len, alloc, re->left, indent + 2);
             }
 
-            if ((p = regex_to_tree_str_indent(re->right, indent + 2))) {
-                ENSURE_SPACE(s, len + indent + strlen(p) + 8, alloc,
-                             sizeof(char));
-                len += snprintf(s + len, alloc - len, "\n%*sright:\n%s", indent,
-                                "", p);
-                free(p);
+            if (re->right) {
+                ENSURE_SPACE(s, *len + indent + 8, *alloc, sizeof(char));
+                *len += snprintf(s + *len, *alloc - *len, "\n%*sright:\n",
+                                 indent, "");
+                regex_to_tree_str_indent(s, len, alloc, re->right, indent + 2);
             }
             break;
 
-        /* TODO: make prettier */
-        case CAPTURE: STR_PUSH(s, len, alloc, "Capture");
+        case CAPTURE: STR_PUSH(s, *len, *alloc, "Capture"); goto body;
         case STAR:
-            if (re->type == STAR) {
-                ENSURE_SPACE(s, len + 9, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Star(%d)", re->pos);
-            }
+            ENSURE_SPACE(s, *len + 9, *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len, "Star(%d)", re->pos);
+            goto body;
         case PLUS:
-            if (re->type == PLUS) {
-                ENSURE_SPACE(s, len + 9, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Plus(%d)", re->pos);
-            }
+            ENSURE_SPACE(s, *len + 9, *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len, "Plus(%d)", re->pos);
+            goto body;
         case QUES:
-            if (re->type == QUES) {
-                ENSURE_SPACE(s, len + 9, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Ques(%d)", re->pos);
-            }
+            ENSURE_SPACE(s, *len + 9, *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len, "Ques(%d)", re->pos);
+            goto body;
         case COUNTER:
-            if (re->type == COUNTER) {
-                ENSURE_SPACE(s, len + 55, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len,
-                                "Counter(%d, " CNTR_FMT ", ", re->pos, re->min);
-                if (re->max == UINT_MAX) {
-                    len += snprintf(s + len, alloc - len, "inf)");
-                } else {
-                    len +=
-                        snprintf(s + len, alloc - len, CNTR_FMT ")", re->max);
-                }
+            ENSURE_SPACE(s, *len + 55, *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len,
+                             "Counter(%d, " CNTR_FMT ", ", re->pos, re->min);
+            if (re->max == CNTR_MAX) {
+                *len += snprintf(s + *len, *alloc - *len, "inf)");
+            } else {
+                *len +=
+                    snprintf(s + *len, *alloc - *len, CNTR_FMT ")", re->max);
             }
+            goto body;
         case LOOKAHEAD:
-            if (re->type == LOOKAHEAD) {
-                ENSURE_SPACE(s, len + 14, alloc, sizeof(char));
-                len += snprintf(s + len, alloc - len, "Lookahead(%d)", re->pos);
-            }
-            if ((p = regex_to_tree_str_indent(re->left, indent + 2))) {
-                ENSURE_SPACE(s, len + indent + strlen(p) + 7, alloc,
-                             sizeof(char));
-                len += snprintf(s + len, alloc - len, "\n%*sbody:\n%s", indent,
-                                "", p);
-                free(p);
+            ENSURE_SPACE(s, *len + 14, *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len, "Lookahead(%d)", re->pos);
+        body:
+            if (re->left) {
+                ENSURE_SPACE(s, *len + indent + 7, *alloc, sizeof(char));
+                *len += snprintf(s + *len, *alloc - *len, "\n%*sbody:\n",
+                                 indent, "");
+                regex_to_tree_str_indent(s, len, alloc, re->left, indent + 2);
             }
             break;
     }
-
-    return s;
 }
 
 void regex_free(Regex *re)
