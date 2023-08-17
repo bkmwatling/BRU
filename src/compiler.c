@@ -47,6 +47,7 @@ Program *compile(const Compiler *compiler)
     prog       = program(insts_size, aux_size, grp_cnt, counters_len, mem_len);
 
     /* set the length fields to 0 as we use them for indices during emitting */
+    prog->grp_cnt      = 0;
     prog->aux_len      = 0;
     prog->counters_len = 0;
     prog->mem_len      = 0;
@@ -186,7 +187,7 @@ byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++ = SAVE;
             k     = prog->grp_cnt++;
             MEMPUSH(pc, len_t, 2 * k);
-            pc    = emit(re, pc, prog);
+            pc    = emit(re->left, pc, prog);
             *pc++ = SAVE;
             MEMPUSH(pc, len_t, 2 * k + 1);
             break;
