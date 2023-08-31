@@ -1,46 +1,62 @@
-CC = clang
-CFLAGS = -pedantic -Wall -Wextra
-DFLAGS = # -DDEBUG
-FLAGS = $(CFLAGS) $(DFLAGS)
-RM = rm -f
+##
+# Symbolic Regular Expression with counters Virtual Machine
+#
+# @author Brendan Watling
+# @file match.c
+# @version 0.1
 
-PARSE = parse
-COMPILE = compile
-MATCH = match
+# compiler flags
+DEBUG       := -ggdb
+OPTIMISE    := -O0
+WARNINGS    := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings -pedantic
+CFLAGS      := $(DEBUG) $(OPTIMISE) $(WARNINGS)
+DFLAGS      := # -DDEBUG
 
-SRC = src
-OBJ = obj
-BIN = bin
+# commands
+CC          := clang
+RM          := rm -f
+COMPILE     := $(CC) $(CFLAGS) $(DFLAGS)
 
-SRCS = $(wildcard $(SRC)/*.c)
-OBJS = $(patsubst $(SRC)/%.c,$(OBJ)/%.o,$(filter-out $(BIN_SRCS),$(SRCS)))
-BINS = $(BIN)/$(PARSE) $(BIN)/$(COMPILE) $(BIN)/$(MATCH)
-BIN_SRCS = $(BINS:$(BIN)/%=$(SRC)/%.c)
+# directories
+SRCDIR      := src
+BINDIR      := bin
 
-PARSE_OBJS = $(filter-out $(OBJ)/compiler.o $(OBJ)/srvm.o,$(OBJS))
+# files
+PARSE_EXE   := parse
+COMPILE_EXE := compile
+MATCH_EXE   := match
+EXES        := $(PARSE_EXE) $(COMPILE_EXE) $(MATCH_EXE)
 
+SRCS        := $(filter-out $(EXES:%=$(SRCDIR)/%.c), $(wildcard $(SRCDIR)/*.c))
+OBJS        := $(SRCS:.c=.o)
+PARSE_OBJS  := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJS))
 
-all: $(PARSE) $(COMPILE) $(MATCH)
+### RULES ######################################################################
 
-$(MATCH): $(OBJS) | $(BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(OBJS)
+# executables
 
-$(COMPILE): $(OBJS) | $(BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(OBJS)
+$(MATCH_EXE): $(OBJS) | $(BINDIR)
+	$(COMPILE) -o $(BINDIR)/$@ $(SRCDIR)/$@.c $(OBJS)
 
-$(PARSE): $(PARSE_OBJS) | $(BIN)
-	$(CC) $(FLAGS) -o $(BIN)/$@ $(SRC)/$@.c $(PARSE_OBJS)
+$(COMPILE_EXE): $(OBJS) | $(BINDIR)
+	$(COMPILE) -o $(BINDIR)/$@ $(SRCDIR)/$@.c $(OBJS)
 
-$(OBJ)/%.o: $(SRC)/%.c | $(OBJ)
-	$(CC) $(FLAGS) -c -o $@ $<
+$(PARSE_EXE): $(PARSE_OBJS) | $(BINDIR)
+	$(COMPILE) -o $(BINDIR)/$@ $(SRCDIR)/$@.c $(PARSE_OBJS)
 
+# units
 
-$(BIN):
-	mkdir -p $(BIN)
+%.o: %.c
+	$(COMPILE) -c -o $@ $<
 
-$(OBJ):
-	mkdir -p $(OBJ)
+# BINDIR
 
+$(BINDIR):
+	mkdir -p $(BINDIR)
+
+### PHONY TARGETS ##############################################################
+
+all: $(EXES)
 
 clean: cleanobj cleanbin
 
@@ -48,6 +64,8 @@ cleanobj:
 	$(RM) $(OBJS)
 
 cleanbin:
-	$(RM) $(BINS)
+	$(RM) $(addprefix $(BINDIR)/, $(EXES))
 
 .PHONY: all $(SRVM) $(COMPILE) $(PARSE) clean cleanobj cleanbin
+
+# end
