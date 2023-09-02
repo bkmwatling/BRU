@@ -22,12 +22,17 @@ SRCDIR      := src
 BINDIR      := bin
 
 # files
-PARSE_EXE   := parse
-COMPILE_EXE := compile
 MATCH_EXE   := match
-EXES        := $(PARSE_EXE) $(COMPILE_EXE) $(MATCH_EXE)
+COMPILE_EXE := compile
+PARSE_EXE   := parse
+EXES        := $(MATCH_EXE) $(COMPILE_EXE) $(PARSE_EXE)
 
-SRCS        := $(filter-out $(EXES:%=$(SRCDIR)/%.c), $(wildcard $(SRCDIR)/*.c))
+MATCH_SRC   := $(SRCDIR)/$(MATCH_EXE).c
+COMPILE_SRC := $(SRCDIR)/$(COMPILE_EXE).c
+PARSE_SRC   := $(SRCDIR)/$(PARSE_EXE).c
+EXE_SRCS    := $(MATCH_SRC) $(COMPILE_SRC) $(PARSE_SRC)
+
+SRCS        := $(filter-out $(EXE_SRCS), $(wildcard $(SRCDIR)/*.c))
 OBJS        := $(SRCS:.c=.o)
 PARSE_OBJS  := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJS))
 
@@ -35,14 +40,14 @@ PARSE_OBJS  := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJS))
 
 # executables
 
-$(MATCH_EXE): $(OBJS) | $(BINDIR)
-	$(COMPILE) -o $(BINDIR)/$@ $(SRCDIR)/$@.c $(OBJS)
+$(MATCH_EXE): $(MATCH_SRC) $(OBJS) | $(BINDIR)
+	$(COMPILE) -o $(BINDIR)/$@ $^
 
-$(COMPILE_EXE): $(OBJS) | $(BINDIR)
-	$(COMPILE) -o $(BINDIR)/$@ $(SRCDIR)/$@.c $(OBJS)
+$(COMPILE_EXE): $(COMPILE_SRC) $(OBJS) | $(BINDIR)
+	$(COMPILE) -o $(BINDIR)/$@ $^
 
-$(PARSE_EXE): $(PARSE_OBJS) | $(BINDIR)
-	$(COMPILE) -o $(BINDIR)/$@ $(SRCDIR)/$@.c $(PARSE_OBJS)
+$(PARSE_EXE): $(PARSE_SRC) $(PARSE_OBJS) | $(BINDIR)
+	$(COMPILE) -o $(BINDIR)/$@ $^
 
 # units
 
@@ -66,6 +71,6 @@ cleanobj:
 cleanbin:
 	$(RM) $(addprefix $(BINDIR)/, $(EXES))
 
-.PHONY: all $(SRVM) $(COMPILE) $(PARSE) clean cleanobj cleanbin
+.PHONY: all clean cleanobj cleanbin
 
 # end
