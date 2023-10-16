@@ -28,7 +28,7 @@ char *interval_to_str(Interval *interval)
 {
     char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s, *q, *r;
 
-    if (interval->neg) { *p++ = '^'; }
+    if (interval->neg) *p++ = '^';
 
     q = utf8_to_str(interval->lbound);
     r = utf8_to_str(interval->ubound);
@@ -71,7 +71,6 @@ Regex *regex_anchor(RegexType type)
 
     /* check `type` to make sure correct node type */
     assert(type == CARET || type == DOLLAR);
-
     re->type = type;
 
     return re;
@@ -104,7 +103,6 @@ Regex *regex_branch(RegexType type, Regex *left, Regex *right)
 
     /* check `type` to make sure correct node type */
     assert(type == ALT || type == CONCAT);
-
     re->type  = type;
     re->left  = left;
     re->right = right;
@@ -119,7 +117,6 @@ Regex *regex_single_child(RegexType type, Regex *child, byte pos)
     /* check `type` to make sure correct node type */
     assert(type == CAPTURE || type == STAR || type == PLUS || type == QUES ||
            type == LOOKAHEAD);
-
     re->type = type;
     re->left = child;
     re->pos  = pos;
@@ -157,7 +154,7 @@ void regex_to_tree_str_indent(char   *s,
 {
     char *p;
 
-    if (re == NULL) { return; }
+    if (re == NULL) return;
 
     ENSURE_SPACE(s, *len + indent + 1, *alloc, sizeof(char));
     *len += snprintf(s + *len, *alloc - *len, "%*s", indent, "");
@@ -183,9 +180,7 @@ void regex_to_tree_str_indent(char   *s,
 
         case ALT: STR_PUSH(s, *len, *alloc, "Alternation");
         case CONCAT:
-            if (re->type == CONCAT) {
-                STR_PUSH(s, *len, *alloc, "Concatenation");
-            }
+            if (re->type == CONCAT) STR_PUSH(s, *len, *alloc, "Concatenation");
             if (re->left) {
                 ENSURE_SPACE(s, *len + indent + 7, *alloc, sizeof(char));
                 *len += snprintf(s + *len, *alloc - *len, "\n%*sleft:\n",

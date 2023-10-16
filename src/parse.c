@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 
     regex = malloc((strlen(argv[1]) + 1) * sizeof(char));
     strcpy(regex, argv[1]);
-    p       = parser(regex, FALSE, FALSE, FALSE);
+    p       = parser_new(regex, NULL);
     re      = parse(p);
     re_tree = regex_to_tree_str(re);
 

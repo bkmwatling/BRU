@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 
     regex = malloc((strlen(argv[1]) + 1) * sizeof(char));
     strcpy(regex, argv[1]);
-    c = compiler(parser(regex, FALSE, FALSE, FALSE), THOMPSON, FALSE, SC_SPLIT);
+    c        = compiler_new(parser_new(regex, NULL), NULL);
     prog     = compile(c);
     prog_str = program_to_str(prog);
 

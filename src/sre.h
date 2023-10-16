@@ -7,7 +7,7 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-typedef struct regex_s Regex;
+typedef struct regex Regex;
 
 typedef struct {
     int         neg;
@@ -30,7 +30,7 @@ typedef enum {
     LOOKAHEAD
 } RegexType;
 
-struct regex_s {
+struct regex {
     RegexType type;
 
     union {

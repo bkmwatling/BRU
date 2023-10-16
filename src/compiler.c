@@ -5,27 +5,24 @@
 #include "compiler.h"
 #include "sre.h"
 
+#define COMPILER_OPTS_DEFAULT ((CompilerOpts){ THOMPSON, FALSE, SC_SPLIT })
+
 #define SPLIT_LABELS_PTRS(p, q, re, pc)                              \
     (p) = (offset_t *) ((re)->pos ? (pc) : (pc) + sizeof(offset_t)); \
     (q) = (offset_t *) ((re)->pos ? (pc) + sizeof(offset_t) : (pc))
 
-len_t count(Regex *re,
-            len_t *aux_size,
-            len_t *grp_cnt,
-            len_t *counters_len,
-            len_t *mem_len);
-byte *emit(Regex *re, byte *pc, Program *prog);
+static len_t count(Regex *re,
+                   len_t *aux_size,
+                   len_t *grp_cnt,
+                   len_t *counters_len,
+                   len_t *mem_len);
+static byte *emit(Regex *re, byte *pc, Program *prog);
 
-Compiler *compiler(const Parser *p,
-                   Construction  construction,
-                   int           only_std_split,
-                   SplitChoice   branch)
+Compiler *compiler_new(const Parser *parser, CompilerOpts *opts)
 {
-    Compiler *compiler       = malloc(sizeof(Compiler));
-    compiler->parser         = p;
-    compiler->construction   = construction;
-    compiler->only_std_split = only_std_split;
-    compiler->branch         = branch;
+    Compiler *compiler = malloc(sizeof(Compiler));
+    compiler->parser   = parser;
+    compiler->opts     = opts ? *opts : COMPILER_OPTS_DEFAULT;
     return compiler;
 }
 
@@ -58,11 +55,11 @@ Program *compile(const Compiler *compiler)
     return prog;
 }
 
-len_t count(Regex *re,
-            len_t *aux_size,
-            len_t *grp_cnt,
-            len_t *counters_len,
-            len_t *mem_len)
+static len_t count(Regex *re,
+                   len_t *aux_size,
+                   len_t *grp_cnt,
+                   len_t *counters_len,
+                   len_t *mem_len)
 {
     len_t n = 0;
 
@@ -128,7 +125,7 @@ len_t count(Regex *re,
     return n;
 }
 
-byte *emit(Regex *re, byte *pc, Program *prog)
+static byte *emit(Regex *re, byte *pc, Program *prog)
 {
     len_t     c, k;
     offset_t *p, *q, *r, *t;
@@ -137,7 +134,7 @@ byte *emit(Regex *re, byte *pc, Program *prog)
         case CARET: *pc++ = BEGIN; break;
         case DOLLAR: *pc++ = END; break;
 
-        /* `char` `ch` */
+        /* `char` ch */
         case LITERAL:
             *pc++ = CHAR;
             MEMPUSH(pc, const char *, re->ch);

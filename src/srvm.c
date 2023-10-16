@@ -18,7 +18,7 @@ byte *inst_to_str(char *s, size_t *len, size_t *alloc, byte *pc, byte *aux)
     offset_t x, y;
     len_t    i, n;
 
-    if (pc == NULL) { return NULL; }
+    if (pc == NULL) return NULL;
 
     switch (*pc++) {
         case MATCH: STR_PUSH(s, *len, *alloc, "match"); break;

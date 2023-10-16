@@ -59,7 +59,7 @@ char *utf8_to_str(const char *s)
 
 int utf8cmp(const char *a, const char *b, size_t alen, size_t blen)
 {
-    if (alen != blen) { return alen - blen; }
+    if (alen != blen) return alen - blen;
 
     return strncmp(a, b, alen);
 }

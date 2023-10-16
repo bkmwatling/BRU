@@ -16,16 +16,17 @@ typedef enum {
 } SplitChoice;
 
 typedef struct {
+    Construction construction;
+    int          only_std_split;
+    SplitChoice  branch;
+} CompilerOpts;
+
+typedef struct {
     const Parser *parser;
-    Construction  construction;
-    int           only_std_split;
-    SplitChoice   branch;
+    CompilerOpts  opts;
 } Compiler;
 
-Compiler *compiler(const Parser *p,
-                   Construction  construction,
-                   int           only_std_split,
-                   SplitChoice   branch);
+Compiler *compiler_new(const Parser *parser, CompilerOpts *opts);
 void      compiler_free(Compiler *compiler);
 Program  *compile(const Compiler *compiler);
 
