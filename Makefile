@@ -8,7 +8,8 @@
 # compiler flags
 DEBUG       := -ggdb
 OPTIMISE    := -O0
-WARNINGS    := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings -pedantic
+WARNINGS    := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings \
+               -pedantic
 CFLAGS      := $(DEBUG) $(OPTIMISE) $(WARNINGS)
 DFLAGS      := # -DDEBUG
 
@@ -25,28 +26,29 @@ BINDIR      := bin
 MATCH_EXE   := match
 COMPILE_EXE := compile
 PARSE_EXE   := parse
-EXES        := $(MATCH_EXE) $(COMPILE_EXE) $(PARSE_EXE)
+EXE         := $(MATCH_EXE) $(COMPILE_EXE) $(PARSE_EXE)
 
 MATCH_SRC   := $(SRCDIR)/$(MATCH_EXE).c
 COMPILE_SRC := $(SRCDIR)/$(COMPILE_EXE).c
 PARSE_SRC   := $(SRCDIR)/$(PARSE_EXE).c
-EXE_SRCS    := $(MATCH_SRC) $(COMPILE_SRC) $(PARSE_SRC)
+EXE_SRC     := $(MATCH_SRC) $(COMPILE_SRC) $(PARSE_SRC)
 
-SRCS        := $(filter-out $(EXE_SRCS), $(wildcard $(SRCDIR)/*.c))
-OBJS        := $(SRCS:.c=.o)
-PARSE_OBJS  := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJS))
+SRC         := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
+               $(SRCDIR)/stc/util/args.c
+OBJ         := $(SRC:.c=.o)
+PARSE_OBJ   := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJ))
 
 ### RULES ######################################################################
 
 # executables
 
-$(MATCH_EXE): $(MATCH_SRC) $(OBJS) | $(BINDIR)
+$(MATCH_EXE): $(MATCH_SRC) $(OBJ) | $(BINDIR)
 	$(COMPILE) -o $(BINDIR)/$@ $^
 
-$(COMPILE_EXE): $(COMPILE_SRC) $(OBJS) | $(BINDIR)
+$(COMPILE_EXE): $(COMPILE_SRC) $(OBJ) | $(BINDIR)
 	$(COMPILE) -o $(BINDIR)/$@ $^
 
-$(PARSE_EXE): $(PARSE_SRC) $(PARSE_OBJS) | $(BINDIR)
+$(PARSE_EXE): $(PARSE_SRC) $(PARSE_OBJ) | $(BINDIR)
 	$(COMPILE) -o $(BINDIR)/$@ $^
 
 # units
@@ -61,15 +63,15 @@ $(BINDIR):
 
 ### PHONY TARGETS ##############################################################
 
-all: $(EXES)
+all: $(EXE)
 
 clean: cleanobj cleanbin
 
 cleanobj:
-	$(RM) $(OBJS)
+	$(RM) $(OBJ)
 
 cleanbin:
-	$(RM) $(addprefix $(BINDIR)/, $(EXES))
+	$(RM) $(addprefix $(BINDIR)/, $(EXE))
 
 .PHONY: all clean cleanobj cleanbin
 
