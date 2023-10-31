@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define STC_UTF_ENABLE_SHORT_NAMES
+#include "stc/util/utf.h"
+
 #include "parser.h"
 #include "sre.h"
-#include "utf8.h"
 #include "utils.h"
 
 #define EOS "Reached end-of-string before completing regex!"
@@ -46,15 +48,16 @@ static Interval *dot(void)
 Parser *parser_new(const char *regex, ParserOpts *opts)
 {
     Parser *p = malloc(sizeof(Parser));
-    p->regex  = regex;
-    p->opts   = opts ? *opts : PARSER_OPTS_DEFAULT;
+    p->regex  = malloc((strlen(regex) + 1) * sizeof(char));
+    strcpy((char *) p->regex, regex);
+    p->opts = opts ? *opts : PARSER_OPTS_DEFAULT;
     return p;
 }
 
 void parser_free(Parser *p)
 {
     free((void *) p->regex);
-    free((void *) p);
+    free(p);
 }
 
 Regex *parse(const Parser *p)
@@ -110,7 +113,7 @@ parse_concat(const Parser *p, const char **const regex, ParseState *ps)
                 if (*ch == ')' && ps->in_group) {
                     return tree;
                 } else {
-                    *regex  += utf8_num_bytes(ch);
+                    *regex  += utf8_nbytes(ch);
                     subtree  = parse_terminal(ch, regex);
                 }
         }
@@ -207,8 +210,9 @@ static Regex *parse_cc(const char **const regex)
         intervals[cc_len++] = interval(neg, "]", "]");
     }
 
-    while (**regex) {
-        switch (*(ch = (*regex)++)) {
+    while (*(ch = *regex)) {
+        *regex = utf8_str_next(*regex);
+        switch (*ch) {
             case '-':
                 PUSH(intervals, cc_len, cc_alloc, interval(neg, "-", "-"));
                 break;
@@ -220,8 +224,6 @@ static Regex *parse_cc(const char **const regex)
             case ']': return regex_cc(intervals, cc_len);
 
             default:
-                --*regex;
-                *regex += utf8_num_bytes(ch);
                 if (**regex == '-' && (*regex)[1]) {
                     switch (*(++*regex)) {
                         case '\\':
@@ -244,7 +246,7 @@ static Regex *parse_cc(const char **const regex)
                         default:
                             PUSH(intervals, cc_len, cc_alloc,
                                  interval(neg, ch, *regex));
-                            *regex += utf8_num_bytes(*regex);
+                            *regex += utf8_nbytes(*regex);
                     }
                 } else if (**regex) {
                     PUSH(intervals, cc_len, cc_alloc, interval(neg, ch, ch));
@@ -284,7 +286,9 @@ static Interval *parse_predefined_cc(const char **const regex,
             intervals = malloc(*cc_alloc * sizeof(Interval));
         }
 
-        switch (*(ch = (*regex)++)) {
+        ch     = *regex;
+        *regex = utf8_str_next(*regex);
+        switch (*ch) {
             case 'd':
             case 'D':
                 PUSH(intervals, *cc_len, *cc_alloc,
@@ -331,10 +335,7 @@ static Interval *parse_predefined_cc(const char **const regex,
                 PUSH(intervals, *cc_len, *cc_alloc, interval(neg, "0", "9"));
                 break;
 
-            default:
-                --*regex;
-                *regex += utf8_num_bytes(ch);
-                PUSH(intervals, *cc_len, *cc_alloc, interval(neg, ch, ch));
+            default: PUSH(intervals, *cc_len, *cc_alloc, interval(neg, ch, ch));
         }
 
         if (cc_len_null) free(cc_len);

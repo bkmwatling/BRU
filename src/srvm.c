@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define STC_UTF_ENABLE_SHORT_NAMES
+#include "stc/util/utf.h"
+
 #include "srvm.h"
 #include "types.h"
-#include "utf8.h"
 #include "utils.h"
 
-#define BUF 512
+#define BUFSIZE 512
 
 /* --- Instruction ---------------------------------------------------------- */
 
@@ -170,7 +172,7 @@ Program *program(len_t insts_size,
 
 char *program_to_str(const Program *prog)
 {
-    size_t len = 0, alloc = BUF;
+    size_t len = 0, alloc = BUFSIZE;
     char  *s  = malloc(alloc * sizeof(char));
     len_t  i  = 0;
     byte  *pc = prog->insts;

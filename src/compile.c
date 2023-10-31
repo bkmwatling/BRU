@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "stc/util/args.h"
+
 #include "compiler.h"
 #include "parser.h"
 #include "srvm.h"
-#include "stc/util/args.h"
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -74,14 +75,12 @@ int main(int argc, const char **argv)
                 "split | tswitch | lswitch",
                 "which type of branching to use for control flow", "split",
                 convert_branch },
-        { STC_ARG_STR, "<regex>", NULL, &prog_str, NULL,
+        { STC_ARG_STR, "<regex>", NULL, &regex, NULL,
                 "the regex to compile to SRVM instructions", NULL, NULL }
     };
 
     stc_args_parse_exact(argc, argv, args, ARR_LEN(args), NULL);
 
-    regex = malloc((strlen(prog_str) + 1) * sizeof(char));
-    strcpy(regex, prog_str);
     c        = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
     prog     = compile(c);
     prog_str = program_to_str(prog);

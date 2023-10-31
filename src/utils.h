@@ -15,6 +15,7 @@
 
 #define STR_PUSH(s, len, alloc, str)                           \
     ENSURE_SPACE(s, (len) + sizeof(str), alloc, sizeof(char)); \
-    (len) += snprintf((s) + (len), (alloc) - (len), (str))
+    strncpy((s) + (len), (str), (alloc) - (len));              \
+    (len) += sizeof(str) - 1
 
 #endif /* UTILS_H */

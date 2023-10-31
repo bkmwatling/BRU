@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "parser.h"
 #include "stc/util/args.h"
-#include "utf8.h"
+
+#include "parser.h"
 
 int main(int argc, const char **argv)
 {
@@ -27,7 +27,7 @@ int main(int argc, const char **argv)
             STC_ARG_STR,
             "<regex>",
             NULL,
-            &re_tree,
+            &regex,
             NULL,
             "the regex to parse",
             NULL,
@@ -37,8 +37,6 @@ int main(int argc, const char **argv)
 
     stc_args_parse_exact(argc, argv, args, 4, NULL);
 
-    regex = malloc((strlen(re_tree) + 1) * sizeof(char));
-    strcpy(regex, re_tree);
     p       = parser_new(regex, &opts);
     re      = parse(p);
     re_tree = regex_to_tree_str(re);

@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define STC_UTF_ENABLE_SHORT_NAMES
+#include "stc/util/utf.h"
+
 #include "sre.h"
-#include "utf8.h"
 #include "utils.h"
 
 #define BUF              512

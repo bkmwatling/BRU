@@ -6,11 +6,12 @@
 # @version 0.1
 
 # compiler flags
-DEBUG       := -ggdb
+DEBUG       := -ggdb -gdwarf-4
 OPTIMISE    := -O0
 WARNINGS    := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings \
                -pedantic
-CFLAGS      := $(DEBUG) $(OPTIMISE) $(WARNINGS)
+STC_OPT     := -DSTC_UTF_DISABLE_SV
+CFLAGS      := $(DEBUG) $(OPTIMISE) $(WARNINGS) $(STC_OPT)
 DFLAGS      := # -DDEBUG
 
 # commands
@@ -34,7 +35,7 @@ PARSE_SRC   := $(SRCDIR)/$(PARSE_EXE).c
 EXE_SRC     := $(MATCH_SRC) $(COMPILE_SRC) $(PARSE_SRC)
 
 SRC         := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
-               $(SRCDIR)/stc/util/args.c
+               $(SRCDIR)/stc/util/args.c $(SRCDIR)/stc/util/utf.c
 OBJ         := $(SRC:.c=.o)
 PARSE_OBJ   := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJ))
 
