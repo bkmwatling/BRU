@@ -64,7 +64,7 @@ static len_t count(Regex *re,
     len_t n = 0;
 
     switch (re->type) {
-        case CARET:
+        case CARET: /* fallthrough */
         case DOLLAR: n = sizeof(byte); break;
 
         case LITERAL: n = sizeof(byte) + sizeof(const char *); break;
@@ -117,7 +117,7 @@ static len_t count(Regex *re,
             break;
 
         case LOOKAHEAD:
-            n  = 2 * sizeof(byte) + 2 * sizeof(offset_t) + sizeof(int);
+            n  = 3 * sizeof(byte) + 2 * sizeof(offset_t);
             n += count(re->left, aux_size, grp_cnt, counters_len, mem_len);
             break;
     }

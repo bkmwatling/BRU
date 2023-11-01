@@ -11,9 +11,107 @@
 
 #define BUFSIZE 512
 
-/* --- Instruction ---------------------------------------------------------- */
+/* --- Helper function prototypes ------------------------------------------- */
 
-byte *inst_to_str(char *s, size_t *len, size_t *alloc, byte *pc, byte *aux)
+static len_t
+offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts);
+static const byte *inst_to_str(char          *s,
+                               size_t        *len,
+                               size_t        *alloc,
+                               const byte    *pc,
+                               const Program *prog);
+
+/* --- Program -------------------------------------------------------------- */
+
+Program *program(len_t insts_size,
+                 len_t aux_size,
+                 len_t grp_cnt,
+                 len_t counters_len,
+                 len_t mem_len)
+{
+    Program *prog = malloc(sizeof(Program));
+
+    prog->insts     = malloc(insts_size);
+    prog->insts_len = insts_size;
+    prog->aux       = malloc(aux_size);
+    prog->aux_len   = aux_size;
+    prog->grp_cnt   = grp_cnt;
+
+    prog->counters     = malloc(counters_len * sizeof(cntr_t));
+    prog->counters_len = counters_len;
+    prog->memory       = malloc(mem_len * sizeof(size_t));
+    prog->mem_len      = mem_len;
+
+    memset(prog->counters, 0, counters_len * sizeof(cntr_t));
+    memset(prog->memory, 0, mem_len * sizeof(cntr_t));
+
+    return prog;
+}
+
+char *program_to_str(const Program *prog)
+{
+    size_t      len = 0, alloc = BUFSIZE;
+    char       *s  = malloc(alloc * sizeof(char));
+    len_t       i  = 0;
+    const byte *pc = prog->insts;
+
+    while (pc - prog->insts < prog->insts_len) {
+        ENSURE_SPACE(s, len + 6, alloc, sizeof(char));
+        len += snprintf(s + len, alloc - len, "%3d: ", i++);
+        pc   = inst_to_str(s, &len, &alloc, pc, prog);
+        STR_PUSH(s, len, alloc, "\n");
+    }
+    s[len - 1] = '\0';
+
+    return s;
+}
+
+void program_free(Program *prog)
+{
+    free(prog->insts);
+    free(prog->aux);
+    free(prog->counters);
+    free(prog->memory);
+    free(prog);
+}
+
+/* --- Helper function definitions ------------------------------------------ */
+
+static len_t
+offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
+{
+    len_t idx;
+
+    pc += x;
+    for (idx = 0; insts != pc; idx++) {
+        switch (*insts++) {
+            case CHAR: insts += sizeof(char *); break;
+            case PRED: insts += 2 * sizeof(len_t); break;
+            case SAVE: insts += sizeof(len_t); break;
+            case JMP:    /* fallthrough */
+            case GSPLIT: /* fallthrough */
+            case LSPLIT: insts += sizeof(offset_t); break;
+            case SPLIT: insts += 2 * sizeof(offset_t); break;
+            case TSWITCH: break; /* TODO: */
+            case LSWITCH: break; /* TODO: */
+            case EPSSET:         /* fallthrough */
+            case EPSCHK: insts += sizeof(len_t); break;
+            case RESET: insts += sizeof(len_t) + sizeof(cntr_t); break;
+            case CMP: insts += 1 + sizeof(len_t) + sizeof(cntr_t); break;
+            case INC: insts += sizeof(cntr_t); break;
+            case ZWA: insts += 1 + 2 * sizeof(offset_t); break;
+            default: break;
+        }
+    }
+
+    return idx;
+}
+
+static const byte *inst_to_str(char          *s,
+                               size_t        *len,
+                               size_t        *alloc,
+                               const byte    *pc,
+                               const Program *prog)
 {
     char    *p;
     cntr_t   c;
@@ -29,17 +127,16 @@ byte *inst_to_str(char *s, size_t *len, size_t *alloc, byte *pc, byte *aux)
 
         case CHAR:
             MEMPOP(p, pc, char *);
-            p = utf8_to_str(p);
             ENSURE_SPACE(s, *len + strlen(p) + 6, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "char %s", p);
-            free(p);
+            *len += snprintf(s + *len, *alloc - *len, "char %.*s",
+                             utf8_nbytes(p), p);
             break;
 
         case PRED:
             MEMPOP(n, pc, len_t);
             MEMPOP(i, pc, len_t);
 
-            p = intervals_to_str((Interval *) (aux + i), n);
+            p = intervals_to_str((Interval *) (prog->aux + i), n);
             ENSURE_SPACE(s, *len + strlen(p) + 6, *alloc, sizeof(char));
             *len += snprintf(s + *len, *alloc - *len, "pred %s", p);
             free(p);
@@ -54,22 +151,40 @@ byte *inst_to_str(char *s, size_t *len, size_t *alloc, byte *pc, byte *aux)
         case JMP:
             MEMPOP(x, pc, offset_t);
             ENSURE_SPACE(s, *len + 12, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "jmp " OFFSET_FMT, x);
+            *len += snprintf(s + *len, *alloc - *len, "jmp " LEN_FMT,
+                             offset_to_absolute_index(x, pc - sizeof(offset_t),
+                                                      prog->insts));
             break;
 
         case SPLIT:
             MEMPOP(x, pc, offset_t);
             MEMPOP(y, pc, offset_t);
             ENSURE_SPACE(s, *len + 23, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len,
-                             "split " OFFSET_FMT ", " OFFSET_FMT, x, y);
+            *len +=
+                snprintf(s + *len, *alloc - *len, "split " LEN_FMT ", " LEN_FMT,
+                         offset_to_absolute_index(x, pc - 2 * sizeof(offset_t),
+                                                  prog->insts),
+                         offset_to_absolute_index(y, pc - sizeof(offset_t),
+                                                  prog->insts));
+            break;
+
+        case GSPLIT:
+            MEMPOP(x, pc, offset_t);
+            ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len, "gsplit " LEN_FMT,
+                             offset_to_absolute_index(x, pc - sizeof(offset_t),
+                                                      prog->insts));
+            break;
+
+        case LSPLIT:
+            MEMPOP(x, pc, offset_t);
+            ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
+            *len += snprintf(s + *len, *alloc - *len, "lsplit " LEN_FMT,
+                             offset_to_absolute_index(x, pc - sizeof(offset_t),
+                                                      prog->insts));
             break;
 
         /* TODO: */
-        case GSPLIT: break;
-
-        case LSPLIT: break;
-
         case TSWITCH: break;
 
         case LSWITCH: break;
@@ -134,65 +249,15 @@ byte *inst_to_str(char *s, size_t *len, size_t *alloc, byte *pc, byte *aux)
             MEMPOP(x, pc, offset_t);
             MEMPOP(y, pc, offset_t);
             ENSURE_SPACE(s, *len + 24, *alloc, sizeof(char));
-            *len +=
-                snprintf(s + *len, *alloc - *len,
-                         "zwa " OFFSET_FMT ", " OFFSET_FMT ", %d", x, y, *pc++);
+            *len += snprintf(
+                s + *len, *alloc - *len, "zwa " LEN_FMT ", " LEN_FMT ", %d",
+                offset_to_absolute_index(x, pc - 2 * sizeof(offset_t),
+                                         prog->insts),
+                offset_to_absolute_index(y, pc - sizeof(offset_t), prog->insts),
+                *pc);
+            pc++;
             break;
     }
 
     return pc;
-}
-
-/* --- Program -------------------------------------------------------------- */
-
-Program *program(len_t insts_size,
-                 len_t aux_size,
-                 len_t grp_cnt,
-                 len_t counters_len,
-                 len_t mem_len)
-{
-    Program *prog = malloc(sizeof(Program));
-
-    prog->insts     = malloc(insts_size);
-    prog->insts_len = insts_size;
-    prog->aux       = malloc(aux_size);
-    prog->aux_len   = aux_size;
-    prog->grp_cnt   = grp_cnt;
-
-    prog->counters     = malloc(counters_len * sizeof(cntr_t));
-    prog->counters_len = counters_len;
-    prog->memory       = malloc(mem_len * sizeof(size_t));
-    prog->mem_len      = mem_len;
-
-    memset(prog->counters, 0, counters_len * sizeof(cntr_t));
-    memset(prog->memory, 0, mem_len * sizeof(cntr_t));
-
-    return prog;
-}
-
-char *program_to_str(const Program *prog)
-{
-    size_t len = 0, alloc = BUFSIZE;
-    char  *s  = malloc(alloc * sizeof(char));
-    len_t  i  = 0;
-    byte  *pc = prog->insts;
-
-    while (pc - prog->insts < prog->insts_len) {
-        ENSURE_SPACE(s, len + 6, alloc, sizeof(char));
-        len += snprintf(s + len, alloc - len, "%3d: ", i++);
-        pc   = inst_to_str(s, &len, &alloc, pc, prog->aux);
-        STR_PUSH(s, len, alloc, "\n");
-    }
-    s[len - 1] = '\0';
-
-    return s;
-}
-
-void program_free(Program *prog)
-{
-    free(prog->insts);
-    free(prog->aux);
-    free(prog->counters);
-    free(prog->memory);
-    free(prog);
 }

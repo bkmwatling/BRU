@@ -12,11 +12,11 @@
 #define BUF              512
 #define INTERVAL_MAX_BUF 13
 
-void regex_to_tree_str_indent(char   *s,
-                              size_t *len,
-                              size_t *alloc,
-                              Regex  *re,
-                              int     indent);
+static void regex_to_tree_str_indent(char   *s,
+                                     size_t *len,
+                                     size_t *alloc,
+                                     Regex  *re,
+                                     int     indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
@@ -28,16 +28,12 @@ Interval interval(int neg, const char *lbound, const char *ubound)
 
 char *interval_to_str(Interval *interval)
 {
-    char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s, *q, *r;
+    char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s;
 
     if (interval->neg) *p++ = '^';
-
-    q = utf8_to_str(interval->lbound);
-    r = utf8_to_str(interval->ubound);
-
-    p += snprintf(p, INTERVAL_MAX_BUF + 1, "(%s, %s)", q, r);
-    free(q);
-    free(r);
+    p += snprintf(p, INTERVAL_MAX_BUF + 1, "(%.*s, %.*s)",
+                  utf8_nbytes(interval->lbound), interval->lbound,
+                  utf8_nbytes(interval->ubound), interval->ubound);
 
     return s;
 }
@@ -148,11 +144,11 @@ char *regex_to_tree_str(Regex *re)
     return s;
 }
 
-void regex_to_tree_str_indent(char   *s,
-                              size_t *len,
-                              size_t *alloc,
-                              Regex  *re,
-                              int     indent)
+static void regex_to_tree_str_indent(char   *s,
+                                     size_t *len,
+                                     size_t *alloc,
+                                     Regex  *re,
+                                     int     indent)
 {
     char *p;
 
@@ -168,9 +164,8 @@ void regex_to_tree_str_indent(char   *s,
 
         case LITERAL:
             ENSURE_SPACE(s, *len + 14, *alloc, sizeof(char));
-            p     = utf8_to_str(re->ch);
-            *len += snprintf(s + *len, *alloc - *len, "Literal(%s)", p);
-            free(p);
+            *len += snprintf(s + *len, *alloc - *len, "Literal(%.*s)",
+                             utf8_nbytes(re->ch), re->ch);
             break;
 
         case CC:
