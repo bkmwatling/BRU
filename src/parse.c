@@ -9,7 +9,7 @@
 int main(int argc, const char **argv)
 {
     char      *regex, *re_tree;
-    Parser    *p;
+    Parser    *parser;
     Regex     *re;
     ParserOpts opts;
     StcArg     args[] = {
@@ -37,13 +37,13 @@ int main(int argc, const char **argv)
 
     stc_args_parse_exact(argc, argv, args, 4, NULL);
 
-    p       = parser_new(regex, &opts);
-    re      = parse(p);
+    parser  = parser_new(regex, &opts);
+    re      = parser_parse(parser);
     re_tree = regex_to_tree_str(re);
 
     printf("%s\n", re_tree);
 
-    parser_free(p);
+    parser_free(parser);
     regex_free(re);
     free(re_tree);
 

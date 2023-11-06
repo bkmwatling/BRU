@@ -39,9 +39,9 @@ Program *compile(const Compiler *compiler)
     Regex   *re;
     byte    *pc;
 
-    re         = parse(compiler->parser);
+    re         = parser_parse(compiler->parser);
     insts_size = count(re, &aux_size, &grp_cnt, &counters_len, &mem_len) + 1;
-    prog       = program(insts_size, aux_size, grp_cnt, counters_len, mem_len);
+    prog = program_new(insts_size, aux_size, grp_cnt, counters_len, mem_len);
 
     /* set the length fields to 0 as we use them for indices during emitting */
     prog->grp_cnt      = 0;

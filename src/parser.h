@@ -14,8 +14,8 @@ typedef struct {
     ParserOpts  opts;
 } Parser;
 
-Parser *parser_new(const char *regex, ParserOpts *opts);
-void    parser_free(Parser *p);
-Regex  *parse(const Parser *p);
+Parser *parser_new(const char *regex, const ParserOpts *opts);
+void    parser_free(Parser *parser);
+Regex  *parser_parse(const Parser *parser);
 
 #endif /* PARSER_H */

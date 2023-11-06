@@ -23,11 +23,11 @@ static const byte *inst_to_str(char          *s,
 
 /* --- Program -------------------------------------------------------------- */
 
-Program *program(len_t insts_size,
-                 len_t aux_size,
-                 len_t grp_cnt,
-                 len_t counters_len,
-                 len_t mem_len)
+Program *program_new(len_t insts_size,
+                     len_t aux_size,
+                     len_t grp_cnt,
+                     len_t counters_len,
+                     len_t mem_len)
 {
     Program *prog = malloc(sizeof(Program));
 

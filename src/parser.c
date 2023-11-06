@@ -23,9 +23,9 @@ typedef struct {
 } ParseState;
 
 static Regex *
-parse_alt(const Parser *p, const char **const regex, ParseState *ps);
+parse_alt(const Parser *parser, const char **const regex, ParseState *ps);
 static Regex *
-parse_concat(const Parser *p, const char **const regex, ParseState *ps);
+parse_concat(const Parser *parser, const char **const regex, ParseState *ps);
 static Regex    *parse_terminal(const char *ch, const char **const regex);
 static Regex    *parse_cc(const char **const regex);
 static Interval *parse_predefined_cc(const char **const regex,
@@ -34,8 +34,8 @@ static Interval *parse_predefined_cc(const char **const regex,
                                      len_t             *cc_len,
                                      len_t             *cc_alloc);
 static Regex *
-parse_parens(const Parser *p, const char **const regex, ParseState *ps);
-static void parse_curly(const char **const regex, uint *min, uint *max);
+parse_parens(const Parser *parser, const char **const regex, ParseState *ps);
+static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max);
 
 static Interval *dot(void)
 {
@@ -45,45 +45,45 @@ static Interval *dot(void)
     return dot;
 }
 
-Parser *parser_new(const char *regex, ParserOpts *opts)
+Parser *parser_new(const char *regex, const ParserOpts *opts)
 {
-    Parser *p = malloc(sizeof(Parser));
-    p->regex  = malloc((strlen(regex) + 1) * sizeof(char));
-    strcpy((char *) p->regex, regex);
-    p->opts = opts ? *opts : PARSER_OPTS_DEFAULT;
-    return p;
+    Parser *parser = malloc(sizeof(Parser));
+    parser->regex  = malloc((strlen(regex) + 1) * sizeof(char));
+    strcpy((char *) parser->regex, regex);
+    parser->opts = opts ? *opts : PARSER_OPTS_DEFAULT;
+    return parser;
 }
 
-void parser_free(Parser *p)
+void parser_free(Parser *parser)
 {
-    free((void *) p->regex);
-    free(p);
+    free((void *) parser->regex);
+    free(parser);
 }
 
-Regex *parse(const Parser *p)
+Regex *parser_parse(const Parser *parser)
 {
-    const char *r  = p->regex;
+    const char *r  = parser->regex;
     ParseState  ps = { 0, 0 };
-    Regex      *re = parse_alt(p, &r, &ps);
+    Regex      *re = parse_alt(parser, &r, &ps);
 
-    if (p->opts.whole_match_capture && re)
+    if (parser->opts.whole_match_capture && re)
         re = regex_single_child(CAPTURE, re, 0);
     return re;
 }
 
 static Regex *
-parse_alt(const Parser *p, const char **const regex, ParseState *ps)
+parse_alt(const Parser *parser, const char **const regex, ParseState *ps)
 {
     Regex *tree = NULL;
 
     while (**regex) {
         if (**regex == '|') {
             ++*regex;
-            tree = regex_branch(ALT, tree, parse_concat(p, regex, ps));
+            tree = regex_branch(ALT, tree, parse_concat(parser, regex, ps));
         } else if (**regex == ')' && ps->in_group) {
             return tree;
         } else {
-            tree = parse_concat(p, regex, ps);
+            tree = parse_concat(parser, regex, ps);
         }
     }
 
@@ -91,18 +91,18 @@ parse_alt(const Parser *p, const char **const regex, ParseState *ps)
 }
 
 static Regex *
-parse_concat(const Parser *p, const char **const regex, ParseState *ps)
+parse_concat(const Parser *parser, const char **const regex, ParseState *ps)
 {
     Regex      *tree = NULL, *subtree = NULL;
     const char *ch;
-    uint        min, max;
+    cntr_t      min, max;
     int         greedy;
 
     while (**regex) {
         switch (*(ch = (*regex)++)) {
             case '|': --*regex; return tree;
 
-            case '(': subtree = parse_parens(p, regex, ps); break;
+            case '(': subtree = parse_parens(parser, regex, ps); break;
 
             case '^': subtree = regex_anchor(CARET); break;
 
@@ -153,7 +153,7 @@ parse_concat(const Parser *p, const char **const regex, ParseState *ps)
 
         if (subtree) {
             if (min != 1 || max != 1) {
-                if (p->opts.only_counters) {
+                if (parser->opts.only_counters) {
                     subtree = regex_counter(subtree, greedy, min, max);
                 } else {
                     if (min == 0 && max == CNTR_MAX) {
@@ -162,7 +162,8 @@ parse_concat(const Parser *p, const char **const regex, ParseState *ps)
                         subtree = regex_single_child(PLUS, subtree, greedy);
                     } else if (min == 0 && max == 1) {
                         subtree = regex_single_child(QUES, subtree, greedy);
-                    } else if (p->opts.unbounded_counters || max < CNTR_MAX) {
+                    } else if (parser->opts.unbounded_counters ||
+                               max < CNTR_MAX) {
                         subtree = regex_counter(subtree, greedy, min, max);
                     } else {
                         subtree = regex_branch(
@@ -348,7 +349,7 @@ static Interval *parse_predefined_cc(const char **const regex,
 }
 
 static Regex *
-parse_parens(const Parser *p, const char **const regex, ParseState *ps)
+parse_parens(const Parser *parser, const char **const regex, ParseState *ps)
 {
     Regex      *tree;
     ParseState  ps_tmp;
@@ -360,13 +361,13 @@ parse_parens(const Parser *p, const char **const regex, ParseState *ps)
             case ':':
             case '|':
                 ps_tmp = (ParseState){ TRUE, ps->in_lookahead };
-                tree   = parse_alt(p, regex, &ps_tmp);
+                tree   = parse_alt(parser, regex, &ps_tmp);
                 break;
 
             case '=':
             case '!':
                 ps_tmp = (ParseState){ TRUE, TRUE };
-                if ((tree = parse_alt(p, regex, &ps_tmp)))
+                if ((tree = parse_alt(parser, regex, &ps_tmp)))
                     tree = regex_single_child(LOOKAHEAD, tree, *ch == '=');
                 break;
 
@@ -376,7 +377,7 @@ parse_parens(const Parser *p, const char **const regex, ParseState *ps)
         }
     } else {
         ps_tmp = (ParseState){ TRUE, ps->in_lookahead };
-        if ((tree = parse_alt(p, regex, &ps_tmp)) && !ps->in_lookahead)
+        if ((tree = parse_alt(parser, regex, &ps_tmp)) && !ps->in_lookahead)
             tree = regex_single_child(CAPTURE, tree, FALSE);
     }
 
@@ -385,7 +386,7 @@ parse_parens(const Parser *p, const char **const regex, ParseState *ps)
     return tree;
 }
 
-static void parse_curly(const char **const regex, uint *min, uint *max)
+static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max)
 {
     const char *ch;
     int         process_min = TRUE;
