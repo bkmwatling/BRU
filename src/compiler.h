@@ -2,7 +2,7 @@
 #define COMPILER_H
 
 #include "parser.h"
-#include "srvm.h"
+#include "program.h"
 
 typedef enum {
     THOMPSON,
@@ -27,7 +27,7 @@ typedef struct {
 } Compiler;
 
 Compiler *compiler_new(const Parser *parser, CompilerOpts *opts);
-void      compiler_free(Compiler *compiler);
-Program  *compile(const Compiler *compiler);
+void      compiler_free(Compiler *self);
+Program  *compiler_compile(const Compiler *self);
 
 #endif /* COMPILER_H */

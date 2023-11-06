@@ -1,3 +1,3 @@
 [submodule "src/stc"]
 	path = src/stc
-	url = git@gitlab.com:bkmwatling/stc.git
+	url = https://gitlab.com/bkmwatling/stc.git

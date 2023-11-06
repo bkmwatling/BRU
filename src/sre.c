@@ -26,14 +26,14 @@ Interval interval(int neg, const char *lbound, const char *ubound)
     return interval;
 }
 
-char *interval_to_str(Interval *interval)
+char *interval_to_str(Interval *self)
 {
     char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s;
 
-    if (interval->neg) *p++ = '^';
+    if (self->neg) *p++ = '^';
     p += snprintf(p, INTERVAL_MAX_BUF + 1, "(%.*s, %.*s)",
-                  utf8_nbytes(interval->lbound), interval->lbound,
-                  utf8_nbytes(interval->ubound), interval->ubound);
+                  utf8_nbytes(self->lbound), self->lbound,
+                  utf8_nbytes(self->ubound), self->ubound);
 
     return s;
 }
@@ -135,12 +135,38 @@ Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max)
     return re;
 }
 
-char *regex_to_tree_str(Regex *re)
+void regex_free(Regex *self)
+{
+    switch (self->type) {
+        case CARET:
+        case DOLLAR:
+        case LITERAL: break;
+
+        case CC: free(self->intervals); break;
+
+        case ALT:
+        case CONCAT:
+            regex_free(self->left);
+            regex_free(self->right);
+            break;
+
+        case CAPTURE:
+        case STAR:
+        case PLUS:
+        case QUES:
+        case COUNTER:
+        case LOOKAHEAD: regex_free(self->left); break;
+    }
+
+    free(self);
+}
+
+char *regex_to_tree_str(Regex *self)
 {
     size_t len = 0, alloc = BUF;
 
     char *s = malloc(alloc * sizeof(char));
-    regex_to_tree_str_indent(s, &len, &alloc, re, 0);
+    regex_to_tree_str_indent(s, &len, &alloc, self, 0);
     return s;
 }
 
@@ -229,30 +255,4 @@ static void regex_to_tree_str_indent(char   *s,
             }
             break;
     }
-}
-
-void regex_free(Regex *re)
-{
-    switch (re->type) {
-        case CARET:
-        case DOLLAR:
-        case LITERAL: break;
-
-        case CC: free(re->intervals); break;
-
-        case ALT:
-        case CONCAT:
-            regex_free(re->left);
-            regex_free(re->right);
-            break;
-
-        case CAPTURE:
-        case STAR:
-        case PLUS:
-        case QUES:
-        case COUNTER:
-        case LOOKAHEAD: regex_free(re->left); break;
-    }
-
-    free(re);
 }

@@ -26,20 +26,20 @@ Compiler *compiler_new(const Parser *parser, CompilerOpts *opts)
     return compiler;
 }
 
-void compiler_free(Compiler *compiler)
+void compiler_free(Compiler *self)
 {
-    parser_free((Parser *) compiler->parser);
-    free(compiler);
+    parser_free((Parser *) self->parser);
+    free(self);
 }
 
-Program *compile(const Compiler *compiler)
+Program *compiler_compile(const Compiler *self)
 {
     len_t insts_size, aux_size = 0, grp_cnt = 0, counters_len = 0, mem_len = 0;
     Program *prog;
     Regex   *re;
     byte    *pc;
 
-    re         = parser_parse(compiler->parser);
+    re         = parser_parse(self->parser);
     insts_size = count(re, &aux_size, &grp_cnt, &counters_len, &mem_len) + 1;
     prog = program_new(insts_size, aux_size, grp_cnt, counters_len, mem_len);
 

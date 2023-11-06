@@ -7,7 +7,8 @@
 #define CNTR_MAX ((cntr_t) ~0)
 
 #define LEN_FMT    "%hu"
-#define CNTR_FMT   "%u"
+#define CNTR_FMT   "%hu"
+#define MEM_FMT    "%hu"
 #define OFFSET_FMT "%d"
 
 typedef char           byte;

@@ -6,7 +6,6 @@
 
 #include "compiler.h"
 #include "parser.h"
-#include "srvm.h"
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -82,7 +81,7 @@ int main(int argc, const char **argv)
     stc_args_parse_exact(argc, argv, args, ARR_LEN(args), NULL);
 
     c        = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
-    prog     = compile(c);
+    prog     = compiler_compile(c);
     prog_str = program_to_str(prog);
 
     printf("%s\n", prog_str);

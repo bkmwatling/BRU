@@ -1,75 +1,21 @@
 #ifndef SRVM_H
 #define SRVM_H
 
-#include "sre.h"
-
-// #define MEMPUSH(pc, type, val) *((*((type **) &(pc)))++) = (val)
-#define MEMPUSH(pc, type, val) \
-    *((type *) (pc))  = (val); \
-    (pc)             += sizeof(type);
-
-#define MEMPOP(dst, pc, type)  \
-    (dst)  = *((type *) (pc)); \
-    (pc)  += sizeof(type);
+#include "scheduler.h"
 
 /* --- Type definitions ----------------------------------------------------- */
 
-/* Bytecodes */
-#define NOOP    0
-#define MATCH   1
-#define BEGIN   2
-#define END     3
-#define CHAR    4
-#define PRED    5
-#define SAVE    6
-#define JMP     7
-#define SPLIT   8
-#define GSPLIT  9
-#define LSPLIT  10
-#define TSWITCH 11
-#define LSWITCH 12
-#define EPSSET  13
-#define EPSCHK  14
-#define RESET   15
-#define CMP     16
-#define INC     17
-#define ZWA     18
-
-/* Order for cmp */
-#define LT 1
-#define LE 2
-#define EQ 3
-#define NE 4
-#define GE 5
-#define GT 6
-
 typedef struct {
-    byte     *x;
-    len_t     len;
-    Interval *intervals;
-} Lookup;
+    ThreadManager *thread_manager;
+    Scheduler     *scheduler;
+    len_t          ncaptures;
+    len_t         *captures;
+} SRVM;
 
-typedef struct {
-    byte   *insts;
-    len_t   insts_len;
-    byte   *aux;
-    len_t   aux_len;
-    len_t   grp_cnt;
-    cntr_t *counters;
-    len_t   counters_len;
-    mem_t  *memory;
-    len_t   mem_len;
-} Program;
+/* --- SRVM function prototypes --------------------------------------------- */
 
-/* --- Program function prototypes ------------------------------------------ */
-
-Program *program_new(len_t insts_size,
-                     len_t aux_size,
-                     len_t grp_cnt,
-                     len_t counters_len,
-                     len_t mem_len);
-
-char *program_to_str(const Program *prog);
-void  program_free(Program *prog);
+SRVM *srvm_new(Scheduler *scheduler);
+int   srvm_match(SRVM *self, const char *text);
+int   srvm_matches(Scheduler *scheduler, const char *text);
 
 #endif /* SRVM_H */

@@ -7,8 +7,6 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-typedef struct regex Regex;
-
 typedef struct {
     int         neg;
     const char *lbound;
@@ -29,6 +27,8 @@ typedef enum {
     COUNTER,
     LOOKAHEAD
 } RegexType;
+
+typedef struct regex Regex;
 
 struct regex {
     RegexType type;
@@ -53,7 +53,7 @@ struct regex {
 
 Interval interval(int neg, const char *lbound, const char *ubound);
 
-char *interval_to_str(Interval *interval);
+char *interval_to_str(Interval *self);
 char *intervals_to_str(Interval *intervals, size_t len);
 
 /* --- Regex function prototypes -------------------------------------------- */
@@ -65,7 +65,7 @@ Regex *regex_branch(RegexType kind, Regex *left, Regex *right);
 Regex *regex_single_child(RegexType kind, Regex *child, byte pos);
 Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max);
 
-char *regex_to_tree_str(Regex *re);
-void  regex_free(Regex *re);
+void  regex_free(Regex *self);
+char *regex_to_tree_str(Regex *self);
 
 #endif /* SRE_H */
