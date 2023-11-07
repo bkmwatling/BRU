@@ -25,7 +25,7 @@ static const byte *inst_to_str(char          *s,
 
 Program *program_new(len_t insts_size,
                      len_t aux_size,
-                     len_t grp_cnt,
+                     len_t ncaptures,
                      len_t counters_len,
                      len_t mem_len)
 {
@@ -35,7 +35,7 @@ Program *program_new(len_t insts_size,
     prog->insts_len = insts_size;
     prog->aux       = malloc(aux_size);
     prog->aux_len   = aux_size;
-    prog->grp_cnt   = grp_cnt;
+    prog->ncaptures = ncaptures;
 
     prog->counters     = malloc(counters_len * sizeof(cntr_t));
     prog->counters_len = counters_len;

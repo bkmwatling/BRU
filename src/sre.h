@@ -3,6 +3,9 @@
 
 #include <stddef.h>
 
+#define STC_UTF_ENABLE_SHORT_NAMES
+#include "stc/util/utf.h"
+
 #include "types.h"
 
 /* --- Type definitions ----------------------------------------------------- */
@@ -51,9 +54,14 @@ struct regex {
 
 /* --- Interval function prototypes ----------------------------------------- */
 
-Interval interval(int neg, const char *lbound, const char *ubound);
+#define interval_predicate(interval, codepoint)        \
+    ((utf8_cmp((interval).lbound, (codepoint)) <= 0 && \
+      utf8_cmp((codepoint), (interval).ubound) >= 0) != (interval).neg)
 
-char *interval_to_str(Interval *self);
+Interval interval(int neg, const char *lbound, const char *ubound);
+char    *interval_to_str(Interval *self);
+
+int intervals_predicate(Interval *intervals, size_t len, const char *codepoint);
 char *intervals_to_str(Interval *intervals, size_t len);
 
 /* --- Regex function prototypes -------------------------------------------- */

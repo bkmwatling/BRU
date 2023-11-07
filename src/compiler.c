@@ -7,13 +7,15 @@
 
 #define COMPILER_OPTS_DEFAULT ((CompilerOpts){ THOMPSON, FALSE, SC_SPLIT })
 
+#define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) -1))
+
 #define SPLIT_LABELS_PTRS(p, q, re, pc)                              \
     (p) = (offset_t *) ((re)->pos ? (pc) : (pc) + sizeof(offset_t)); \
     (q) = (offset_t *) ((re)->pos ? (pc) + sizeof(offset_t) : (pc))
 
 static len_t count(Regex *re,
                    len_t *aux_size,
-                   len_t *grp_cnt,
+                   len_t *ncaptures,
                    len_t *counters_len,
                    len_t *mem_len);
 static byte *emit(Regex *re, byte *pc, Program *prog);
@@ -34,17 +36,18 @@ void compiler_free(Compiler *self)
 
 Program *compiler_compile(const Compiler *self)
 {
-    len_t insts_size, aux_size = 0, grp_cnt = 0, counters_len = 0, mem_len = 0;
+    len_t insts_size, aux_size = 0, ncaptures = 0, counters_len = 0,
+                      mem_len = 0;
     Program *prog;
     Regex   *re;
     byte    *pc;
 
     re         = parser_parse(self->parser);
-    insts_size = count(re, &aux_size, &grp_cnt, &counters_len, &mem_len) + 1;
-    prog = program_new(insts_size, aux_size, grp_cnt, counters_len, mem_len);
+    insts_size = count(re, &aux_size, &ncaptures, &counters_len, &mem_len) + 1;
+    prog = program_new(insts_size, aux_size, ncaptures, counters_len, mem_len);
 
     /* set the length fields to 0 as we use them for indices during emitting */
-    prog->grp_cnt      = 0;
+    prog->ncaptures    = 0;
     prog->aux_len      = 0;
     prog->counters_len = 0;
     prog->mem_len      = 0;
@@ -57,7 +60,7 @@ Program *compiler_compile(const Compiler *self)
 
 static len_t count(Regex *re,
                    len_t *aux_size,
-                   len_t *grp_cnt,
+                   len_t *ncaptures,
                    len_t *counters_len,
                    len_t *mem_len)
 {
@@ -76,49 +79,49 @@ static len_t count(Regex *re,
 
         case ALT:
             n  = 2 * sizeof(byte) + 3 * sizeof(offset_t);
-            n += count(re->left, aux_size, grp_cnt, counters_len, mem_len) +
-                 count(re->right, aux_size, grp_cnt, counters_len, mem_len);
+            n += count(re->left, aux_size, ncaptures, counters_len, mem_len) +
+                 count(re->right, aux_size, ncaptures, counters_len, mem_len);
             break;
 
         case CONCAT:
-            n = count(re->left, aux_size, grp_cnt, counters_len, mem_len) +
-                count(re->right, aux_size, grp_cnt, counters_len, mem_len);
+            n = count(re->left, aux_size, ncaptures, counters_len, mem_len) +
+                count(re->right, aux_size, ncaptures, counters_len, mem_len);
             break;
 
         case CAPTURE:
             n  = 2 * sizeof(byte) + 2 * sizeof(len_t);
-            n += count(re->left, aux_size, grp_cnt, counters_len, mem_len);
-            ++*grp_cnt;
+            n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
+            ++*ncaptures;
             break;
 
         case STAR:
             n  = 5 * sizeof(byte) + 5 * sizeof(offset_t) + 2 * sizeof(len_t);
-            n += count(re->left, aux_size, grp_cnt, counters_len, mem_len);
+            n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
             ++*mem_len;
             break;
 
         case PLUS:
             n  = 4 * sizeof(byte) + 3 * sizeof(offset_t) + 2 * sizeof(len_t);
-            n += count(re->left, aux_size, grp_cnt, counters_len, mem_len);
+            n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
             ++*mem_len;
             break;
 
         case QUES:
             n  = sizeof(byte) + 2 * sizeof(offset_t);
-            n += count(re->left, aux_size, grp_cnt, counters_len, mem_len);
+            n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
             break;
 
         case COUNTER:
             n = 11 * sizeof(byte) + 5 * sizeof(offset_t) + 6 * sizeof(len_t) +
                 3 * sizeof(cntr_t);
-            n += count(re->left, aux_size, grp_cnt, counters_len, mem_len);
+            n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
             ++*counters_len;
             ++*mem_len;
             break;
 
         case LOOKAHEAD:
             n  = 3 * sizeof(byte) + 2 * sizeof(offset_t);
-            n += count(re->left, aux_size, grp_cnt, counters_len, mem_len);
+            n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
             break;
     }
 
@@ -159,15 +162,15 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++  = SPLIT;
             p      = (offset_t *) pc;
             pc    += 2 * sizeof(offset_t);
-            *p     = pc - (byte *) p;
+            SET_OFFSET(p, pc);
             ++p;
             pc     = emit(re->left, pc, prog);
             *pc++  = JMP;
             q      = (offset_t *) pc;
             pc    += sizeof(offset_t);
-            *p     = pc - (byte *) p;
-            pc     = emit(re->right, pc, prog);
-            *q     = pc - (byte *) q;
+            SET_OFFSET(p, pc);
+            pc = emit(re->right, pc, prog);
+            SET_OFFSET(q, pc);
             break;
 
         /* instructions for `re->left`  *
@@ -182,7 +185,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
          * `save` k + 1                */
         case CAPTURE:
             *pc++ = SAVE;
-            k     = prog->grp_cnt++;
+            k     = prog->ncaptures++;
             MEMPUSH(pc, len_t, 2 * k);
             pc    = emit(re->left, pc, prog);
             *pc++ = SAVE;
@@ -201,7 +204,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             SPLIT_LABELS_PTRS(p, q, re, pc);
             pc += 2 * sizeof(offset_t);
 
-            *p              = pc - (byte *) p;
+            SET_OFFSET(p, pc);
             p               = (offset_t *) pc;
             *pc++           = EPSSET;
             k               = prog->mem_len++;
@@ -213,14 +216,14 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             SPLIT_LABELS_PTRS(r, t, re, pc);
             pc += 2 * sizeof(offset_t);
 
-            *r    = pc - (byte *) r;
+            SET_OFFSET(r, pc);
             *pc++ = EPSCHK;
             MEMPUSH(pc, len_t, k);
             *pc++ = JMP;
-            MEMPUSH(pc, offset_t, (byte *) p - pc);
+            MEMPUSH(pc, offset_t, (byte *) p - (pc + sizeof(offset_t)));
 
-            *q = pc - (byte *) q;
-            *t = pc - (byte *) t;
+            SET_OFFSET(q, pc);
+            SET_OFFSET(t, pc);
             break;
 
         /* L1: `epsset` k                                          *
@@ -241,13 +244,13 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             SPLIT_LABELS_PTRS(p, q, re, pc);
             pc += 2 * sizeof(offset_t);
 
-            *p    = pc - (byte *) p;
+            SET_OFFSET(p, pc);
             *pc++ = EPSCHK;
             MEMPUSH(pc, len_t, k);
             *pc++ = JMP;
             MEMPUSH(pc, offset_t, (byte *) r - pc);
 
-            *q = pc - (byte *) q;
+            SET_OFFSET(q, pc);
             break;
 
         /*     `split` L1, L2              -- L2, L1 if non-greedy *
@@ -257,9 +260,9 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++ = SPLIT;
             SPLIT_LABELS_PTRS(p, q, re, pc);
             pc += 2 * sizeof(offset_t);
-            *p  = pc - (byte *) p;
-            pc  = emit(re->left, pc, prog);
-            *q  = pc - (byte *) q;
+            SET_OFFSET(p, pc);
+            pc = emit(re->left, pc, prog);
+            SET_OFFSET(q, pc);
             break;
 
         /*     `reset` c, 0                                        *
@@ -282,7 +285,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++ = SPLIT;
             SPLIT_LABELS_PTRS(p, q, re, pc);
             pc += 2 * sizeof(offset_t);
-            *p  = pc - (byte *) p;
+            SET_OFFSET(p, pc);
 
             p     = (offset_t *) pc;
             *pc++ = CMP;
@@ -301,15 +304,15 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++ = SPLIT;
             SPLIT_LABELS_PTRS(r, t, re, pc);
             pc += 2 * sizeof(offset_t);
-            *r  = pc - (byte *) r;
+            SET_OFFSET(r, pc);
 
             *pc++ = EPSCHK;
             MEMPUSH(pc, len_t, k);
             *pc++ = JMP;
-            MEMPUSH(pc, offset_t, (byte *) p - pc);
+            MEMPUSH(pc, offset_t, (byte *) p - (pc + sizeof(offset_t)));
 
-            *q    = pc - (byte *) q;
-            *t    = pc - (byte *) t;
+            SET_OFFSET(q, pc);
+            SET_OFFSET(t, pc);
             *pc++ = CMP;
             MEMPUSH(pc, len_t, c);
             MEMPUSH(pc, cntr_t, re->min);
@@ -325,11 +328,11 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             p      = (offset_t *) pc;
             pc    += 2 * sizeof(offset_t);
             *pc++  = re->pos;
-            *p     = pc - (byte *) p;
+            SET_OFFSET(p, pc);
             ++p;
             pc    = emit(re->left, pc, prog);
             *pc++ = MATCH;
-            *p    = pc - (byte *) p;
+            SET_OFFSET(p, pc);
             break;
     }
 

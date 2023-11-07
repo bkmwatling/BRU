@@ -23,22 +23,24 @@
 #define BEGIN   4
 #define END     5
 #define CHAR    6
-#define MCHAR   7
-#define PRED    8
-#define MPRED   9
-#define SAVE    10
-#define JMP     11
-#define SPLIT   12
-#define GSPLIT  13
-#define LSPLIT  14
-#define TSWITCH 15
-#define LSWITCH 16
-#define EPSSET  17
-#define EPSCHK  18
-#define RESET   19
-#define CMP     20
-#define INC     21
-#define ZWA     22
+#define NCHAR   7
+#define MCHAR   8
+#define PRED    9
+#define NPRED   10
+#define MPRED   11
+#define SAVE    12
+#define JMP     13
+#define SPLIT   14
+#define GSPLIT  15
+#define LSPLIT  16
+#define TSWITCH 17
+#define LSWITCH 18
+#define EPSSET  19
+#define EPSCHK  20
+#define RESET   21
+#define CMP     22
+#define INC     23
+#define ZWA     24
 
 /* Order for cmp */
 #define LT 1
@@ -59,7 +61,7 @@ typedef struct {
     len_t   insts_len;
     byte   *aux;
     len_t   aux_len;
-    len_t   grp_cnt;
+    len_t   ncaptures;
     cntr_t *counters;
     len_t   counters_len;
     mem_t  *memory;
@@ -70,7 +72,7 @@ typedef struct {
 
 Program *program_new(len_t insts_size,
                      len_t aux_size,
-                     len_t grp_cnt,
+                     len_t ncaptures,
                      len_t counters_len,
                      len_t mem_len);
 void     program_free(Program *self);

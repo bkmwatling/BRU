@@ -38,6 +38,18 @@ char *interval_to_str(Interval *self)
     return s;
 }
 
+int intervals_predicate(Interval *intervals, size_t len, const char *codepoint)
+{
+    size_t i;
+    int    pred = 0;
+
+    for (i = 0; i < len; i++) {
+        if ((pred = interval_predicate(intervals[i], codepoint))) break;
+    }
+
+    return pred;
+}
+
 char *intervals_to_str(Interval *intervals, size_t len)
 {
     size_t i, slen = 0, alloc = 3 + 2 * INTERVAL_MAX_BUF;

@@ -7,18 +7,19 @@
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
-    len_t (*pc)(const void *thread);
-    void (*set_pc)(void *thread, len_t pc);
-    void (*inc_pc)(void *thread);
-    len_t (*sp)(const void *thread);
+    const byte *(*pc)(const void *thread);
+    void (*set_pc)(void *thread, const byte *pc);
+    const char *(*sp)(const void *thread);
     void (*try_inc_sp)(void *thread);
-    len_t *(*captures)(const void *thread, len_t *ncaptures);
+    const len_t *(*captures)(const void *thread, len_t *ncaptures);
     void (*set_capture)(void *thread, len_t idx);
     cntr_t (*counter)(const void *thread, len_t idx);
     void (*set_counter)(void *thread, len_t idx, cntr_t val);
     void (*inc_counter)(void *thread, len_t idx);
-    mem_t (*memory)(const void *thread, len_t idx);
-    void (*set_memory)(void *thread, len_t idx, mem_t val);
+    void *(*memory)(const void *thread, len_t idx);
+    void (*set_memory)(void *thread, len_t idx, const void *val, size_t size);
+    void *(*clone)(const void *thread);
+    void (*free)(void *thread);
 } ThreadManager;
 
 typedef struct {
@@ -39,7 +40,7 @@ typedef struct {
 /* --- Scheduler macro functions -------------------------------------------- */
 
 #define scheduler_init(scheduler, text) \
-    ((scheduler)->init((scheduler)->impl), (text))
+    ((scheduler)->init((scheduler)->impl, (text)))
 #define scheduler_schedule(scheduler, thread) \
     ((scheduler)->schedule((scheduler)->impl, (thread)))
 #define scheduler_has_next(scheduler) ((scheduler)->has_next((scheduler)->impl))
@@ -54,26 +55,24 @@ typedef struct {
     (scheduler_dst)->impl =                                       \
         ((scheduler_src)->clone_with((scheduler_src)->impl, (thread)))
 #define scheduler_program(scheduler) ((scheduler)->program((scheduler)->impl))
+#define scheduler_free(scheduler)         \
+    (scheduler)->free((scheduler)->impl); \
+    free((scheduler))
 
 /* --- Convenient wrapper macros -------------------------------------------- */
 
 #define THREAD_MANAGER_DEFINE_WRAPPERS(prefix, thread_type)                \
-    static len_t prefix##_pc_wrapper(const void *thread)                   \
+    static byte *prefix##_pc_wrapper(const void *thread)                   \
     {                                                                      \
         return prefix##_pc((const thread_type *) thread);                  \
     }                                                                      \
                                                                            \
-    static void prefix##_set_pc_wrapper(void *thread, len_t pc)            \
+    static void prefix##_set_pc_wrapper(void *thread, byte *pc)            \
     {                                                                      \
         prefix##_set_pc((thread_type *) thread, pc);                       \
     }                                                                      \
                                                                            \
-    static void prefix##_inc_pc_wrapper(void *thread)                      \
-    {                                                                      \
-        prefix##_inc_pc((thread_type *) thread);                           \
-    }                                                                      \
-                                                                           \
-    static len_t prefix##_sp_wrapper(const void *thread)                   \
+    static char *prefix##_sp_wrapper(const void *thread)                   \
     {                                                                      \
         return prefix##_sp((const thread_type *) thread);                  \
     }                                                                      \
@@ -119,6 +118,16 @@ typedef struct {
                                             mem_t val)                     \
     {                                                                      \
         prefix##_set_memory((thread_type *) thread, idx, val);             \
+    }                                                                      \
+                                                                           \
+    static void *prefix##_clone_wrapper(const void *thread)                \
+    {                                                                      \
+        return prefix##_clone((const thread_type *) thread)                \
+    }                                                                      \
+                                                                           \
+    static void prefix##_free_wrapper(void *thread)                        \
+    {                                                                      \
+        prefix##_free((thread_type *) thread);                             \
     }
 
 #define THREAD_MANAGER_DEFINE_CONSTRUCTOR_FUNCTION(func_name, prefix) \
@@ -128,7 +137,6 @@ typedef struct {
                                                                       \
         manager->pc          = prefix##_pc_wrapper;                   \
         manager->set_pc      = prefix##_set_pc_wrapper;               \
-        manager->inc_pc      = prefix##_inc_pc_wrapper;               \
         manager->sp          = prefix##_sp_wrapper;                   \
         manager->try_inc_sp  = prefix##_try_inc_sp_wrapper;           \
         manager->captures    = prefix##_captures_wrapper;             \
@@ -138,6 +146,8 @@ typedef struct {
         manager->inc_counter = prefix##_inc_counter_wrapper;          \
         manager->memory      = prefix##_memory_wrapper;               \
         manager->set_memory  = prefix##_set_memory_wrapper;           \
+        manager->clone       = prefix##_clone_wrapper;                \
+        manager->free        = prefix##_free_wrapper;                 \
                                                                       \
         return manager;                                               \
     }
