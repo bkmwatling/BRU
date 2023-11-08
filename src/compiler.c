@@ -7,7 +7,7 @@
 
 #define COMPILER_OPTS_DEFAULT ((CompilerOpts){ THOMPSON, FALSE, SC_SPLIT })
 
-#define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) -1))
+#define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) + 1))
 
 #define SPLIT_LABELS_PTRS(p, q, re, pc)                              \
     (p) = (offset_t *) ((re)->pos ? (pc) : (pc) + sizeof(offset_t)); \
@@ -206,9 +206,10 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             pc += 2 * sizeof(offset_t);
 
             SET_OFFSET(p, pc);
-            p     = (offset_t *) pc;
-            *pc++ = EPSSET;
-            k     = prog->mem_len;
+            p              = (offset_t *) pc;
+            *pc++          = EPSSET;
+            k              = prog->mem_len;
+            prog->mem_len += sizeof(const char *);
             MEMPUSH(mem, const char *, NULL);
             MEMPUSH(pc, len_t, k);
             pc = emit(re->left, pc, prog);
@@ -234,9 +235,10 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
          *     `jmp` L1                                            *
          * L3:                                                     */
         case PLUS:
-            r     = (offset_t *) pc;
-            *pc++ = EPSSET;
-            k     = prog->mem_len;
+            r              = (offset_t *) pc;
+            *pc++          = EPSSET;
+            k              = prog->mem_len;
+            prog->mem_len += sizeof(const char *);
             MEMPUSH(mem, const char *, NULL);
             MEMPUSH(pc, len_t, k);
             pc = emit(re->left, pc, prog);
@@ -249,7 +251,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++ = EPSCHK;
             MEMPUSH(pc, len_t, k);
             *pc++ = JMP;
-            MEMPUSH(pc, offset_t, (byte *) r - pc);
+            MEMPUSH(pc, offset_t, (byte *) r - (pc + sizeof(offset_t)));
 
             SET_OFFSET(q, pc);
             break;
@@ -294,8 +296,9 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             MEMPUSH(pc, cntr_t, re->max);
             *pc++ = LE;
 
-            *pc++ = EPSSET;
-            k     = prog->mem_len;
+            *pc++          = EPSSET;
+            k              = prog->mem_len;
+            prog->mem_len += sizeof(const char *);
             MEMPUSH(mem, const char *, NULL);
             MEMPUSH(pc, len_t, k);
             pc    = emit(re->left, pc, prog);
@@ -336,7 +339,6 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             SET_OFFSET(p, pc);
             break;
     }
-    prog->mem_len = mem - prog->memory;
 
     return pc;
 }

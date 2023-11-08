@@ -167,7 +167,9 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
                         subtree = regex_counter(subtree, greedy, min, max);
                     } else {
                         subtree = regex_branch(
-                            CONCAT, regex_counter(subtree, greedy, min, max),
+                            CONCAT,
+                            regex_counter(regex_clone(subtree), greedy, min,
+                                          min),
                             regex_single_child(STAR, subtree, greedy));
                     }
                 }
@@ -389,7 +391,7 @@ parse_parens(const Parser *self, const char **const regex, ParseState *ps)
 static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max)
 {
     const char *ch;
-    int         process_min = TRUE;
+    int         process_min = TRUE, max_empty = TRUE;
 
     *min = 0;
     while (**regex && process_min) {
@@ -411,10 +413,13 @@ static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max)
     *max = 0;
     while (**regex) {
         if (*(ch = (*regex)++) >= '0' && *ch <= '9') {
-            *max = *max * 10 + (*ch - '0');
+            max_empty = FALSE;
+            *max      = *max * 10 + (*ch - '0');
         } else {
             switch (*ch) {
-                case '}': return;
+                case '}':
+                    if (max_empty) *max = CNTR_MAX;
+                    return;
 
                 default:
                     fprintf(stderr, "Invalid symbol in curly braces!");

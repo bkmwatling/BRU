@@ -12,11 +12,11 @@
 #define BUF              512
 #define INTERVAL_MAX_BUF 13
 
-static void regex_to_tree_str_indent(char   *s,
-                                     size_t *len,
-                                     size_t *alloc,
-                                     Regex  *re,
-                                     int     indent);
+static void regex_to_tree_str_indent(char        *s,
+                                     size_t      *len,
+                                     size_t      *alloc,
+                                     const Regex *re,
+                                     int          indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
@@ -173,7 +173,40 @@ void regex_free(Regex *self)
     free(self);
 }
 
-char *regex_to_tree_str(Regex *self)
+Regex *regex_clone(const Regex *self)
+{
+    Regex *re = malloc(sizeof(Regex));
+
+    memcpy(re, self, sizeof(Regex));
+    switch (re->type) {
+        case CARET:
+        case DOLLAR:
+        case LITERAL: break;
+
+        case CC:
+            re->intervals = malloc(re->cc_len * sizeof(Interval));
+            memcpy(re->intervals, self->intervals,
+                   re->cc_len * sizeof(Interval));
+            break;
+
+        case ALT:
+        case CONCAT:
+            re->left  = regex_clone(self->left);
+            re->right = regex_clone(self->right);
+            break;
+
+        case CAPTURE:
+        case STAR:
+        case PLUS:
+        case QUES:
+        case COUNTER:
+        case LOOKAHEAD: re->left = regex_clone(self->left); break;
+    }
+
+    return re;
+}
+
+char *regex_to_tree_str(const Regex *self)
 {
     size_t len = 0, alloc = BUF;
 
@@ -182,11 +215,11 @@ char *regex_to_tree_str(Regex *self)
     return s;
 }
 
-static void regex_to_tree_str_indent(char   *s,
-                                     size_t *len,
-                                     size_t *alloc,
-                                     Regex  *re,
-                                     int     indent)
+static void regex_to_tree_str_indent(char        *s,
+                                     size_t      *len,
+                                     size_t      *alloc,
+                                     const Regex *re,
+                                     int          indent)
 {
     char *p;
 

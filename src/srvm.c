@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,8 +30,8 @@ SRVM *srvm_new(ThreadManager *thread_manager, Scheduler *scheduler)
     srvm->thread_manager = thread_manager;
     srvm->scheduler      = scheduler;
     srvm->ncaptures      = scheduler_program(scheduler)->ncaptures;
-    srvm->captures       = malloc(2 * srvm->ncaptures * sizeof(len_t));
-    memset(srvm->captures, 0, 2 * srvm->ncaptures * sizeof(len_t));
+    srvm->captures       = malloc(2 * srvm->ncaptures * sizeof(char *));
+    memset(srvm->captures, 0, 2 * srvm->ncaptures * sizeof(char *));
 
     return srvm;
 }
@@ -47,7 +48,7 @@ int srvm_match(SRVM *self, const char *text)
 {
     if (text == NULL) return 0;
 
-    memset(self->captures, 0, 2 * self->ncaptures * sizeof(len_t));
+    memset(self->captures, 0, 2 * self->ncaptures * sizeof(char *));
     scheduler_reset(self->scheduler);
     scheduler_init(self->scheduler, text);
     return srvm_run(text, self->thread_manager, self->scheduler,
@@ -56,10 +57,11 @@ int srvm_match(SRVM *self, const char *text)
 
 StcStringView srvm_capture(SRVM *self, len_t idx)
 {
-    if (idx >= self->ncaptures) return stc_sv_from_lit("");
+    if (idx >= self->ncaptures) return (StcStringView){ 0, NULL };
 
-    return stc_sv_from_range(self->captures[2 * idx],
-                             self->captures[2 * idx + 1]);
+    return stc_sv_from_parts(self->captures[2 * idx],
+                             self->captures[2 * idx + 1] -
+                                 self->captures[2 * idx]);
 }
 
 StcStringView *srvm_captures(SRVM *self, len_t *ncaptures)
@@ -68,10 +70,10 @@ StcStringView *srvm_captures(SRVM *self, len_t *ncaptures)
     StcStringView *captures = malloc(self->ncaptures * sizeof(StcStringView));
 
     if (ncaptures) *ncaptures = self->ncaptures;
-    memcpy(captures, self->captures, 2 * self->ncaptures * sizeof(len_t));
     for (i = 0; i < self->ncaptures; i++) {
         captures[i] =
-            stc_sv_from_range(self->captures[2 * i], self->captures[2 * i + 1]);
+            stc_sv_from_parts(self->captures[2 * i], self->captures[2 * i + 1] -
+                                                         self->captures[2 * i]);
     }
 
     return captures;
@@ -106,7 +108,8 @@ static int srvm_run(const char    *text,
     Scheduler     *s;
 
     while ((thread = scheduler_next(scheduler))) {
-        if ((sp = thread_manager->sp(thread))[-1] == '\0') continue;
+        if ((sp = thread_manager->sp(thread)) != text && sp[-1] == '\0')
+            continue;
 
         pc = thread_manager->pc(thread);
         switch (*pc++) {
@@ -128,7 +131,7 @@ static int srvm_run(const char    *text,
                 if (captures)
                     memcpy(captures,
                            thread_manager->captures(thread, &ncaptures),
-                           2 * ncaptures * sizeof(len_t));
+                           2 * ncaptures * sizeof(char *));
                 thread_manager->free(thread);
                 break;
 
@@ -232,7 +235,7 @@ static int srvm_run(const char    *text,
 
             case EPSCHK:
                 MEMPOP(k, pc, len_t);
-                if ((char *) thread_manager->memory(thread, k) < sp) {
+                if (*(char **) thread_manager->memory(thread, k) < sp) {
                     thread_manager->set_pc(thread, pc);
                     scheduler_schedule(scheduler, thread);
                 } else {

@@ -83,7 +83,7 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
     len_t idx;
 
     pc += x;
-    for (idx = 0; insts != pc; idx++) {
+    for (idx = 0; insts < pc; idx++) {
         switch (*insts++) {
             case CHAR: insts += sizeof(char *); break;
             case PRED: insts += 2 * sizeof(len_t); break;
@@ -97,9 +97,9 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
             case EPSSET:         /* fallthrough */
             case EPSCHK: insts += sizeof(len_t); break;
             case RESET: insts += sizeof(len_t) + sizeof(cntr_t); break;
-            case CMP: insts += 1 + sizeof(len_t) + sizeof(cntr_t); break;
-            case INC: insts += sizeof(cntr_t); break;
-            case ZWA: insts += 1 + 2 * sizeof(offset_t); break;
+            case CMP: insts += sizeof(len_t) + sizeof(cntr_t) + 1; break;
+            case INC: insts += sizeof(len_t); break;
+            case ZWA: insts += 2 * sizeof(offset_t) + 1; break;
             default: break;
         }
     }
@@ -152,36 +152,31 @@ static const byte *inst_to_str(char          *s,
             MEMPOP(x, pc, offset_t);
             ENSURE_SPACE(s, *len + 12, *alloc, sizeof(char));
             *len += snprintf(s + *len, *alloc - *len, "jmp " LEN_FMT,
-                             offset_to_absolute_index(x, pc - sizeof(offset_t),
-                                                      prog->insts));
+                             offset_to_absolute_index(x, pc, prog->insts));
             break;
 
         case SPLIT:
             MEMPOP(x, pc, offset_t);
             MEMPOP(y, pc, offset_t);
             ENSURE_SPACE(s, *len + 23, *alloc, sizeof(char));
-            *len +=
-                snprintf(s + *len, *alloc - *len, "split " LEN_FMT ", " LEN_FMT,
-                         offset_to_absolute_index(x, pc - 2 * sizeof(offset_t),
-                                                  prog->insts),
-                         offset_to_absolute_index(y, pc - sizeof(offset_t),
-                                                  prog->insts));
+            *len += snprintf(
+                s + *len, *alloc - *len, "split " LEN_FMT ", " LEN_FMT,
+                offset_to_absolute_index(x, pc - sizeof(offset_t), prog->insts),
+                offset_to_absolute_index(y, pc, prog->insts));
             break;
 
         case GSPLIT:
             MEMPOP(x, pc, offset_t);
             ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
             *len += snprintf(s + *len, *alloc - *len, "gsplit " LEN_FMT,
-                             offset_to_absolute_index(x, pc - sizeof(offset_t),
-                                                      prog->insts));
+                             offset_to_absolute_index(x, pc, prog->insts));
             break;
 
         case LSPLIT:
             MEMPOP(x, pc, offset_t);
             ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
             *len += snprintf(s + *len, *alloc - *len, "lsplit " LEN_FMT,
-                             offset_to_absolute_index(x, pc - sizeof(offset_t),
-                                                      prog->insts));
+                             offset_to_absolute_index(x, pc, prog->insts));
             break;
 
         /* TODO: */
@@ -251,10 +246,8 @@ static const byte *inst_to_str(char          *s,
             ENSURE_SPACE(s, *len + 24, *alloc, sizeof(char));
             *len += snprintf(
                 s + *len, *alloc - *len, "zwa " LEN_FMT ", " LEN_FMT ", %d",
-                offset_to_absolute_index(x, pc - 2 * sizeof(offset_t),
-                                         prog->insts),
-                offset_to_absolute_index(y, pc - sizeof(offset_t), prog->insts),
-                *pc);
+                offset_to_absolute_index(x, pc - sizeof(offset_t), prog->insts),
+                offset_to_absolute_index(y, pc, prog->insts), *pc);
             pc++;
             break;
     }

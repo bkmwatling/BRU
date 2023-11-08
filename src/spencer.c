@@ -40,8 +40,8 @@ SpencerThread *spencer_thread_new(const byte   *pc,
     thread->pc = pc;
     thread->sp = sp;
 
-    thread->captures = malloc(2 * ncaptures * sizeof(char **));
-    memset(thread->captures, 0, 2 * ncaptures * sizeof(char **));
+    thread->captures = malloc(2 * ncaptures * sizeof(char *));
+    memset(thread->captures, 0, 2 * ncaptures * sizeof(char *));
     thread->ncaptures = ncaptures;
 
     thread->counters = malloc(counters_len * sizeof(cntr_t));
@@ -141,6 +141,7 @@ SpencerScheduler *spencer_scheduler_new(const Program *program)
 
     s->prog   = program;
     s->active = NULL;
+    s->stack  = NULL;
     vec_default_init(s->stack);
 
     return s;
@@ -156,12 +157,12 @@ void spencer_scheduler_init(SpencerScheduler *self, const char *text)
         spencer_thread_new(prog->insts, text, prog->ncaptures, prog->counters,
                            prog->counters_len, prog->memory, prog->mem_len));
 
-    for (; text_len > 1; text_len--) {
+    for (; text_len > 0; text_len--) {
         spencer_scheduler_schedule(
-            self, spencer_thread_new(prog->insts, text + text_len - 1,
-                                     prog->ncaptures, prog->counters,
-                                     prog->counters_len, prog->memory,
-                                     prog->mem_len));
+            self,
+            spencer_thread_new(prog->insts, text + text_len, prog->ncaptures,
+                               prog->counters, prog->counters_len, prog->memory,
+                               prog->mem_len));
     }
 }
 

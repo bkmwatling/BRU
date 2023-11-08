@@ -24,33 +24,22 @@ SRCDIR      := src
 BINDIR      := bin
 
 # files
-MATCH_EXE   := match
-COMPILE_EXE := compile
-PARSE_EXE   := parse
-EXE         := $(MATCH_EXE) $(COMPILE_EXE) $(PARSE_EXE)
+BRU_EXE     := bru
+EXE         := $(BRU_EXE)
 
-MATCH_SRC   := $(SRCDIR)/$(MATCH_EXE).c
-COMPILE_SRC := $(SRCDIR)/$(COMPILE_EXE).c
-PARSE_SRC   := $(SRCDIR)/$(PARSE_EXE).c
-EXE_SRC     := $(MATCH_SRC) $(COMPILE_SRC) $(PARSE_SRC)
+BRU_SRC     := $(SRCDIR)/$(BRU_EXE).c
+EXE_SRC     := $(BRU_SRC)
 
 SRC         := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
-               $(SRCDIR)/stc/util/args.c $(SRCDIR)/stc/util/utf.c \
-               $(SRCDIR)/stc/fatp/string_view.c $(SRCDIR)/stc/fatp/vec.c
+               $(SRCDIR)/stc/fatp/string_view.c $(SRCDIR)/stc/fatp/vec.c \
+               $(SRCDIR)/stc/util/args.c $(SRCDIR)/stc/util/utf.c
 OBJ         := $(SRC:.c=.o)
-PARSE_OBJ   := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJ))
 
 ### RULES ######################################################################
 
 # executables
 
-$(MATCH_EXE): $(MATCH_SRC) $(OBJ) | $(BINDIR)
-	$(COMPILE) -o $(BINDIR)/$@ $^
-
-$(COMPILE_EXE): $(COMPILE_SRC) $(OBJ) | $(BINDIR)
-	$(COMPILE) -o $(BINDIR)/$@ $^
-
-$(PARSE_EXE): $(PARSE_SRC) $(PARSE_OBJ) | $(BINDIR)
+$(BRU_EXE): $(BRU_SRC) $(OBJ) | $(BINDIR)
 	$(COMPILE) -o $(BINDIR)/$@ $^
 
 # units

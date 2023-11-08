@@ -73,7 +73,8 @@ Regex *regex_branch(RegexType kind, Regex *left, Regex *right);
 Regex *regex_single_child(RegexType kind, Regex *child, byte pos);
 Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max);
 
-void  regex_free(Regex *self);
-char *regex_to_tree_str(Regex *self);
+void   regex_free(Regex *self);
+Regex *regex_clone(const Regex *self);
+char  *regex_to_tree_str(const Regex *self);
 
 #endif /* SRE_H */
