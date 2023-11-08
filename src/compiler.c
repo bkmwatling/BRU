@@ -97,13 +97,13 @@ static len_t count(Regex *re,
         case STAR:
             n  = 5 * sizeof(byte) + 5 * sizeof(offset_t) + 2 * sizeof(len_t);
             n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
-            ++*mem_len;
+            *mem_len += sizeof(char *);
             break;
 
         case PLUS:
             n  = 4 * sizeof(byte) + 3 * sizeof(offset_t) + 2 * sizeof(len_t);
             n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
-            ++*mem_len;
+            *mem_len += sizeof(char *);
             break;
 
         case QUES:
@@ -116,7 +116,7 @@ static len_t count(Regex *re,
                 3 * sizeof(cntr_t);
             n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
             ++*counters_len;
-            ++*mem_len;
+            *mem_len += sizeof(char *);
             break;
 
         case LOOKAHEAD:
@@ -132,6 +132,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
 {
     len_t     c, k;
     offset_t *p, *q, *r, *t;
+    byte     *mem = prog->memory + prog->mem_len;
 
     switch (re->type) {
         case CARET: *pc++ = BEGIN; break;
@@ -205,10 +206,10 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             pc += 2 * sizeof(offset_t);
 
             SET_OFFSET(p, pc);
-            p               = (offset_t *) pc;
-            *pc++           = EPSSET;
-            k               = prog->mem_len++;
-            prog->memory[k] = 0;
+            p     = (offset_t *) pc;
+            *pc++ = EPSSET;
+            k     = prog->mem_len;
+            MEMPUSH(mem, const char *, NULL);
             MEMPUSH(pc, len_t, k);
             pc = emit(re->left, pc, prog);
 
@@ -233,10 +234,10 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
          *     `jmp` L1                                            *
          * L3:                                                     */
         case PLUS:
-            r               = (offset_t *) pc;
-            *pc++           = EPSSET;
-            k               = prog->mem_len++;
-            prog->memory[k] = 0;
+            r     = (offset_t *) pc;
+            *pc++ = EPSSET;
+            k     = prog->mem_len;
+            MEMPUSH(mem, const char *, NULL);
             MEMPUSH(pc, len_t, k);
             pc = emit(re->left, pc, prog);
 
@@ -293,9 +294,9 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             MEMPUSH(pc, cntr_t, re->max);
             *pc++ = LE;
 
-            *pc++           = EPSSET;
-            k               = prog->mem_len++;
-            prog->memory[k] = 0;
+            *pc++ = EPSSET;
+            k     = prog->mem_len;
+            MEMPUSH(mem, const char *, NULL);
             MEMPUSH(pc, len_t, k);
             pc    = emit(re->left, pc, prog);
             *pc++ = INC;
@@ -335,6 +336,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             SET_OFFSET(p, pc);
             break;
     }
+    prog->mem_len = mem - prog->memory;
 
     return pc;
 }

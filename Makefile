@@ -35,7 +35,8 @@ PARSE_SRC   := $(SRCDIR)/$(PARSE_EXE).c
 EXE_SRC     := $(MATCH_SRC) $(COMPILE_SRC) $(PARSE_SRC)
 
 SRC         := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
-               $(SRCDIR)/stc/util/args.c $(SRCDIR)/stc/util/utf.c
+               $(SRCDIR)/stc/util/args.c $(SRCDIR)/stc/util/utf.c \
+               $(SRCDIR)/stc/fatp/string_view.c $(SRCDIR)/stc/fatp/vec.c
 OBJ         := $(SRC:.c=.o)
 PARSE_OBJ   := $(filter-out $(addprefix $(SRCDIR)/, compiler.o srvm.o), $(OBJ))
 

@@ -39,11 +39,11 @@ Program *program_new(len_t insts_size,
 
     prog->counters     = malloc(counters_len * sizeof(cntr_t));
     prog->counters_len = counters_len;
-    prog->memory       = malloc(mem_len * sizeof(size_t));
+    prog->memory       = malloc(mem_len * sizeof(byte));
     prog->mem_len      = mem_len;
 
     memset(prog->counters, 0, counters_len * sizeof(cntr_t));
-    memset(prog->memory, 0, mem_len * sizeof(cntr_t));
+    memset(prog->memory, 0, mem_len * sizeof(byte));
 
     return prog;
 }

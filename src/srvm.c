@@ -10,7 +10,7 @@ struct srvm {
     ThreadManager *thread_manager;
     Scheduler     *scheduler;
     len_t          ncaptures;
-    len_t         *captures;
+    const char   **captures;
 };
 
 /* --- Private function prototypes ------------------------------------------ */
@@ -18,7 +18,7 @@ struct srvm {
 static int srvm_run(const char    *text,
                     ThreadManager *thread_manager,
                     Scheduler     *scheduler,
-                    len_t         *captures);
+                    const char   **captures);
 
 /* --- Public function definitions ------------------------------------------ */
 
@@ -45,6 +45,8 @@ void srvm_free(SRVM *self)
 
 int srvm_match(SRVM *self, const char *text)
 {
+    if (text == NULL) return 0;
+
     memset(self->captures, 0, 2 * self->ncaptures * sizeof(len_t));
     scheduler_reset(self->scheduler);
     scheduler_init(self->scheduler, text);
@@ -52,20 +54,25 @@ int srvm_match(SRVM *self, const char *text)
                     self->captures);
 }
 
-void srvm_capture(SRVM *self, len_t idx, len_t *start, len_t *end)
+StcStringView srvm_capture(SRVM *self, len_t idx)
 {
-    if (idx >= self->ncaptures) return;
+    if (idx >= self->ncaptures) return stc_sv_from_lit("");
 
-    *start = self->captures[2 * idx];
-    *end   = self->captures[2 * idx + 1];
+    return stc_sv_from_range(self->captures[2 * idx],
+                             self->captures[2 * idx + 1]);
 }
 
-len_t *srvm_captures(SRVM *self, len_t *ncaptures)
+StcStringView *srvm_captures(SRVM *self, len_t *ncaptures)
 {
-    len_t *captures = malloc(2 * self->ncaptures * sizeof(len_t));
+    len_t          i;
+    StcStringView *captures = malloc(self->ncaptures * sizeof(StcStringView));
 
     if (ncaptures) *ncaptures = self->ncaptures;
     memcpy(captures, self->captures, 2 * self->ncaptures * sizeof(len_t));
+    for (i = 0; i < self->ncaptures; i++) {
+        captures[i] =
+            stc_sv_from_range(self->captures[2 * i], self->captures[2 * i + 1]);
+    }
 
     return captures;
 }
@@ -85,11 +92,10 @@ int srvm_matches(ThreadManager *thread_manager,
 static int srvm_run(const char    *text,
                     ThreadManager *thread_manager,
                     Scheduler     *scheduler,
-                    len_t         *captures)
+                    const char   **captures)
 {
-    int            matched  = 0, cond;
-    const len_t    text_len = strlen(text);
-    const Program *prog     = scheduler_program(scheduler);
+    int            matched = 0, cond;
+    const Program *prog    = scheduler_program(scheduler);
     void          *thread, *t;
     const byte    *pc;
     const char    *sp, *codepoint;
@@ -202,7 +208,19 @@ static int srvm_run(const char    *text,
             /* TODO: */
             case GSPLIT: break;
             case LSPLIT: break;
-            case TSWITCH: break;
+
+            case TSWITCH:
+                MEMPOP(k, pc, len_t);
+                for (; k > 0; k--) {
+                    MEMPOP(x, pc, offset_t);
+                    t = thread_manager->clone(thread);
+                    thread_manager->set_pc(t, pc + x);
+                    scheduler_schedule(scheduler, t);
+                }
+                thread_manager->free(thread);
+                break;
+
+            /* TODO: */
             case LSWITCH: break;
 
             case EPSSET:

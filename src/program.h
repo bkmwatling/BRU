@@ -64,7 +64,7 @@ typedef struct {
     len_t   ncaptures;
     cntr_t *counters;
     len_t   counters_len;
-    mem_t  *memory;
+    byte   *memory;
     len_t   mem_len;
 } Program;
 
