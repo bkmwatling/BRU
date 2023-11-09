@@ -62,8 +62,7 @@ StringView srvm_capture(SRVM *self, len_t idx)
 {
     if (idx >= self->ncaptures) return (StringView){ 0, NULL };
 
-    return sv_from_parts(self->captures[2 * idx],
-                         self->captures[2 * idx + 1] - self->captures[2 * idx]);
+    return sv_from_range(self->captures[2 * idx], self->captures[2 * idx + 1]);
 }
 
 StringView *srvm_captures(SRVM *self, len_t *ncaptures)
@@ -72,11 +71,9 @@ StringView *srvm_captures(SRVM *self, len_t *ncaptures)
     StringView *captures = malloc(self->ncaptures * sizeof(StringView));
 
     if (ncaptures) *ncaptures = self->ncaptures;
-    for (i = 0; i < self->ncaptures; i++) {
+    for (i = 0; i < self->ncaptures; i++)
         captures[i] =
-            sv_from_parts(self->captures[2 * i],
-                          self->captures[2 * i + 1] - self->captures[2 * i]);
-    }
+            sv_from_range(self->captures[2 * i], self->captures[2 * i + 1]);
 
     return captures;
 }

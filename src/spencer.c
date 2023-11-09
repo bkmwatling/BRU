@@ -177,14 +177,14 @@ void spencer_scheduler_schedule(SpencerScheduler *self, SpencerThread *thread)
 
 int spencer_scheduler_has_next(const SpencerScheduler *self)
 {
-    return self->active != NULL || vec_len(self->stack) > 0;
+    return self->active != NULL || !vec_is_empty(self->stack);
 }
 
 SpencerThread *spencer_scheduler_next(SpencerScheduler *self)
 {
     SpencerThread *thread = self->active;
     self->active          = NULL;
-    if (thread == NULL && vec_len(self->stack) > 0)
+    if (thread == NULL && !vec_is_empty(self->stack))
         thread = vec_pop(self->stack);
 
     return thread;

@@ -6,8 +6,11 @@
 #include "stc/fatp/string_view.h"
 #define STC_ARGS_ENABLE_SHORT_NAMES
 #include "stc/util/args.h"
+#define STC_UTF_ENABLE_SHORT_NAMES
+#include "stc/util/utf.h"
 
 #include "compiler.h"
+#include "lockstep.h"
 #include "parser.h"
 #include "scheduler.h"
 #include "spencer.h"
@@ -100,8 +103,9 @@ int main(int argc, const char **argv)
     ThreadManager *thread_manager = NULL;
     Scheduler     *scheduler      = NULL;
     SRVM          *srvm;
-    StringView    *captures;
+    StringView     capture, *captures;
     len_t          i, ncaptures;
+    size_t         ncodepoints;
     Arg            args[] = {
         { STC_ARG_CUSTOM, "<subcommand>", NULL, &cmd, NULL,
                      "the subcommand to run (parse, compile, or match)", NULL,
@@ -177,18 +181,27 @@ int main(int argc, const char **argv)
             scheduler =
                 spencer_scheduler_to_scheduler(spencer_scheduler_new(prog));
         } else if (scheduler_type == SCH_LOCKSTEP) {
-            /* TODO: change when lockstep is implemented */
-            thread_manager = spencer_thread_manager_new();
-            scheduler =
-                spencer_scheduler_to_scheduler(spencer_scheduler_new(prog));
+            thread_manager = thompson_thread_manager_new();
+            scheduler      = thompson_scheduler_to_scheduler(
+                thompson_scheduler_new(prog, text));
         }
 
         srvm = srvm_new(thread_manager, scheduler);
         printf("matched = %d\n", srvm_match(srvm, text));
         printf("captures:\n");
         captures = srvm_captures(srvm, &ncaptures);
+        printf("  input: '%s'\n", text);
         for (i = 0; i < ncaptures; i++) {
-            printf("  " LEN_FMT ": " SV_FMT "\n", i, SV_ARG(captures[i]));
+            capture = captures[i];
+            printf("%7hu: ", i);
+            if (capture.str) {
+                ncodepoints = utf8_str_ncodepoints(text) -
+                              utf8_str_ncodepoints(capture.str);
+                printf("%*s'" SV_FMT "'\n", (int) ncodepoints, "",
+                       SV_ARG(capture));
+            } else {
+                printf("not captured\n");
+            }
         }
 
         compiler_free(c);
