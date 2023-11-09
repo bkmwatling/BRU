@@ -99,8 +99,9 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
     int         greedy;
 
     while (**regex) {
-        switch (*(ch = (*regex)++)) {
-            case '|': --*regex; return tree;
+        switch (*(ch = utf8_str_advance(regex))) {
+                // switch (*(ch = (*regex)++)) {
+            case '|': *regex = ch; return tree;
 
             case '(': subtree = parse_parens(self, regex, ps); break;
 
@@ -109,12 +110,11 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
             case '$': subtree = regex_anchor(DOLLAR); break;
 
             default:
-                --*regex;
                 if (*ch == ')' && ps->in_group) {
+                    *regex = ch;
                     return tree;
                 } else {
-                    *regex  += utf8_nbytes(ch);
-                    subtree  = parse_terminal(ch, regex);
+                    subtree = parse_terminal(ch, regex);
                 }
         }
 
@@ -213,8 +213,7 @@ static Regex *parse_cc(const char **const regex)
         intervals[cc_len++] = interval(neg, "]", "]");
     }
 
-    while (*(ch = *regex)) {
-        *regex = utf8_str_next(*regex);
+    while (*(ch = utf8_str_advance(regex))) {
         switch (*ch) {
             case '-':
                 PUSH(intervals, cc_len, cc_alloc, interval(neg, "-", "-"));
@@ -289,9 +288,9 @@ static Interval *parse_predefined_cc(const char **const regex,
             intervals = malloc(*cc_alloc * sizeof(Interval));
         }
 
-        ch     = *regex;
-        *regex = utf8_str_next(*regex);
-        switch (*ch) {
+        // ch     = *regex;
+        // *regex = utf8_str_next(*regex);
+        switch (*(ch = utf8_str_advance(regex))) {
             case 'd':
             case 'D':
                 PUSH(intervals, *cc_len, *cc_alloc,

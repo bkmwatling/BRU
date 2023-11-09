@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define STC_SV_ENABLE_SHORT_NAMES
+#include "stc/fatp/string_view.h"
+
 #include "program.h"
 #include "srvm.h"
 
@@ -55,25 +58,24 @@ int srvm_match(SRVM *self, const char *text)
                     self->captures);
 }
 
-StcStringView srvm_capture(SRVM *self, len_t idx)
+StringView srvm_capture(SRVM *self, len_t idx)
 {
-    if (idx >= self->ncaptures) return (StcStringView){ 0, NULL };
+    if (idx >= self->ncaptures) return (StringView){ 0, NULL };
 
-    return stc_sv_from_parts(self->captures[2 * idx],
-                             self->captures[2 * idx + 1] -
-                                 self->captures[2 * idx]);
+    return sv_from_parts(self->captures[2 * idx],
+                         self->captures[2 * idx + 1] - self->captures[2 * idx]);
 }
 
-StcStringView *srvm_captures(SRVM *self, len_t *ncaptures)
+StringView *srvm_captures(SRVM *self, len_t *ncaptures)
 {
-    len_t          i;
-    StcStringView *captures = malloc(self->ncaptures * sizeof(StcStringView));
+    len_t       i;
+    StringView *captures = malloc(self->ncaptures * sizeof(StringView));
 
     if (ncaptures) *ncaptures = self->ncaptures;
     for (i = 0; i < self->ncaptures; i++) {
         captures[i] =
-            stc_sv_from_parts(self->captures[2 * i], self->captures[2 * i + 1] -
-                                                         self->captures[2 * i]);
+            sv_from_parts(self->captures[2 * i],
+                          self->captures[2 * i + 1] - self->captures[2 * i]);
     }
 
     return captures;

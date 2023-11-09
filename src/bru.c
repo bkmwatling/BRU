@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define STC_SV_ENABLE_SHORT_NAMES
 #include "stc/fatp/string_view.h"
+#define STC_ARGS_ENABLE_SHORT_NAMES
 #include "stc/util/args.h"
 
 #include "compiler.h"
@@ -17,7 +19,7 @@ typedef enum { CMD_PARSE, CMD_COMPILE, CMD_MATCH } Subcommand;
 
 typedef enum { SCH_SPENSER, SCH_LOCKSTEP } SchedulerType;
 
-static StcArgConvertResult convert_subcommand(const char *arg, void *out)
+static ArgConvertResult convert_subcommand(const char *arg, void *out)
 {
     Subcommand *cmd = out;
 
@@ -34,7 +36,7 @@ static StcArgConvertResult convert_subcommand(const char *arg, void *out)
     return STC_CR_SUCCESS;
 }
 
-static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
+static ArgConvertResult convert_scheduler_type(const char *arg, void *out)
 {
     SchedulerType *type = out;
 
@@ -49,7 +51,7 @@ static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
     return STC_CR_SUCCESS;
 }
 
-static StcArgConvertResult convert_construction(const char *arg, void *out)
+static ArgConvertResult convert_construction(const char *arg, void *out)
 {
     Construction *construction = out;
 
@@ -65,7 +67,7 @@ static StcArgConvertResult convert_construction(const char *arg, void *out)
     return STC_CR_SUCCESS;
 }
 
-static StcArgConvertResult convert_branch(const char *arg, void *out)
+static ArgConvertResult convert_branch(const char *arg, void *out)
 {
     SplitChoice *branch = out;
 
@@ -98,51 +100,51 @@ int main(int argc, const char **argv)
     ThreadManager *thread_manager = NULL;
     Scheduler     *scheduler      = NULL;
     SRVM          *srvm;
-    StcStringView *captures;
+    StringView    *captures;
     len_t          i, ncaptures;
-    StcArg         args[] = {
+    Arg            args[] = {
         { STC_ARG_CUSTOM, "<subcommand>", NULL, &cmd, NULL,
-                  "the subcommand to run (parse, compile, or match)", NULL,
-                  convert_subcommand },
+                     "the subcommand to run (parse, compile, or match)", NULL,
+                     convert_subcommand },
         { STC_ARG_STR, "<regex>", NULL, &regex, NULL,
-                  "the regex to compile to SRVM instructions", NULL, NULL },
+                     "the regex to compile to SRVM instructions", NULL, NULL },
         { STC_ARG_BOOL, "-o", "--only-counters", &parser_opts.only_counters,
-                  NULL,
-                  "whether to use just counters and treat *, +, and ? as counters",
-                  NULL, NULL },
+                     NULL,
+                     "whether to use just counters and treat *, +, and ? as counters",
+                     NULL, NULL },
         { STC_ARG_BOOL, "-u", "--unbounded-counters",
-                  &parser_opts.unbounded_counters, NULL,
-                  "whether to permit unbounded counters or substitute with *", NULL,
-                  NULL },
+                     &parser_opts.unbounded_counters, NULL,
+                     "whether to permit unbounded counters or substitute with *", NULL,
+                     NULL },
         { STC_ARG_BOOL, "-w", "--whole-match-capture",
-                  &parser_opts.whole_match_capture, NULL,
-                  "whether to have the whole regex match be the 0th capture", NULL,
-                  NULL },
+                     &parser_opts.whole_match_capture, NULL,
+                     "whether to have the whole regex match be the 0th capture", NULL,
+                     NULL },
         { STC_ARG_CUSTOM, "-c", "--construction", &compiler_opts.construction,
-                  "thompson | glushkov",
-                  "whether to compile using thompson or glushkov", "thompson",
-                  convert_construction },
+                     "thompson | glushkov",
+                     "whether to compile using thompson or glushkov", "thompson",
+                     convert_construction },
         { STC_ARG_BOOL, NULL, "--only-std-split", &compiler_opts.only_std_split,
-                  NULL, "whether to use of standard `split` instruction only", NULL,
-                  NULL },
+                     NULL, "whether to use of standard `split` instruction only", NULL,
+                     NULL },
         { STC_ARG_CUSTOM, "-b", "--branch", &compiler_opts.branch,
-                  "split | tswitch | lswitch",
-                  "which type of branching to use for control flow", "split",
-                  convert_branch },
+                     "split | tswitch | lswitch",
+                     "which type of branching to use for control flow", "split",
+                     convert_branch },
         { STC_ARG_CUSTOM, "-s", "--scheduler", &scheduler_type,
-                  "spencer | lockstep | thompson",
-                  "which scheduler to use for execution", "spencer",
-                  convert_scheduler_type },
+                     "spencer | lockstep | thompson",
+                     "which scheduler to use for execution", "spencer",
+                     convert_scheduler_type },
         { STC_ARG_STR, "<input>", NULL, &text, NULL,
-                  "the input string to match against the regex", NULL, NULL }
+                     "the input string to match against the regex", NULL, NULL }
     };
 
-    arg_idx  = stc_args_parse(argc, argv, args, 1, NULL);
+    arg_idx  = args_parse(argc, argv, args, 1, NULL);
     argc    -= arg_idx - 1;
     argv    += arg_idx - 1;
 
     if (cmd == CMD_PARSE) {
-        stc_args_parse_exact(argc, argv, args + 1, 4, NULL);
+        args_parse_exact(argc, argv, args + 1, 4, NULL);
 
         p  = parser_new(regex, &parser_opts);
         re = parser_parse(p);
@@ -154,7 +156,7 @@ int main(int argc, const char **argv)
         regex_free(re);
         free(s);
     } else if (cmd == CMD_COMPILE) {
-        stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 3, NULL);
+        args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 3, NULL);
 
         c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
         prog = compiler_compile(c);
@@ -166,7 +168,7 @@ int main(int argc, const char **argv)
         program_free(prog);
         free(s);
     } else if (cmd == CMD_MATCH) {
-        stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
+        args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
 
         c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
         prog = compiler_compile(c);
@@ -186,8 +188,7 @@ int main(int argc, const char **argv)
         printf("captures:\n");
         captures = srvm_captures(srvm, &ncaptures);
         for (i = 0; i < ncaptures; i++) {
-            printf("  " LEN_FMT ": " STC_SV_FMT "\n", i,
-                   STC_SV_ARG(captures[i]));
+            printf("  " LEN_FMT ": " SV_FMT "\n", i, SV_ARG(captures[i]));
         }
 
         compiler_free(c);
