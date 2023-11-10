@@ -15,7 +15,7 @@
 
 static len_t
 offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts);
-static const byte *inst_to_str(char          *s,
+static const byte *inst_to_str(char         **s,
                                size_t        *len,
                                size_t        *alloc,
                                const byte    *pc,
@@ -67,7 +67,7 @@ char *program_to_str(const Program *self)
     while (pc - self->insts < self->insts_len) {
         ENSURE_SPACE(s, len + 6, alloc, sizeof(char));
         len += snprintf(s + len, alloc - len, "%3d: ", i++);
-        pc   = inst_to_str(s, &len, &alloc, pc, self);
+        pc   = inst_to_str(&s, &len, &alloc, pc, self);
         STR_PUSH(s, len, alloc, "\n");
     }
     s[len - 1] = '\0';
@@ -107,7 +107,7 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
     return idx;
 }
 
-static const byte *inst_to_str(char          *s,
+static const byte *inst_to_str(char         **s,
                                size_t        *len,
                                size_t        *alloc,
                                const byte    *pc,
@@ -121,14 +121,14 @@ static const byte *inst_to_str(char          *s,
     if (pc == NULL) return NULL;
 
     switch (*pc++) {
-        case MATCH: STR_PUSH(s, *len, *alloc, "match"); break;
-        case BEGIN: STR_PUSH(s, *len, *alloc, "begin"); break;
-        case END: STR_PUSH(s, *len, *alloc, "end"); break;
+        case MATCH: STR_PUSH(*s, *len, *alloc, "match"); break;
+        case BEGIN: STR_PUSH(*s, *len, *alloc, "begin"); break;
+        case END: STR_PUSH(*s, *len, *alloc, "end"); break;
 
         case CHAR:
             MEMPOP(p, pc, char *);
-            ENSURE_SPACE(s, *len + strlen(p) + 6, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "char %.*s",
+            ENSURE_SPACE(*s, *len + strlen(p) + 6, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "char %.*s",
                              utf8_nbytes(p), p);
             break;
 
@@ -137,45 +137,45 @@ static const byte *inst_to_str(char          *s,
             MEMPOP(i, pc, len_t);
 
             p = intervals_to_str((Interval *) (prog->aux + i), n);
-            ENSURE_SPACE(s, *len + strlen(p) + 6, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "pred %s", p);
+            ENSURE_SPACE(*s, *len + strlen(p) + 6, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "pred %s", p);
             free(p);
             break;
 
         case SAVE:
             MEMPOP(n, pc, len_t);
-            ENSURE_SPACE(s, *len + 13, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "save " LEN_FMT, n);
+            ENSURE_SPACE(*s, *len + 13, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "save " LEN_FMT, n);
             break;
 
         case JMP:
             MEMPOP(x, pc, offset_t);
-            ENSURE_SPACE(s, *len + 12, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "jmp " LEN_FMT,
+            ENSURE_SPACE(*s, *len + 12, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "jmp " LEN_FMT,
                              offset_to_absolute_index(x, pc, prog->insts));
             break;
 
         case SPLIT:
             MEMPOP(x, pc, offset_t);
             MEMPOP(y, pc, offset_t);
-            ENSURE_SPACE(s, *len + 23, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 23, *alloc, sizeof(char));
             *len += snprintf(
-                s + *len, *alloc - *len, "split " LEN_FMT ", " LEN_FMT,
+                *s + *len, *alloc - *len, "split " LEN_FMT ", " LEN_FMT,
                 offset_to_absolute_index(x, pc - sizeof(offset_t), prog->insts),
                 offset_to_absolute_index(y, pc, prog->insts));
             break;
 
         case GSPLIT:
             MEMPOP(x, pc, offset_t);
-            ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "gsplit " LEN_FMT,
+            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "gsplit " LEN_FMT,
                              offset_to_absolute_index(x, pc, prog->insts));
             break;
 
         case LSPLIT:
             MEMPOP(x, pc, offset_t);
-            ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "lsplit " LEN_FMT,
+            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "lsplit " LEN_FMT,
                              offset_to_absolute_index(x, pc, prog->insts));
             break;
 
@@ -186,66 +186,66 @@ static const byte *inst_to_str(char          *s,
 
         case EPSSET:
             MEMPOP(n, pc, len_t);
-            ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "epsset " LEN_FMT, n);
+            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "epsset " LEN_FMT, n);
             break;
 
         case EPSCHK:
             MEMPOP(n, pc, len_t);
-            ENSURE_SPACE(s, *len + 15, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "epschk " LEN_FMT, n);
+            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "epschk " LEN_FMT, n);
             break;
 
         case RESET:
             MEMPOP(i, pc, len_t);
             MEMPOP(c, pc, cntr_t);
-            ENSURE_SPACE(s, *len + 23, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len,
+            ENSURE_SPACE(*s, *len + 23, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len,
                              "reset " LEN_FMT ", " CNTR_FMT, i, c);
             break;
 
         case CMP:
             MEMPOP(i, pc, len_t);
             MEMPOP(c, pc, cntr_t);
-            ENSURE_SPACE(s, *len + 23, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 23, *alloc, sizeof(char));
 
             switch (*pc++) {
                 case LT:
-                    *len += snprintf(s + *len, *alloc - *len, "cmplt ");
+                    *len += snprintf(*s + *len, *alloc - *len, "cmplt ");
                     break;
                 case LE:
-                    *len += snprintf(s + *len, *alloc - *len, "cmple ");
+                    *len += snprintf(*s + *len, *alloc - *len, "cmple ");
                     break;
                 case EQ:
-                    *len += snprintf(s + *len, *alloc - *len, "cmpeq ");
+                    *len += snprintf(*s + *len, *alloc - *len, "cmpeq ");
                     break;
                 case NE:
-                    *len += snprintf(s + *len, *alloc - *len, "cmpne ");
+                    *len += snprintf(*s + *len, *alloc - *len, "cmpne ");
                     break;
                 case GE:
-                    *len += snprintf(s + *len, *alloc - *len, "cmpge ");
+                    *len += snprintf(*s + *len, *alloc - *len, "cmpge ");
                     break;
                 case GT:
-                    *len += snprintf(s + *len, *alloc - *len, "cmpgt ");
+                    *len += snprintf(*s + *len, *alloc - *len, "cmpgt ");
                     break;
             }
 
             *len +=
-                snprintf(s + *len, *alloc - *len, LEN_FMT ", " CNTR_FMT, i, c);
+                snprintf(*s + *len, *alloc - *len, LEN_FMT ", " CNTR_FMT, i, c);
             break;
 
         case INC:
             MEMPOP(i, pc, len_t);
-            ENSURE_SPACE(s, *len + 12, *alloc, sizeof(char));
-            *len += snprintf(s + *len, *alloc - *len, "inc " LEN_FMT, i);
+            ENSURE_SPACE(*s, *len + 12, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "inc " LEN_FMT, i);
             break;
 
         case ZWA:
             MEMPOP(x, pc, offset_t);
             MEMPOP(y, pc, offset_t);
-            ENSURE_SPACE(s, *len + 24, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 24, *alloc, sizeof(char));
             *len += snprintf(
-                s + *len, *alloc - *len, "zwa " LEN_FMT ", " LEN_FMT ", %d",
+                *s + *len, *alloc - *len, "zwa " LEN_FMT ", " LEN_FMT ", %d",
                 offset_to_absolute_index(x, pc - sizeof(offset_t), prog->insts),
                 offset_to_absolute_index(y, pc, prog->insts), *pc);
             pc++;

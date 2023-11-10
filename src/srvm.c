@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -107,8 +106,10 @@ static int srvm_run(const char    *text,
     Scheduler     *s;
 
     while ((thread = scheduler_next(scheduler))) {
-        if ((sp = thread_manager->sp(thread)) != text && sp[-1] == '\0')
+        if ((sp = thread_manager->sp(thread)) != text && sp[-1] == '\0') {
+            scheduler_kill(scheduler, thread);
             continue;
+        }
 
         pc = thread_manager->pc(thread);
         switch (*pc++) {
@@ -255,12 +256,13 @@ static int srvm_run(const char    *text,
                 MEMPOP(n, pc, cntr_t);
                 cval = thread_manager->counter(thread, k);
                 switch (*pc++) {
-                    case LT: cond = cval < n;
-                    case LE: cond = cval <= n;
-                    case EQ: cond = cval == n;
-                    case NE: cond = cval != n;
-                    case GE: cond = cval >= n;
-                    case GT: cond = cval > n;
+                    case LT: cond = (cval < n); break;
+                    case LE: cond = (cval <= n); break;
+                    case EQ: cond = (cval == n); break;
+                    case NE: cond = (cval != n); break;
+                    case GE: cond = (cval >= n); break;
+                    case GT: cond = (cval > n); break;
+                    default: cond = 0; break;
                 }
 
                 if (cond) {
