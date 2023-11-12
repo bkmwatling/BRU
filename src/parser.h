@@ -6,6 +6,7 @@
 typedef struct {
     int only_counters;
     int unbounded_counters;
+    int expand_counters;
     int whole_match_capture;
 } ParserOpts;
 

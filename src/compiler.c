@@ -46,7 +46,6 @@ Program *compiler_compile(const Compiler *self)
     prog = program_new(insts_size, aux_size, ncaptures, counters_len, mem_len);
 
     /* set the length fields to 0 as we use them for indices during emitting */
-    prog->ncaptures    = 0;
     prog->aux_len      = 0;
     prog->counters_len = 0;
     prog->mem_len      = 0;
@@ -90,7 +89,8 @@ static len_t count(Regex *re,
         case CAPTURE:
             n  = 2 * sizeof(byte) + 2 * sizeof(len_t);
             n += count(re->left, aux_size, ncaptures, counters_len, mem_len);
-            ++*ncaptures;
+            if (*ncaptures < re->capture_idx + 1)
+                *ncaptures = re->capture_idx + 1;
             break;
 
         case STAR:
@@ -185,7 +185,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
          * `save` k + 1                */
         case CAPTURE:
             *pc++ = SAVE;
-            k     = prog->ncaptures++;
+            k     = re->capture_idx;
             MEMPUSH(pc, len_t, 2 * k);
             pc    = emit(re->left, pc, prog);
             *pc++ = SAVE;
@@ -293,7 +293,7 @@ static byte *emit(Regex *re, byte *pc, Program *prog)
             *pc++ = CMP;
             MEMPUSH(pc, len_t, c);
             MEMPUSH(pc, cntr_t, re->max);
-            *pc++ = LE;
+            *pc++ = LT;
 
             *pc++          = EPSSET;
             k              = prog->mem_len;

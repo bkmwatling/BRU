@@ -120,13 +120,23 @@ Regex *regex_branch(RegexType type, Regex *left, Regex *right)
     return re;
 }
 
+Regex *regex_capture(Regex *child, len_t idx)
+{
+    Regex *re = malloc(sizeof(Regex));
+
+    re->type        = CAPTURE;
+    re->left        = child;
+    re->capture_idx = idx;
+
+    return re;
+}
+
 Regex *regex_single_child(RegexType type, Regex *child, byte pos)
 {
     Regex *re = malloc(sizeof(Regex));
 
     /* check `type` to make sure correct node type */
-    assert(type == CAPTURE || type == STAR || type == PLUS || type == QUES ||
-           type == LOOKAHEAD);
+    assert(type == STAR || type == PLUS || type == QUES || type == LOOKAHEAD);
     re->type = type;
     re->left = child;
     re->pos  = pos;
@@ -265,21 +275,25 @@ static void regex_to_tree_str_indent(char       **s,
             }
             break;
 
-        case CAPTURE: STR_PUSH(*s, *len, *alloc, "Capture"); goto body;
+        case CAPTURE:
+            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "Capture(%d)",
+                             re->capture_idx);
+            goto body;
         case STAR:
-            ENSURE_SPACE(*s, *len + 9, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 10, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "Star(%d)", re->pos);
             goto body;
         case PLUS:
-            ENSURE_SPACE(*s, *len + 9, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 10, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "Plus(%d)", re->pos);
             goto body;
         case QUES:
-            ENSURE_SPACE(*s, *len + 9, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 10, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "Ques(%d)", re->pos);
             goto body;
         case COUNTER:
-            ENSURE_SPACE(*s, *len + 55, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 56, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len,
                              "Counter(%d, " CNTR_FMT ", ", re->pos, re->min);
             if (re->max == CNTR_MAX) {
@@ -290,7 +304,7 @@ static void regex_to_tree_str_indent(char       **s,
             }
             goto body;
         case LOOKAHEAD:
-            ENSURE_SPACE(*s, *len + 14, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
             *len +=
                 snprintf(*s + *len, *alloc - *len, "Lookahead(%d)", re->pos);
         body:

@@ -45,6 +45,7 @@ struct regex {
     union {
         byte   pos;
         len_t  cc_len;
+        len_t  capture_idx;
         Regex *right;
     };
 
@@ -70,6 +71,7 @@ Regex *regex_anchor(RegexType type);
 Regex *regex_literal(const char *ch);
 Regex *regex_cc(Interval *intervals, len_t len);
 Regex *regex_branch(RegexType kind, Regex *left, Regex *right);
+Regex *regex_capture(Regex *child, len_t idx);
 Regex *regex_single_child(RegexType kind, Regex *child, byte pos);
 Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max);
 

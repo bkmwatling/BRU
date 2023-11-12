@@ -12,14 +12,15 @@
 
 #define EOS "Reached end-of-string before completing regex!"
 
-#define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 0, 1 })
+#define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 0, 0, 1 })
 
 #define CONCAT(tree, node) \
     ((tree) ? regex_branch(CONCAT, (tree), (node)) : (node))
 
 typedef struct {
-    int in_group;
-    int in_lookahead;
+    int   in_group;
+    int   in_lookahead;
+    len_t ncaptures;
 } ParseState;
 
 static Regex *
@@ -35,7 +36,12 @@ static Interval *parse_predefined_cc(const char **const regex,
                                      len_t             *cc_alloc);
 static Regex *
 parse_parens(const Parser *self, const char **const regex, ParseState *ps);
-static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max);
+static void   parse_curly(const char **const regex, cntr_t *min, cntr_t *max);
+static Regex *parser_regex_counter(Regex *child,
+                                   byte   greedy,
+                                   cntr_t min,
+                                   cntr_t max,
+                                   int    expand_counters);
 
 static Interval *dot(void)
 {
@@ -63,11 +69,10 @@ void parser_free(Parser *self)
 Regex *parser_parse(const Parser *self)
 {
     const char *r  = self->regex;
-    ParseState  ps = { 0, 0 };
+    ParseState  ps = { 0, 0, self->opts.whole_match_capture ? 1 : 0 };
     Regex      *re = parse_alt(self, &r, &ps);
 
-    if (self->opts.whole_match_capture && re)
-        re = regex_single_child(CAPTURE, re, 0);
+    if (self->opts.whole_match_capture && re) re = regex_capture(re, 0);
     return re;
 }
 
@@ -100,7 +105,6 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
 
     while (**regex) {
         switch (*(ch = utf8_str_advance(regex))) {
-                // switch (*(ch = (*regex)++)) {
             case '|': *regex = ch; return tree;
 
             case '(': subtree = parse_parens(self, regex, ps); break;
@@ -155,23 +159,21 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
             if (min != 1 || max != 1) {
                 if (self->opts.only_counters) {
                     subtree = regex_counter(subtree, greedy, min, max);
+                } else if (min == 0 && max == CNTR_MAX) {
+                    subtree = regex_single_child(STAR, subtree, greedy);
+                } else if (min == 1 && max == CNTR_MAX) {
+                    subtree = regex_single_child(PLUS, subtree, greedy);
+                } else if (min == 0 && max == 1) {
+                    subtree = regex_single_child(QUES, subtree, greedy);
+                } else if (self->opts.unbounded_counters || max < CNTR_MAX) {
+                    subtree = parser_regex_counter(subtree, greedy, min, max,
+                                                   self->opts.expand_counters);
                 } else {
-                    if (min == 0 && max == CNTR_MAX) {
-                        subtree = regex_single_child(STAR, subtree, greedy);
-                    } else if (min == 1 && max == CNTR_MAX) {
-                        subtree = regex_single_child(PLUS, subtree, greedy);
-                    } else if (min == 0 && max == 1) {
-                        subtree = regex_single_child(QUES, subtree, greedy);
-                    } else if (self->opts.unbounded_counters ||
-                               max < CNTR_MAX) {
-                        subtree = regex_counter(subtree, greedy, min, max);
-                    } else {
-                        subtree = regex_branch(
-                            CONCAT,
-                            regex_counter(regex_clone(subtree), greedy, min,
-                                          min),
-                            regex_single_child(STAR, subtree, greedy));
-                    }
+                    subtree = regex_branch(
+                        CONCAT,
+                        parser_regex_counter(regex_clone(subtree), greedy, min,
+                                             min, self->opts.expand_counters),
+                        regex_single_child(STAR, subtree, greedy));
                 }
             }
 
@@ -355,21 +357,24 @@ parse_parens(const Parser *self, const char **const regex, ParseState *ps)
     Regex      *tree;
     ParseState  ps_tmp;
     const char *ch;
+    len_t       ncaptures;
 
     if (**regex == '?' && (*regex)[1]) {
         ++*regex;
         switch (*(ch = (*regex)++)) {
             case ':':
             case '|':
-                ps_tmp = (ParseState){ TRUE, ps->in_lookahead };
+                ps_tmp = (ParseState){ TRUE, ps->in_lookahead, ps->ncaptures };
                 tree   = parse_alt(self, regex, &ps_tmp);
+                ps->ncaptures = ps_tmp.ncaptures;
                 break;
 
             case '=':
             case '!':
-                ps_tmp = (ParseState){ TRUE, TRUE };
+                ps_tmp = (ParseState){ TRUE, TRUE, ps->ncaptures };
                 if ((tree = parse_alt(self, regex, &ps_tmp)))
                     tree = regex_single_child(LOOKAHEAD, tree, *ch == '=');
+                ps->ncaptures = ps_tmp.ncaptures;
                 break;
 
             default:
@@ -377,9 +382,11 @@ parse_parens(const Parser *self, const char **const regex, ParseState *ps)
                 exit(EXIT_FAILURE);
         }
     } else {
-        ps_tmp = (ParseState){ TRUE, ps->in_lookahead };
+        if (!ps->in_lookahead) ncaptures = ps->ncaptures++;
+        ps_tmp = (ParseState){ TRUE, ps->in_lookahead, ps->ncaptures };
         if ((tree = parse_alt(self, regex, &ps_tmp)) && !ps->in_lookahead)
-            tree = regex_single_child(CAPTURE, tree, FALSE);
+            tree = regex_capture(tree, ncaptures);
+        ps->ncaptures = ps_tmp.ncaptures;
     }
 
     if (**regex == ')') ++*regex;
@@ -426,4 +433,34 @@ static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max)
             }
         }
     }
+}
+
+static Regex *parser_regex_counter(Regex *child,
+                                   byte   greedy,
+                                   cntr_t min,
+                                   cntr_t max,
+                                   int    expand_counters)
+{
+    Regex *counter, *left, *right;
+    cntr_t i;
+
+    if (!expand_counters) {
+        counter = regex_counter(child, greedy, min, max);
+    } else {
+        left = min > 0 ? child : NULL;
+        for (i = 1; i < min; i++)
+            left = regex_branch(CONCAT, left, regex_clone(child));
+
+        right = max > min ? regex_single_child(
+                                QUES, left ? regex_clone(child) : child, greedy)
+                          : NULL;
+        for (i = min + 1; i < max; i++)
+            right = regex_single_child(
+                QUES, regex_branch(CONCAT, regex_clone(child), right), greedy);
+
+        counter = left && right ? regex_branch(CONCAT, left, right)
+                                : (left ? left : right);
+    }
+
+    return counter;
 }

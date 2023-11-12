@@ -33,10 +33,10 @@ static ArgConvertResult convert_subcommand(const char *arg, void *out)
     } else if (strcmp(arg, "match") == 0) {
         *cmd = CMD_MATCH;
     } else {
-        return STC_CR_FAILURE;
+        return ARG_CR_FAILURE;
     }
 
-    return STC_CR_SUCCESS;
+    return ARG_CR_SUCCESS;
 }
 
 static ArgConvertResult convert_scheduler_type(const char *arg, void *out)
@@ -48,10 +48,10 @@ static ArgConvertResult convert_scheduler_type(const char *arg, void *out)
     } else if (strcmp(arg, "lockstep") == 0 || strcmp(arg, "thompson") == 0) {
         *type = SCH_LOCKSTEP;
     } else {
-        return STC_CR_FAILURE;
+        return ARG_CR_FAILURE;
     }
 
-    return STC_CR_SUCCESS;
+    return ARG_CR_SUCCESS;
 }
 
 static ArgConvertResult convert_construction(const char *arg, void *out)
@@ -64,10 +64,10 @@ static ArgConvertResult convert_construction(const char *arg, void *out)
         *construction = GLUSHKOV;
     } else {
         /* fprintf(stderr, "ERROR: invalid construction\n"); */
-        return STC_CR_FAILURE;
+        return ARG_CR_FAILURE;
     }
 
-    return STC_CR_SUCCESS;
+    return ARG_CR_SUCCESS;
 }
 
 static ArgConvertResult convert_branch(const char *arg, void *out)
@@ -82,10 +82,10 @@ static ArgConvertResult convert_branch(const char *arg, void *out)
         *branch = SC_LSWITCH;
     } else {
         /* fprintf(stderr, "ERROR: invalid branching type\n"); */
-        return STC_CR_FAILURE;
+        return ARG_CR_FAILURE;
     }
 
-    return STC_CR_SUCCESS;
+    return ARG_CR_SUCCESS;
 }
 
 int main(int argc, const char **argv)
@@ -110,8 +110,8 @@ int main(int argc, const char **argv)
         { STC_ARG_CUSTOM, "<subcommand>", NULL, &cmd, NULL,
                      "the subcommand to run (parse, compile, or match)", NULL,
                      convert_subcommand },
-        { STC_ARG_STR, "<regex>", NULL, &regex, NULL,
-                     "the regex to compile to SRVM instructions", NULL, NULL },
+        { STC_ARG_STR, "<regex>", NULL, &regex, NULL, "the regex to work with",
+                     NULL, NULL },
         { STC_ARG_BOOL, "-o", "--only-counters", &parser_opts.only_counters,
                      NULL,
                      "whether to use just counters and treat *, +, and ? as counters",
@@ -120,6 +120,9 @@ int main(int argc, const char **argv)
                      &parser_opts.unbounded_counters, NULL,
                      "whether to permit unbounded counters or substitute with *", NULL,
                      NULL },
+        { STC_ARG_BOOL, "-e", "--expand-counters", &parser_opts.expand_counters,
+                     NULL, "whether to expand counters with concatenation and nested ?",
+                     NULL, NULL },
         { STC_ARG_BOOL, "-w", "--whole-match-capture",
                      &parser_opts.whole_match_capture, NULL,
                      "whether to have the whole regex match be the 0th capture", NULL,
@@ -148,7 +151,7 @@ int main(int argc, const char **argv)
     argv    += arg_idx - 1;
 
     if (cmd == CMD_PARSE) {
-        args_parse_exact(argc, argv, args + 1, 4, NULL);
+        args_parse_exact(argc, argv, args + 1, 5, NULL);
 
         p  = parser_new(regex, &parser_opts);
         re = parser_parse(p);
