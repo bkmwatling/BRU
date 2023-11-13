@@ -97,7 +97,7 @@ int main(int argc, const char **argv)
     Parser        *p;
     Compiler      *c;
     Regex         *re;
-    Program       *prog;
+    const Program *prog;
     CompilerOpts   compiler_opts;
     ParserOpts     parser_opts;
     ThreadManager *thread_manager = NULL;
@@ -172,7 +172,7 @@ int main(int argc, const char **argv)
         printf("%s\n", s);
 
         compiler_free(c);
-        program_free(prog);
+        program_free((Program *) prog);
         free(s);
     } else if (cmd == CMD_MATCH) {
         args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
@@ -208,7 +208,7 @@ int main(int argc, const char **argv)
         }
 
         compiler_free(c);
-        program_free(prog);
+        program_free((Program *) prog);
         srvm_free(srvm);
         free(captures);
     }

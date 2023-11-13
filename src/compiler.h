@@ -26,8 +26,8 @@ typedef struct {
     CompilerOpts  opts;
 } Compiler;
 
-Compiler *compiler_new(const Parser *parser, CompilerOpts *opts);
-void      compiler_free(Compiler *self);
-Program  *compiler_compile(const Compiler *self);
+Compiler      *compiler_new(const Parser *parser, const CompilerOpts *opts);
+void           compiler_free(Compiler *self);
+const Program *compiler_compile(const Compiler *self);
 
 #endif /* COMPILER_H */

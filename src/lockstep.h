@@ -18,7 +18,7 @@ ThompsonThread    *thompson_thread_new(const byte        *pc,
                                        const char *const *sp,
                                        len_t              ncaptures,
                                        const cntr_t      *counters,
-                                       len_t              counters_len,
+                                       len_t              ncounters,
                                        const byte        *memory,
                                        len_t              memory_len);
 const byte        *thompson_thread_pc(const ThompsonThread *self);

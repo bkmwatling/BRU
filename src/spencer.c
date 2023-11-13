@@ -14,7 +14,7 @@ struct spencer_thread {
     const char **captures;
     len_t        ncaptures;
     cntr_t      *counters;
-    len_t        counters_len;
+    len_t        ncounters;
     byte        *memory;
     len_t        memory_len;
 };
@@ -31,7 +31,7 @@ SpencerThread *spencer_thread_new(const byte   *pc,
                                   const char   *sp,
                                   len_t         ncaptures,
                                   const cntr_t *counters,
-                                  len_t         counters_len,
+                                  len_t         ncounters,
                                   const byte   *memory,
                                   len_t         memory_len)
 {
@@ -44,9 +44,9 @@ SpencerThread *spencer_thread_new(const byte   *pc,
     memset(thread->captures, 0, 2 * ncaptures * sizeof(char *));
     thread->ncaptures = ncaptures;
 
-    thread->counters = malloc(counters_len * sizeof(cntr_t));
-    memcpy(thread->counters, counters, counters_len * sizeof(cntr_t));
-    thread->counters_len = counters_len;
+    thread->counters = malloc(ncounters * sizeof(cntr_t));
+    memcpy(thread->counters, counters, ncounters * sizeof(cntr_t));
+    thread->ncounters = ncounters;
 
     thread->memory = malloc(memory_len * sizeof(byte));
     memcpy(thread->memory, memory, memory_len * sizeof(byte));
@@ -113,8 +113,8 @@ SpencerThread *spencer_thread_clone(const SpencerThread *self)
 
     t->captures = malloc(2 * t->ncaptures * sizeof(char **));
     memcpy(t->captures, self->captures, 2 * t->ncaptures * sizeof(char **));
-    t->counters = malloc(t->counters_len * sizeof(cntr_t));
-    memcpy(t->counters, self->counters, t->counters_len * sizeof(cntr_t));
+    t->counters = malloc(t->ncounters * sizeof(cntr_t));
+    memcpy(t->counters, self->counters, t->ncounters * sizeof(cntr_t));
     t->memory = malloc(t->memory_len * sizeof(byte));
     memcpy(t->memory, self->memory, t->memory_len * sizeof(byte));
 
@@ -155,13 +155,13 @@ void spencer_scheduler_init(SpencerScheduler *self, const char *text)
     spencer_scheduler_schedule(
         self,
         spencer_thread_new(prog->insts, text, prog->ncaptures, prog->counters,
-                           prog->counters_len, prog->memory, prog->mem_len));
+                           prog->ncounters, prog->memory, prog->mem_len));
 
     for (; text_len > 0; text_len--) {
         spencer_scheduler_schedule(
             self,
             spencer_thread_new(prog->insts, text + text_len, prog->ncaptures,
-                               prog->counters, prog->counters_len, prog->memory,
+                               prog->counters, prog->ncounters, prog->memory,
                                prog->mem_len));
     }
 }

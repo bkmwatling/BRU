@@ -23,26 +23,26 @@ static const byte *inst_to_str(char         **s,
 
 /* --- Program -------------------------------------------------------------- */
 
-Program *program_new(len_t insts_size,
-                     len_t aux_size,
+Program *program_new(len_t insts_len,
+                     len_t aux_len,
                      len_t ncaptures,
-                     len_t counters_len,
+                     len_t ncounters,
                      len_t mem_len)
 {
     Program *prog = malloc(sizeof(Program));
 
-    prog->insts     = malloc(insts_size);
-    prog->insts_len = insts_size;
-    prog->aux       = malloc(aux_size);
-    prog->aux_len   = aux_size;
+    prog->insts     = malloc(insts_len);
+    prog->insts_len = insts_len;
+    prog->aux       = malloc(aux_len);
+    prog->aux_len   = aux_len;
     prog->ncaptures = ncaptures;
 
-    prog->counters     = malloc(counters_len * sizeof(cntr_t));
-    prog->counters_len = counters_len;
-    prog->memory       = malloc(mem_len * sizeof(byte));
-    prog->mem_len      = mem_len;
+    prog->counters  = malloc(ncounters * sizeof(cntr_t));
+    prog->ncounters = ncounters;
+    prog->memory    = malloc(mem_len * sizeof(byte));
+    prog->mem_len   = mem_len;
 
-    memset(prog->counters, 0, counters_len * sizeof(cntr_t));
+    memset(prog->counters, 0, ncounters * sizeof(cntr_t));
     memset(prog->memory, 0, mem_len * sizeof(byte));
 
     return prog;
@@ -80,7 +80,7 @@ char *program_to_str(const Program *self)
 static len_t
 offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
 {
-    len_t idx;
+    len_t idx, len;
 
     pc += x;
     for (idx = 0; insts < pc; idx++) {
@@ -92,7 +92,10 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
             case GSPLIT: /* fallthrough */
             case LSPLIT: insts += sizeof(offset_t); break;
             case SPLIT: insts += 2 * sizeof(offset_t); break;
-            case TSWITCH: break; /* TODO: */
+            case TSWITCH:
+                MEMREAD(len, insts, len_t);
+                insts += len * sizeof(offset_t);
+                break;
             case LSWITCH: break; /* TODO: */
             case EPSSET:         /* fallthrough */
             case EPSCHK: insts += sizeof(len_t); break;
@@ -126,15 +129,15 @@ static const byte *inst_to_str(char         **s,
         case END: STR_PUSH(*s, *len, *alloc, "end"); break;
 
         case CHAR:
-            MEMPOP(p, pc, char *);
-            ENSURE_SPACE(*s, *len + strlen(p) + 6, *alloc, sizeof(char));
+            MEMREAD(p, pc, char *);
+            ENSURE_SPACE(*s, *len + utf8_nbytes(p) + 6, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "char %.*s",
                              utf8_nbytes(p), p);
             break;
 
         case PRED:
-            MEMPOP(n, pc, len_t);
-            MEMPOP(i, pc, len_t);
+            MEMREAD(n, pc, len_t);
+            MEMREAD(i, pc, len_t);
 
             p = intervals_to_str((Interval *) (prog->aux + i), n);
             ENSURE_SPACE(*s, *len + strlen(p) + 6, *alloc, sizeof(char));
@@ -143,21 +146,21 @@ static const byte *inst_to_str(char         **s,
             break;
 
         case SAVE:
-            MEMPOP(n, pc, len_t);
+            MEMREAD(n, pc, len_t);
             ENSURE_SPACE(*s, *len + 13, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "save " LEN_FMT, n);
             break;
 
         case JMP:
-            MEMPOP(x, pc, offset_t);
+            MEMREAD(x, pc, offset_t);
             ENSURE_SPACE(*s, *len + 12, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "jmp " LEN_FMT,
                              offset_to_absolute_index(x, pc, prog->insts));
             break;
 
         case SPLIT:
-            MEMPOP(x, pc, offset_t);
-            MEMPOP(y, pc, offset_t);
+            MEMREAD(x, pc, offset_t);
+            MEMREAD(y, pc, offset_t);
             ENSURE_SPACE(*s, *len + 23, *alloc, sizeof(char));
             *len += snprintf(
                 *s + *len, *alloc - *len, "split " LEN_FMT ", " LEN_FMT,
@@ -166,47 +169,56 @@ static const byte *inst_to_str(char         **s,
             break;
 
         case GSPLIT:
-            MEMPOP(x, pc, offset_t);
+            MEMREAD(x, pc, offset_t);
             ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "gsplit " LEN_FMT,
                              offset_to_absolute_index(x, pc, prog->insts));
             break;
 
         case LSPLIT:
-            MEMPOP(x, pc, offset_t);
+            MEMREAD(x, pc, offset_t);
             ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "lsplit " LEN_FMT,
                              offset_to_absolute_index(x, pc, prog->insts));
             break;
 
-        /* TODO: */
-        case TSWITCH: break;
+        case TSWITCH:
+            MEMREAD(n, pc, len_t);
+            ENSURE_SPACE(*s, *len + 16 + 8 * n, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "tswitch " LEN_FMT, n);
+            for (i = 0; i < n; i++) {
+                MEMREAD(x, pc, offset_t);
+                *len += snprintf(*s + *len, *alloc - *len, " " LEN_FMT,
+                                 offset_to_absolute_index(x, pc, prog->insts));
+            }
+            break;
 
+        /* TODO: */
         case LSWITCH: break;
 
         case EPSSET:
-            MEMPOP(n, pc, len_t);
+            MEMREAD(n, pc, len_t);
             ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "epsset " LEN_FMT, n);
             break;
 
         case EPSCHK:
-            MEMPOP(n, pc, len_t);
+            MEMREAD(n, pc, len_t);
             ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "epschk " LEN_FMT, n);
             break;
 
         case RESET:
-            MEMPOP(i, pc, len_t);
-            MEMPOP(c, pc, cntr_t);
+            MEMREAD(i, pc, len_t);
+            MEMREAD(c, pc, cntr_t);
             ENSURE_SPACE(*s, *len + 23, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len,
                              "reset " LEN_FMT ", " CNTR_FMT, i, c);
             break;
 
         case CMP:
-            MEMPOP(i, pc, len_t);
-            MEMPOP(c, pc, cntr_t);
+            MEMREAD(i, pc, len_t);
+            MEMREAD(c, pc, cntr_t);
             ENSURE_SPACE(*s, *len + 23, *alloc, sizeof(char));
 
             switch (*pc++) {
@@ -235,14 +247,14 @@ static const byte *inst_to_str(char         **s,
             break;
 
         case INC:
-            MEMPOP(i, pc, len_t);
+            MEMREAD(i, pc, len_t);
             ENSURE_SPACE(*s, *len + 12, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "inc " LEN_FMT, i);
             break;
 
         case ZWA:
-            MEMPOP(x, pc, offset_t);
-            MEMPOP(y, pc, offset_t);
+            MEMREAD(x, pc, offset_t);
+            MEMREAD(y, pc, offset_t);
             ENSURE_SPACE(*s, *len + 24, *alloc, sizeof(char));
             *len += snprintf(
                 *s + *len, *alloc - *len, "zwa " LEN_FMT ", " LEN_FMT ", %d",

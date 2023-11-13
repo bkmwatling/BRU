@@ -114,16 +114,8 @@ static int srvm_run(const char    *text,
         pc = thread_manager->pc(thread);
         switch (*pc++) {
             case NOOP: /* fallthrough */
-            case START:
                 thread_manager->set_pc(thread, pc);
                 scheduler_schedule(scheduler, thread);
-
-            /* TODO: check */
-            case MSTART:
-                matched = 1;
-                thread_manager->set_pc(thread, pc);
-                scheduler_schedule(scheduler, thread);
-                break;
 
             case MATCH:
                 scheduler_notify_match(scheduler);
@@ -154,8 +146,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case CHAR: /* fallthrough */
-            case NCHAR:
-                MEMPOP(codepoint, pc, const char *);
+                MEMREAD(codepoint, pc, const char *);
                 if (*sp && utf8_cmp(codepoint, sp) == 0) {
                     thread_manager->set_pc(thread, pc);
                     thread_manager->try_inc_sp(thread);
@@ -165,13 +156,9 @@ static int srvm_run(const char    *text,
                 }
                 break;
 
-            /* TODO: */
-            case MCHAR: break;
-
             case PRED: /* fallthrough */
-            case NPRED:
-                MEMPOP(intervals_len, pc, len_t);
-                MEMPOP(k, pc, len_t);
+                MEMREAD(intervals_len, pc, len_t);
+                MEMREAD(k, pc, len_t);
                 intervals = (Interval *) (prog->aux + k);
                 if (*sp && intervals_predicate(intervals, intervals_len, sp)) {
                     thread_manager->set_pc(thread, pc);
@@ -182,27 +169,24 @@ static int srvm_run(const char    *text,
                 }
                 break;
 
-            /* TODO: */
-            case MPRED: break;
-
             case SAVE:
-                MEMPOP(k, pc, len_t);
+                MEMREAD(k, pc, len_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->set_capture(thread, k);
                 scheduler_schedule(scheduler, thread);
                 break;
 
             case JMP:
-                MEMPOP(x, pc, offset_t);
+                MEMREAD(x, pc, offset_t);
                 thread_manager->set_pc(thread, pc + x);
                 scheduler_schedule(scheduler, thread);
                 break;
 
             case SPLIT:
                 t = thread_manager->clone(thread);
-                MEMPOP(x, pc, offset_t);
+                MEMREAD(x, pc, offset_t);
                 thread_manager->set_pc(thread, pc + x);
-                MEMPOP(y, pc, offset_t);
+                MEMREAD(y, pc, offset_t);
                 thread_manager->set_pc(t, pc + y);
                 scheduler_schedule(scheduler, thread);
                 scheduler_schedule(scheduler, t);
@@ -213,9 +197,9 @@ static int srvm_run(const char    *text,
             case LSPLIT: break;
 
             case TSWITCH:
-                MEMPOP(k, pc, len_t);
+                MEMREAD(k, pc, len_t);
                 for (; k > 0; k--) {
-                    MEMPOP(x, pc, offset_t);
+                    MEMREAD(x, pc, offset_t);
                     t = thread_manager->clone(thread);
                     thread_manager->set_pc(t, pc + x);
                     scheduler_schedule(scheduler, t);
@@ -227,14 +211,14 @@ static int srvm_run(const char    *text,
             case LSWITCH: break;
 
             case EPSSET:
-                MEMPOP(k, pc, len_t);
+                MEMREAD(k, pc, len_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->set_memory(thread, k, &sp, sizeof(sp));
                 scheduler_schedule(scheduler, thread);
                 break;
 
             case EPSCHK:
-                MEMPOP(k, pc, len_t);
+                MEMREAD(k, pc, len_t);
                 if (*(char **) thread_manager->memory(thread, k) < sp) {
                     thread_manager->set_pc(thread, pc);
                     scheduler_schedule(scheduler, thread);
@@ -244,16 +228,16 @@ static int srvm_run(const char    *text,
                 break;
 
             case RESET:
-                MEMPOP(k, pc, len_t);
-                MEMPOP(cval, pc, cntr_t);
+                MEMREAD(k, pc, len_t);
+                MEMREAD(cval, pc, cntr_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->set_counter(thread, k, cval);
                 scheduler_schedule(scheduler, thread);
                 break;
 
             case CMP:
-                MEMPOP(k, pc, len_t);
-                MEMPOP(n, pc, cntr_t);
+                MEMREAD(k, pc, len_t);
+                MEMREAD(n, pc, cntr_t);
                 cval = thread_manager->counter(thread, k);
                 switch (*pc++) {
                     case LT: cond = (cval < n); break;
@@ -274,7 +258,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case INC:
-                MEMPOP(k, pc, len_t);
+                MEMREAD(k, pc, len_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->inc_counter(thread, k);
                 scheduler_schedule(scheduler, thread);
@@ -282,9 +266,9 @@ static int srvm_run(const char    *text,
 
             case ZWA:
                 t = thread_manager->clone(thread);
-                MEMPOP(x, pc, offset_t);
+                MEMREAD(x, pc, offset_t);
                 thread_manager->set_pc(t, pc + x);
-                MEMPOP(y, pc, offset_t);
+                MEMREAD(y, pc, offset_t);
                 thread_manager->set_pc(thread, pc + y);
                 s = malloc(sizeof(Scheduler));
                 scheduler_copy_with(s, scheduler, t);
