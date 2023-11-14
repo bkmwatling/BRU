@@ -1,106 +1,162 @@
+#include <stdlib.h>
 #include <string.h>
 
 #include "glushkov.h"
 
-#define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) + 1))
+#define SET_OFFSET(p, pc) (*(p) = (pc) - (byte *) ((p) + 1))
 
 #define SPLIT_LABELS_PTRS(p, q, re, pc)                              \
     (p) = (offset_t *) ((re)->pos ? (pc) : (pc) + sizeof(offset_t)); \
     (q) = (offset_t *) ((re)->pos ? (pc) + sizeof(offset_t) : (pc))
 
-static len_t count(const Regex *re,
-                   len_t       *aux_len,
-                   len_t       *ncaptures,
-                   len_t       *ncounters,
-                   len_t       *mem_len);
+typedef struct action Action;
+
+struct action {
+    size_t  pos;
+    Action *next;
+};
+
+typedef struct pos_pair PosPair;
+
+struct pos_pair {
+    size_t   pos;     /*<< linearised position for Glushkov                   */
+    Action  *actions; /*<< linked list of actions for transition              */
+    PosPair *prev;
+    PosPair *next;
+};
+
+typedef struct {
+    PosPair *sentinal; /*<< sentinal for circly linked list                   */
+    PosPair *gamma;    /*<< shortcut to gamma pair in linked list             */
+} PosPairList;
+
+typedef struct {
+    PosPairList  *first;      /*<< first list for Glushkov                    */
+    PosPairList  *last;       /*<< last *set* for Glushkov                    */
+    PosPairList **follow;     /*<< integer map of positions to follow lists   */
+    size_t        npositions; /*<< number of linearised positions             */
+    const Regex **positions;  /*<< integer map of positions to actual info    */
+} Rfa;
+
+static PosPairList *pos_pair_list_new(void);
+static Rfa *
+rfa_new(PosPairList **follow, size_t npositions, const Regex **positions);
+
+static size_t
+count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters);
+static void  rfa_construct(const Regex *re, Rfa *rfa);
+static void  rfa_absorb(Rfa *rfa);
+static len_t rfa_insts_len(Rfa *rfa);
 static byte *emit(const Regex *re, byte *pc, Program *prog);
 
 const Program *glushkov_compile(const Regex *re)
 {
-    len_t    insts_len, aux_len = 0, ncaptures = 0, ncounters = 0, mem_len = 0;
-    Program *prog;
-    byte    *pc;
+    len_t  insts_len, npositions, aux_len = 0, ncaptures = 0, ncounters = 0;
+    size_t i;
+    PosPairList **follow;
+    const Regex **positions;
+    Rfa          *rfa;
+    Program      *prog;
+    byte         *pc;
 
-    insts_len = count(re, &aux_len, &ncaptures, &ncounters, &mem_len) + 1;
-    prog      = program_new(insts_len, aux_len, ncaptures, ncounters, mem_len);
+    npositions = count(re, &aux_len, &ncaptures, &ncounters);
+    positions  = malloc(npositions * sizeof(Regex *));
+    follow     = malloc(npositions * sizeof(PosPairList *));
+    for (i = 0; i < npositions; i++) follow[i] = pos_pair_list_new();
+
+    rfa = rfa_new(follow, npositions, positions);
+    rfa_construct(re, rfa);
+    rfa_absorb(rfa);
+
+    prog = program_new(rfa_insts_len(rfa), aux_len, ncaptures, ncounters, 0);
 
     /* set the length fields to 0 as we use them for indices during emitting */
-    prog->aux_len = prog->ncounters = prog->mem_len = 0;
-    pc    = emit(re, prog->insts, prog);
-    *pc++ = MATCH;
+    prog->aux_len = prog->ncounters = 0;
+    pc                              = emit(re, prog->insts, prog);
+    *pc                             = MATCH;
 
     return prog;
 }
 
-static len_t count(const Regex *re,
-                   len_t       *aux_len,
-                   len_t       *ncaptures,
-                   len_t       *ncounters,
-                   len_t       *mem_len)
+static PosPairList *pos_pair_list_new(void)
 {
-    len_t n = 0;
+    PosPairList *list = malloc(sizeof(PosPairList));
+
+    list->sentinal       = malloc(sizeof(PosPair));
+    list->sentinal->prev = list->sentinal->next = list->sentinal;
+    list->gamma                                 = NULL;
+
+    return list;
+}
+
+static Rfa *
+rfa_new(PosPairList **follow, size_t npositions, const Regex **positions)
+{
+    Rfa *rfa = malloc(sizeof(Rfa));
+
+    rfa->first      = pos_pair_list_new();
+    rfa->last       = pos_pair_list_new();
+    rfa->follow     = follow;
+    rfa->npositions = npositions;
+    rfa->positions  = positions;
+
+    return rfa;
+}
+
+static size_t
+count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters)
+{
+    size_t npos = 0;
 
     switch (re->type) {
-        case CARET: /* fallthrough */
-        case DOLLAR: n = sizeof(byte); break;
-
-        case LITERAL: n = sizeof(byte) + sizeof(const char *); break;
+        case CARET:  /* fallthrough */
+        case DOLLAR: /* fallthrough */
+        case LITERAL: npos = 1; break;
 
         case CC:
-            n         = sizeof(byte) + 2 * sizeof(len_t);
+            npos      = 1;
             *aux_len += re->cc_len * sizeof(Interval);
             break;
 
-        case ALT:
-            n  = 2 * sizeof(byte) + 3 * sizeof(offset_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len) +
-                 count(re->right, aux_len, ncaptures, ncounters, mem_len);
-            break;
-
+        case ALT: /* fallthrough */
         case CONCAT:
-            n = count(re->left, aux_len, ncaptures, ncounters, mem_len) +
-                count(re->right, aux_len, ncaptures, ncounters, mem_len);
+            npos = count(re->left, aux_len, ncaptures, ncounters) +
+                   count(re->right, aux_len, ncaptures, ncounters);
             break;
 
         case CAPTURE:
-            n  = 2 * sizeof(byte) + 2 * sizeof(len_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            npos = 2 + count(re->left, aux_len, ncaptures, ncounters);
             if (*ncaptures < re->capture_idx + 1)
                 *ncaptures = re->capture_idx + 1;
             break;
 
-        case STAR:
-            n  = 5 * sizeof(byte) + 5 * sizeof(offset_t) + 2 * sizeof(len_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
-            *mem_len += sizeof(char *);
-            break;
-
-        case PLUS:
-            n  = 4 * sizeof(byte) + 3 * sizeof(offset_t) + 2 * sizeof(len_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
-            *mem_len += sizeof(char *);
-            break;
-
-        case QUES:
-            n  = sizeof(byte) + 2 * sizeof(offset_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
-            break;
+        case STAR: /* fallthrough */
+        case PLUS: /* fallthrough */
+        case QUES: npos = count(re->left, aux_len, ncaptures, ncounters); break;
 
         case COUNTER:
-            n = 11 * sizeof(byte) + 5 * sizeof(offset_t) + 6 * sizeof(len_t) +
-                3 * sizeof(cntr_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            npos = count(re->left, aux_len, ncaptures, ncounters);
             ++*ncounters;
-            *mem_len += sizeof(char *);
             break;
 
         case LOOKAHEAD:
-            n  = 3 * sizeof(byte) + 2 * sizeof(offset_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            npos = 1 + count(re->left, aux_len, ncaptures, ncounters);
             break;
     }
 
-    return n;
+    return npos;
+}
+
+/* TODO: */
+static void rfa_construct(const Regex *re, Rfa *rfa) {}
+
+static void rfa_absorb(Rfa *rfa) {}
+
+static len_t rfa_insts_len(Rfa *rfa)
+{
+    len_t insts_len = 0;
+
+    return insts_len;
 }
 
 static byte *emit(const Regex *re, byte *pc, Program *prog)

@@ -26,8 +26,8 @@ const Program *thompson_compile(const Regex *re)
 
     /* set the length fields to 0 as we use them for indices during emitting */
     prog->aux_len = prog->ncounters = prog->mem_len = 0;
-    pc    = emit(re, prog->insts, prog);
-    *pc++ = MATCH;
+    pc  = emit(re, prog->insts, prog);
+    *pc = MATCH;
 
     return prog;
 }
