@@ -18,7 +18,8 @@
          (pos_pair) != (pos_pair_list)->sentinal;      \
          (pos_pair) = (pos_pair)->next)
 
-#define IS_EPS_FOLLOW(re) ((re)->type == LITERAL || (re)->type == CC)
+#define IS_NONEPS_TRANSITION(re) \
+    ((re) == NULL || (re)->type == LITERAL || (re)->type == CC)
 
 /* START_POS and GAMMA_POS should be the same since gamma isn't an actual
  * position and the start position/state should not follow from others        */
@@ -42,6 +43,7 @@ typedef struct pos_pair PosPair;
 
 struct pos_pair {
     size_t   pos;          /*<< linearised position for Glushkov              */
+    len_t    nactions;     /*<< number of actions for transition              */
     Action  *first_action; /*<< first action in linked list of actions        */
     Action  *last_action;  /*<< last action in linked list of actions         */
     PosPair *prev;
@@ -49,6 +51,7 @@ struct pos_pair {
 };
 
 typedef struct {
+    size_t   len;      /*<< length of (number of elements in) the list        */
     PosPair *sentinal; /*<< sentinal for circly linked list                   */
     PosPair *gamma;    /*<< shortcut to gamma pair in linked list             */
 } PosPairList;
@@ -71,7 +74,7 @@ static void     pos_pair_action_append(PosPair *pos_pair, Action *action);
 static void     pos_pair_insert_after(PosPair *pos_pair, PosPair *target);
 static PosPair *pos_pair_insert_pos_after(size_t pos, PosPair *target);
 static PosPair *pos_pair_remove(PosPair *pos_pair);
-static void     pos_pair_remove_from(size_t pos, PosPair *start, PosPair *end);
+static int      pos_pair_remove_from(size_t pos, PosPair *start, PosPair *end);
 
 static PosPairList *pos_pair_list_new(void);
 static void         pos_pair_list_free(PosPairList *list);
@@ -110,7 +113,8 @@ const Program *glushkov_compile(const Regex *re)
     memset(visited, 0, npositions * sizeof(int));
     for (i = 0; i < npositions; i++) follow[i] = pos_pair_list_new();
 
-    rfa = rfa_new(follow, 1, positions);
+    positions[START_POS] = NULL;
+    rfa                  = rfa_new(follow, 1, positions);
     rfa_construct(re, rfa, NULL);
     rfa_absorb(rfa, START_POS, visited);
 
@@ -181,7 +185,8 @@ static PosPair *pos_pair_clone(const PosPair *pos_pair)
     Action  *action;
     PosPair *pp = malloc(sizeof(PosPair));
 
-    pp->pos  = pos_pair->pos;
+    pp->pos      = pos_pair->pos;
+    pp->nactions = pos_pair->nactions;
     pp->prev = pp->next = NULL;
     for (action = pos_pair->first_action; action; action = action->next)
         pos_pair_action_append(pp, action_clone(action));
@@ -198,6 +203,7 @@ static void pos_pair_action_prepend(PosPair *pos_pair, Action *action)
         pos_pair->first_action = pos_pair->last_action = action;
         action->next                                   = NULL;
     }
+    pos_pair->nactions++;
 }
 
 static void pos_pair_action_append(PosPair *pos_pair, Action *action)
@@ -207,6 +213,7 @@ static void pos_pair_action_append(PosPair *pos_pair, Action *action)
     } else {
         pos_pair->first_action = pos_pair->last_action = action;
     }
+    pos_pair->nactions++;
 }
 
 static void pos_pair_insert_after(PosPair *pos_pair, PosPair *target)
@@ -222,6 +229,7 @@ static PosPair *pos_pair_insert_pos_after(size_t pos, PosPair *target)
     PosPair *pos_pair = malloc(sizeof(PosPair));
 
     pos_pair->pos          = pos;
+    pos_pair->nactions     = 0;
     pos_pair->first_action = pos_pair->last_action = NULL;
     pos_pair_insert_after(pos_pair, target);
 
@@ -240,22 +248,25 @@ static PosPair *pos_pair_remove(PosPair *pos_pair)
     return pp;
 }
 
-static void pos_pair_remove_from(size_t pos, PosPair *start, PosPair *end)
+static int pos_pair_remove_from(size_t pos, PosPair *start, PosPair *end)
 {
     PosPair *pp;
 
     for (pp = start; pp && pp != end; pp = pp->next) {
         if (pp->pos == pos) {
             pos_pair_remove(pp);
-            break;
+            return TRUE;
         }
     }
+
+    return FALSE;
 }
 
 static PosPairList *pos_pair_list_new(void)
 {
     PosPairList *list = malloc(sizeof(PosPairList));
 
+    list->len            = 0;
     list->sentinal       = malloc(sizeof(PosPair));
     list->sentinal->prev = list->sentinal->next = list->sentinal;
     list->gamma                                 = NULL;
@@ -275,6 +286,7 @@ static PosPairList *pos_pair_list_clone(const PosPairList *list)
     PosPairList *ppl = pos_pair_list_new();
     PosPair     *pp;
 
+    ppl->len = list->len;
     FOREACH(pp, list)
         pos_pair_insert_after(pos_pair_clone(pp), ppl->sentinal->prev);
 
@@ -293,6 +305,7 @@ static void pos_pair_list_clear(PosPairList *list)
     }
 
     list->sentinal->prev = list->sentinal->next = NULL;
+    list->len                                   = 0;
     list->gamma                                 = NULL;
 }
 
@@ -311,6 +324,7 @@ static void pos_pair_list_remove(PosPairList *list, size_t pos)
     if (pp == NULL) return;
 
     pos_pair_remove(pp);
+    list->len--;
     if (pos == GAMMA_POS) list->gamma = NULL;
 }
 
@@ -326,10 +340,11 @@ static void pos_pair_list_replace_gamma(PosPairList *list1, PosPairList *list2)
     list2->sentinal->next->prev = list1->gamma->prev;
     list2->sentinal->prev->next = list1->gamma->next;
     list1->gamma->next->prev    = list2->sentinal->prev;
-    list1->gamma->prev = list1->gamma->next = NULL;
+    list1->gamma->prev = list1->gamma->next  = NULL;
+    list1->len                              += list2->len - 1;
     list2->sentinal->prev = list2->sentinal->next = list2->sentinal;
+    list2->len                                    = 0;
 
-    list1->gamma->prev = list1->gamma->next = NULL;
     free(list1->gamma);
     list1->gamma = list2->gamma;
     list2->gamma = NULL;
@@ -339,11 +354,13 @@ static void pos_pair_list_append(PosPairList *list1, PosPairList *list2)
 {
     if (IS_EMPTY(list2)) return;
 
-    list1->sentinal->prev->next = list2->sentinal->next;
-    list2->sentinal->next->prev = list1->sentinal->prev;
-    list2->sentinal->prev->next = list1->sentinal;
-    list1->sentinal->prev       = list2->sentinal->prev;
+    list1->sentinal->prev->next  = list2->sentinal->next;
+    list2->sentinal->next->prev  = list1->sentinal->prev;
+    list2->sentinal->prev->next  = list1->sentinal;
+    list1->sentinal->prev        = list2->sentinal->prev;
+    list1->len                  += list2->len;
     list2->sentinal->prev = list2->sentinal->next = list2->sentinal;
+    list2->len                                    = 0;
 
     if (list1->gamma == NULL) list1->gamma = list2->gamma;
     list2->gamma = NULL;
@@ -430,8 +447,11 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
             pos                 = rfa->npositions++;
             rfa->positions[pos] = re;
             pos_pair_insert_pos_after(GAMMA_POS, rfa->follow[pos]->sentinal);
+            rfa->follow[pos]->len++;
             pos_pair_insert_pos_after(pos, first->sentinal);
+            first->len++;
             pos_pair_insert_pos_after(pos, rfa->last->sentinal);
+            rfa->last->len++;
             break;
 
         case ALT:
@@ -476,43 +496,56 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
 
         case CAPTURE:
             pos_open = rfa->npositions++;
+            /* make copy of re to set capture_idx using strategy for VM */
             re_tmp   = malloc(sizeof(Regex));
             memcpy(re_tmp, re, sizeof(Regex));
             re_tmp->capture_idx      *= 2;
             rfa->positions[pos_open]  = re_tmp;
+
             rfa_construct(re->left, rfa, first);
+
             pos_close = rfa->npositions++;
+            /* make copy of re to set capture_idx using strategy for VM */
             re_tmp    = malloc(sizeof(Regex));
             memcpy(re_tmp, re, sizeof(Regex));
             re_tmp->capture_idx       = re_tmp->capture_idx * 2 + 1;
             rfa->positions[pos_close] = re_tmp;
 
-            if (NULLABLE(first))
+            /* allows next loop to handle gamma replace */
+            if (NULLABLE(first)) {
                 pos_pair_insert_pos_after(pos_open, rfa->last->sentinal);
+                rfa->last->len++;
+            }
             FOREACH(pp, rfa->last) {
                 pos_pair_insert_pos_after(pos_close,
                                           rfa->follow[pp->pos]->gamma);
+                rfa->follow[pp->pos]->len++;
                 pos_pair_list_remove(rfa->follow[pp->pos], GAMMA_POS);
             }
             pos_pair_list_append(rfa->follow[pos_open], first);
             pos_pair_insert_pos_after(GAMMA_POS,
                                       rfa->follow[pos_close]->sentinal);
-            pos_pair_list_clear(first);
+            rfa->follow[pos_close]->len++;
             pos_pair_list_clear(rfa->last);
 
             pos_pair_insert_pos_after(pos_open, first->sentinal);
+            first->len++;
             pos_pair_insert_pos_after(pos_close, rfa->last->sentinal);
+            rfa->last->len++;
 
             break;
 
         case STAR:
             rfa_construct(re->left, rfa, first);
             if (re->pos) {
-                if (NULLABLE(first))
+                if (!NULLABLE(first)) {
                     pos_pair_insert_pos_after(GAMMA_POS, first->sentinal->prev);
+                    first->len++;
+                }
             } else {
                 pos_pair_list_remove(first, GAMMA_POS);
                 pos_pair_insert_pos_after(GAMMA_POS, first->sentinal);
+                first->len++;
             }
 
             FOREACH(pp, rfa->last) {
@@ -527,12 +560,15 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
             FOREACH(pp, rfa->last) {
                 ppl_tmp = pos_pair_list_clone(first);
                 if (re->pos) {
-                    if (NULLABLE(first))
+                    if (!NULLABLE(first)) {
                         pos_pair_insert_pos_after(GAMMA_POS,
                                                   ppl_tmp->sentinal->prev);
+                        ppl_tmp->len++;
+                    }
                 } else {
                     pos_pair_list_remove(ppl_tmp, GAMMA_POS);
                     pos_pair_insert_pos_after(GAMMA_POS, ppl_tmp->sentinal);
+                    ppl_tmp->len++;
                 }
                 pos_pair_list_replace_gamma(rfa->follow[pp->pos], ppl_tmp);
                 pos_pair_list_free(ppl_tmp);
@@ -542,11 +578,14 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
         case QUES:
             rfa_construct(re->left, rfa, first);
             if (re->pos) {
-                if (NULLABLE(first))
+                if (!NULLABLE(first)) {
                     pos_pair_insert_pos_after(GAMMA_POS, first->sentinal->prev);
+                    first->len++;
+                }
             } else {
                 pos_pair_list_remove(first, GAMMA_POS);
                 pos_pair_insert_pos_after(GAMMA_POS, first->sentinal);
+                first->len++;
             }
             break;
 
@@ -566,12 +605,14 @@ static void rfa_absorb(Rfa *rfa, size_t pos, int *visited)
         if (!visited[t->pos]) rfa_absorb(rfa, t->pos, visited);
     }
 
-    for (e = follow_pos->sentinal->next; e != follow_pos->sentinal;
-         e = pos_pair_remove(e)) {
+    e = follow_pos->sentinal->next;
+    while (e != follow_pos->sentinal) {
         if (e->pos == pos) {
-            if (IS_EPS_FOLLOW(rfa->positions[e->pos])) p = e;
+            if (IS_NONEPS_TRANSITION(rfa->positions[e->pos])) p = e;
+            e = e->next;
             continue;
-        } else if (IS_EPS_FOLLOW(rfa->positions[e->pos])) {
+        } else if (IS_NONEPS_TRANSITION(rfa->positions[e->pos])) {
+            e = e->next;
             continue;
         }
 
@@ -585,33 +626,34 @@ static void rfa_absorb(Rfa *rfa, size_t pos, int *visited)
              * need to check if pp is follow_pos->sentinal */
             if (pp->pos != e->pos) continue;
 
-            pos_pair_remove_from(t->pos, tmp, follow_pos->sentinal);
+            if (pos_pair_remove_from(t->pos, tmp, follow_pos->sentinal))
+                follow_pos->len--;
             pp = pos_pair_clone(t);
             pos_pair_action_prepend(pp, action_new(e->pos, rfa->positions));
             pos_pair_insert_after(pp, tmp);
+            follow_pos->len++;
             tmp = pp;
         }
+
+        e = pos_pair_remove(e);
+        follow_pos->len--;
     }
 
     if (p) {
-        FOREACH(t, follow_pos) {
-            if (t->pos == pos) continue;
-            FOREACH(pp, follow_pos) {
-                if (pp->pos == pos || pp->pos == t->pos) break;
-            }
-            /* since pos is in follow_pos, we should at least find pos and thus
-             * no need to check if pp is follow_pos->sentinal */
-            if (pp->pos != pos) continue;
-
+        for (t = p->next; t != follow_pos->sentinal; t = t->next) {
             pp = pos_pair_clone(p);
             pos_pair_action_append(pp, action_new(pos, rfa->positions));
+
+            /* prepend pp action list (in its order) to t's action list */
             pp->last_action->next = t->first_action;
             t->first_action       = pp->first_action;
             if (t->last_action == NULL) t->last_action = pp->last_action;
+            t->nactions      += pp->nactions;
             pp->first_action = pp->last_action = NULL;
             pos_pair_free(pp);
         }
         pos_pair_remove(p);
+        follow_pos->len--;
     }
 
     visited[pos] = FALSE;
