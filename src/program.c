@@ -188,7 +188,7 @@ static const byte *inst_to_str(char         **s,
             *len += snprintf(*s + *len, *alloc - *len, "tswitch " LEN_FMT, n);
             for (i = 0; i < n; i++) {
                 MEMREAD(x, pc, offset_t);
-                *len += snprintf(*s + *len, *alloc - *len, " " LEN_FMT,
+                *len += snprintf(*s + *len, *alloc - *len, ", " LEN_FMT,
                                  offset_to_absolute_index(x, pc, prog->insts));
             }
             break;
