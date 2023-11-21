@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define STC_VEC_ENABLE_SHORT_NAMES
+#include "stc/fatp/vec.h"
+
 #include "glushkov.h"
 
 #define SET_OFFSET(p, pc) (*(p) = (pc) - (byte *) ((p) + 1))
@@ -91,8 +94,8 @@ static void rfa_free(Rfa *rfa);
 static size_t
 count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters);
 static void  rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first);
-static void  rfa_absorb(Rfa *rfa, size_t pos, int *visited);
-static len_t rfa_insts_len(Rfa *rfa);
+static void  rfa_absorb(Rfa *rfa, size_t pos, len_t *visited);
+static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map);
 static byte *emit(const Rfa *rfa, byte *pc, Program *prog);
 
 const Program *glushkov_compile(const Regex *re)
@@ -101,7 +104,7 @@ const Program *glushkov_compile(const Regex *re)
     size_t i;
     PosPairList **follow;
     const Regex **positions;
-    int          *visited;
+    len_t        *visited;
     Rfa          *rfa;
     Program      *prog;
     byte         *pc;
@@ -118,7 +121,8 @@ const Program *glushkov_compile(const Regex *re)
     rfa_construct(re, rfa, NULL);
     rfa_absorb(rfa, START_POS, visited);
 
-    prog = program_new(rfa_insts_len(rfa), aux_len, ncaptures, ncounters, 0);
+    prog = program_new(rfa_insts_len(rfa, visited), aux_len, ncaptures,
+                       ncounters, 0);
 
     /* set the length fields to 0 as we use them for indices during emitting */
     prog->aux_len = prog->ncounters = 0;
@@ -132,6 +136,7 @@ const Program *glushkov_compile(const Regex *re)
     }
     free(follow);
     free(positions);
+    free(visited);
 
     return prog;
 }
@@ -595,7 +600,7 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
     }
 }
 
-static void rfa_absorb(Rfa *rfa, size_t pos, int *visited)
+static void rfa_absorb(Rfa *rfa, size_t pos, len_t *visited)
 {
     PosPair     *t, *e, *tmp, *pp, *p = NULL;
     PosPairList *follow, *follow_pos = rfa->follow[pos];
@@ -660,11 +665,50 @@ static void rfa_absorb(Rfa *rfa, size_t pos, int *visited)
 }
 
 /* TODO: */
-static len_t rfa_insts_len(Rfa *rfa)
+static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map)
 {
-    len_t insts_len = 0;
+    len_t        insts_len = 0;
+    byte        *visited   = malloc(rfa->npositions * sizeof(byte));
+    size_t       pos;
+    size_t      *states;
+    PosPairList *follow;
+    PosPair     *pp;
 
-    return insts_len;
+    /* initialise processing */
+    memset(visited, 0, rfa->npositions * sizeof(byte));
+    vec_init(states, rfa->npositions);
+    vec_push(states, START_POS);
+
+    /* process each state in states (possibly adding more states) */
+    while (vec_len_unsafe(states) > 0) {
+        pos          = vec_pop(states);
+        visited[pos] = TRUE;
+        if (pos != START_POS) {
+            pc_map[pos]  = insts_len;
+            insts_len   += 1 + sizeof(char *);
+        }
+
+        follow = rfa->follow[pos];
+        /* allocate space for twsitch */
+        /* TODO: optimise for actionless transitions */
+        if (follow->len > 1)
+            insts_len += 1 + sizeof(len_t) + follow->len * sizeof(offset_t);
+        /* allocate space for each list of actions */
+        FOREACH(pp, follow) {
+            /* XXX: may be more involved with counters later */
+            insts_len += pp->nactions * (1 + sizeof(len_t) /* save k */);
+            /* TODO: optimise out jmp if possible */
+            insts_len += 1 + sizeof(offset_t); /* jmp x */
+
+            /* add target state for processing if not visited */
+            if (!visited[pp->pos]) vec_push(states, pp->pos);
+        }
+    }
+    free(visited);
+
+    /* save where `match` instruction will go */
+    pc_map[GAMMA_POS] = insts_len;
+    return insts_len + 1;
 }
 
 static byte *emit(const Rfa *rfa, byte *pc, Program *prog) { return pc; }
