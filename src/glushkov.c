@@ -371,7 +371,7 @@ static void pos_pair_list_remove(PosPairList *list, size_t pos)
     PosPair *pp;
 
     if (pos == GAMMA_POS) {
-        pp = list->gamma;
+        pp = list->gamma ? list->gamma : list->sentinal;
     } else {
         FOREACH(pp, list) {
             if (pp->pos == pos) break;
