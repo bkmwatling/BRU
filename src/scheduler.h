@@ -25,6 +25,7 @@ typedef struct {
 typedef struct {
     void (*init)(void *scheduler_impl, const char *text);
     void (*schedule)(void *scheduler_impl, void *thread);
+    void (*schedule_in_order)(void *scheduler_impl, void *thread);
     int (*has_next)(const void *scheduler_impl);
     void *(*next)(void *scheduler_impl);
     void (*reset)(void *scheduler_impl);
@@ -43,6 +44,8 @@ typedef struct {
     ((scheduler)->init((scheduler)->impl, (text)))
 #define scheduler_schedule(scheduler, thread) \
     ((scheduler)->schedule((scheduler)->impl, (thread)))
+#define scheduler_schedule_in_order(scheduler, thread) \
+    ((scheduler)->schedule_in_order((scheduler)->impl, (thread)))
 #define scheduler_has_next(scheduler) ((scheduler)->has_next((scheduler)->impl))
 #define scheduler_next(scheduler)     ((scheduler)->next((scheduler)->impl))
 #define scheduler_reset(scheduler)    ((scheduler)->reset((scheduler)->impl))
@@ -164,6 +167,13 @@ typedef struct {
                           (thread_type *) thread);                             \
     }                                                                          \
                                                                                \
+    static void prefix##_schedule_in_order_wrapper(void *scheduler_impl,       \
+                                                   void *thread)               \
+    {                                                                          \
+        prefix##_schedule_in_order((scheduler_type *) scheduler_impl,          \
+                                   (thread_type *) thread);                    \
+    }                                                                          \
+                                                                               \
     static int prefix##_has_next_wrapper(const void *scheduler_impl)           \
     {                                                                          \
         return prefix##_has_next((const scheduler_type *) scheduler_impl);     \
@@ -216,17 +226,18 @@ typedef struct {
     {                                                                          \
         Scheduler *s = malloc(sizeof(Scheduler));                              \
                                                                                \
-        s->init         = prefix##_init_wrapper;                               \
-        s->schedule     = prefix##_schedule_wrapper;                           \
-        s->has_next     = prefix##_has_next_wrapper;                           \
-        s->next         = prefix##_next_wrapper;                               \
-        s->reset        = prefix##_reset_wrapper;                              \
-        s->notify_match = prefix##_notify_match_wrapper;                       \
-        s->kill         = prefix##_kill_wrapper;                               \
-        s->clone_with   = prefix##_clone_with_wrapper;                         \
-        s->program      = prefix##_program_wrapper;                            \
-        s->free         = scheduler_free_noop;                                 \
-        s->impl         = scheduler_impl;                                      \
+        s->init              = prefix##_init_wrapper;                          \
+        s->schedule          = prefix##_schedule_wrapper;                      \
+        s->schedule_in_order = prefix##_schedule_in_order_wrapper;             \
+        s->has_next          = prefix##_has_next_wrapper;                      \
+        s->next              = prefix##_next_wrapper;                          \
+        s->reset             = prefix##_reset_wrapper;                         \
+        s->notify_match      = prefix##_notify_match_wrapper;                  \
+        s->kill              = prefix##_kill_wrapper;                          \
+        s->clone_with        = prefix##_clone_with_wrapper;                    \
+        s->program           = prefix##_program_wrapper;                       \
+        s->free              = scheduler_free_noop;                            \
+        s->impl              = scheduler_impl;                                 \
                                                                                \
         return s;                                                              \
     }                                                                          \
@@ -235,17 +246,18 @@ typedef struct {
     {                                                                          \
         Scheduler *s = malloc(sizeof(Scheduler));                              \
                                                                                \
-        s->init         = prefix##_init_wrapper;                               \
-        s->schedule     = prefix##_schedule_wrapper;                           \
-        s->has_next     = prefix##_has_next_wrapper;                           \
-        s->next         = prefix##_next_wrapper;                               \
-        s->reset        = prefix##_reset_wrapper;                              \
-        s->notify_match = prefix##_notify_match_wrapper;                       \
-        s->kill         = prefix##_kill_wrapper;                               \
-        s->clone_with   = prefix##_clone_with_wrapper;                         \
-        s->program      = prefix##_program_wrapper;                            \
-        s->free         = prefix##_free_wrapper;                               \
-        s->impl         = scheduler_impl;                                      \
+        s->init              = prefix##_init_wrapper;                          \
+        s->schedule          = prefix##_schedule_wrapper;                      \
+        s->schedule_in_order = prefix##_schedule_in_order_wrapper;             \
+        s->has_next          = prefix##_has_next_wrapper;                      \
+        s->next              = prefix##_next_wrapper;                          \
+        s->reset             = prefix##_reset_wrapper;                         \
+        s->notify_match      = prefix##_notify_match_wrapper;                  \
+        s->kill              = prefix##_kill_wrapper;                          \
+        s->clone_with        = prefix##_clone_with_wrapper;                    \
+        s->program           = prefix##_program_wrapper;                       \
+        s->free              = prefix##_free_wrapper;                          \
+        s->impl              = scheduler_impl;                                 \
                                                                                \
         return s;                                                              \
     }

@@ -202,7 +202,7 @@ static int srvm_run(const char    *text,
                     MEMREAD(x, pc, offset_t);
                     t = thread_manager->clone(thread);
                     thread_manager->set_pc(t, pc + x);
-                    scheduler_schedule(scheduler, t);
+                    scheduler_schedule_in_order(scheduler, t);
                 }
                 thread_manager->free(thread);
                 break;

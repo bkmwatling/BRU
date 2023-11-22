@@ -21,6 +21,7 @@ struct spencer_thread {
 
 struct spencer_scheduler {
     const Program  *prog;
+    size_t          in_order_idx;
     SpencerThread  *active;
     SpencerThread **stack;
 };
@@ -139,9 +140,10 @@ SpencerScheduler *spencer_scheduler_new(const Program *program)
 {
     SpencerScheduler *s = malloc(sizeof(SpencerScheduler));
 
-    s->prog   = program;
-    s->active = NULL;
-    s->stack  = NULL;
+    s->prog         = program;
+    s->in_order_idx = 0;
+    s->active       = NULL;
+    s->stack        = NULL;
     vec_default_init(s->stack);
 
     return s;
@@ -168,10 +170,26 @@ void spencer_scheduler_init(SpencerScheduler *self, const char *text)
 
 void spencer_scheduler_schedule(SpencerScheduler *self, SpencerThread *thread)
 {
+    self->in_order_idx = vec_len_unsafe(self->stack) + 1;
     if (self->active) {
         vec_push(self->stack, thread);
     } else {
         self->active = thread;
+    }
+}
+
+void spencer_scheduler_schedule_in_order(SpencerScheduler *self,
+                                         SpencerThread    *thread)
+{
+    size_t len = vec_len_unsafe(self->stack);
+
+    if (self->in_order_idx > len) {
+        spencer_scheduler_schedule(self, thread);
+        self->in_order_idx = len;
+    } else if (self->in_order_idx == len) {
+        vec_push(self->stack, thread);
+    } else {
+        vec_insert(self->stack, self->in_order_idx, thread);
     }
 }
 
@@ -183,7 +201,9 @@ int spencer_scheduler_has_next(const SpencerScheduler *self)
 SpencerThread *spencer_scheduler_next(SpencerScheduler *self)
 {
     SpencerThread *thread = self->active;
-    self->active          = NULL;
+
+    self->in_order_idx = vec_len_unsafe(self->stack) + 1;
+    self->active       = NULL;
     if (thread == NULL && !vec_is_empty(self->stack))
         thread = vec_pop(self->stack);
 
@@ -194,6 +214,7 @@ void spencer_scheduler_reset(SpencerScheduler *self)
 {
     size_t i, len = vec_len(self->stack);
 
+    self->in_order_idx = 0;
     if (self->active) {
         spencer_thread_free(self->active);
         self->active = NULL;

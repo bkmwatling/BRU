@@ -46,6 +46,8 @@ ThreadManager *spencer_thread_manager_new(void);
 SpencerScheduler *spencer_scheduler_new(const Program *program);
 void spencer_scheduler_init(SpencerScheduler *self, const char *text);
 void spencer_scheduler_schedule(SpencerScheduler *self, SpencerThread *thread);
+void spencer_scheduler_schedule_in_order(SpencerScheduler *self,
+                                         SpencerThread    *thread);
 int  spencer_scheduler_has_next(const SpencerScheduler *self);
 SpencerThread *spencer_scheduler_next(SpencerScheduler *self);
 void           spencer_scheduler_reset(SpencerScheduler *self);

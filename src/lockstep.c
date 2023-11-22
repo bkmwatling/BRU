@@ -214,6 +214,12 @@ void thompson_scheduler_schedule(ThompsonScheduler *self,
     }
 }
 
+void thompson_scheduler_schedule_in_order(ThompsonScheduler *self,
+                                          ThompsonThread    *thread)
+{
+    thompson_scheduler_schedule(self, thread);
+}
+
 int thompson_scheduler_has_next(const ThompsonScheduler *self)
 {
     return !vec_is_empty(self->curr) || !vec_is_empty(self->next) ||

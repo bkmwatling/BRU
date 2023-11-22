@@ -48,6 +48,8 @@ ThompsonScheduler *thompson_scheduler_new(const Program *program,
 void thompson_scheduler_init(ThompsonScheduler *self, const char *text);
 void thompson_scheduler_schedule(ThompsonScheduler *self,
                                  ThompsonThread    *thread);
+void thompson_scheduler_schedule_in_order(ThompsonScheduler *self,
+                                          ThompsonThread    *thread);
 int  thompson_scheduler_has_next(const ThompsonScheduler *self);
 ThompsonThread *thompson_scheduler_next(ThompsonScheduler *self);
 void            thompson_scheduler_reset(ThompsonScheduler *self);
