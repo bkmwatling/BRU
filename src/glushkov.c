@@ -17,13 +17,14 @@
 #define IS_EMPTY(pos_pair_list) \
     ((pos_pair_list)->sentinal->next == (pos_pair_list)->sentinal)
 
-#define FOREACH(pos_pair, pos_pair_list)               \
-    for ((pos_pair) = (pos_pair_list)->sentinal->next; \
-         (pos_pair) != (pos_pair_list)->sentinal;      \
-         (pos_pair) = (pos_pair)->next)
+#define FOREACH(elem, sentinal) \
+    for ((elem) = (sentinal)->next; (elem) != (sentinal); (elem) = (elem)->next)
 
-#define IS_NONEPS_TRANSITION(re) \
-    ((re) == NULL || (re)->type == LITERAL || (re)->type == CC)
+#define FOREACH_REV(elem, sentinal) \
+    for ((elem) = (sentinal)->prev; (elem) != (sentinal); (elem) = (elem)->prev)
+
+#define IS_EPS_TRANSITION(re) \
+    ((re) != NULL && (re)->type != LITERAL && (re)->type != CC)
 
 #define APPEND_GAMMA(list)                                          \
     do {                                                            \
@@ -54,16 +55,16 @@ typedef struct action Action;
 
 struct action {
     const Regex *re;
+    Action      *prev;
     Action      *next;
 };
 
 typedef struct pos_pair PosPair;
 
 struct pos_pair {
-    size_t   pos;          /*<< linearised position for Glushkov              */
-    len_t    nactions;     /*<< number of actions for transition              */
-    Action  *first_action; /*<< first action in linked list of actions        */
-    Action  *last_action;  /*<< last action in linked list of actions         */
+    size_t   pos;             /*<< linearised position for Glushkov           */
+    len_t    nactions;        /*<< number of actions for transition           */
+    Action  *action_sentinal; /*<< sentinal node for action list              */
     PosPair *prev;
     PosPair *next;
 };
@@ -88,7 +89,6 @@ static Action *action_clone(const Action *action);
 static void     pos_pair_free(PosPair *pos_pair);
 static PosPair *pos_pair_clone(const PosPair *pos_pair);
 static void     pos_pair_action_prepend(PosPair *pos_pair, Action *action);
-static void     pos_pair_action_append(PosPair *pos_pair, Action *action);
 static void     pos_pair_insert_after(PosPair *pos_pair, PosPair *target);
 static PosPair *pos_pair_insert_pos_after(size_t pos, PosPair *target);
 static PosPair *pos_pair_remove(PosPair *pos_pair);
@@ -121,20 +121,19 @@ static void rfa_print(FILE *stream, Rfa *rfa)
     PosPair *pp;
     Action  *act;
 
-    fprintf(stream, "\nRFA:\nFOLLOW SET:\n");
+    fprintf(stream, "\nRFA FOLLOW SET:\n");
     for (i = 0; i < rfa->npositions; i++) {
         fprintf(stream, "%lu: ", i);
-        FOREACH(pp, rfa->follow[i]) {
+        FOREACH(pp, rfa->follow[i]->sentinal) {
             fprintf(stream, "%lu->%lu (", i, pp->pos);
-            for (act = pp->first_action; act; act = act->next) {
-                if (act != pp->first_action) fprintf(stream, ", ");
-                fprintf(stream, "%s", regex_to_tree_str(act->re));
+            FOREACH(act, pp->action_sentinal) {
+                if (act != pp->action_sentinal->next) fprintf(stream, ", ");
                 switch (act->re->type) {
                     case CARET: fprintf(stream, "^"); break;
                     case DOLLAR: fprintf(stream, "$"); break;
                     case CAPTURE:
-                        fprintf(stream, "c_{" LEN_FMT "}",
-                                act->re->capture_idx);
+                        fprintf(stream, "c_" LEN_FMT, act->re->capture_idx);
+                        break;
                     default: assert(0 && "unreachable");
                 }
             }
@@ -166,6 +165,7 @@ const Program *glushkov_compile(const Regex *re)
     positions[START_POS] = NULL;
     rfa                  = rfa_new(follow, 1, positions);
     rfa_construct(re, rfa, NULL);
+    rfa_print(stderr, rfa);
     rfa_absorb(rfa, START_POS, visited);
 
     prog = program_new(rfa_insts_len(rfa, visited), aux_len, ncaptures,
@@ -191,17 +191,17 @@ const Program *glushkov_compile(const Regex *re)
 static Action *action_new(size_t pos, const Regex **positions)
 {
     Action      *action = malloc(sizeof(Action));
-    const Regex *re     = positions[pos];
+    const Regex *re     = positions ? positions[pos] : NULL;
 
     action->re   = re;
-    action->next = NULL;
+    action->prev = action->next = NULL;
 
     return action;
 }
 
 static void action_free(Action *action)
 {
-    action->next = NULL;
+    action->prev = action->next = NULL;
     free(action);
 }
 
@@ -210,7 +210,7 @@ static Action *action_clone(const Action *action)
     Action *act = malloc(sizeof(Action));
 
     act->re   = action->re;
-    act->next = NULL;
+    act->prev = act->next = NULL;
 
     return act;
 }
@@ -219,9 +219,10 @@ static PosPair *pos_pair_new(size_t pos)
 {
     PosPair *pp = malloc(sizeof(PosPair));
 
-    pp->pos          = pos;
-    pp->nactions     = 0;
-    pp->first_action = pp->last_action = NULL;
+    pp->pos                   = pos;
+    pp->nactions              = 0;
+    pp->action_sentinal       = action_new(START_POS, NULL);
+    pp->action_sentinal->prev = pp->action_sentinal->next = pp->action_sentinal;
     pp->prev = pp->next = NULL;
 
     return pp;
@@ -229,50 +230,56 @@ static PosPair *pos_pair_new(size_t pos)
 
 static void pos_pair_free(PosPair *pos_pair)
 {
-    Action *action, *next;
+    Action *action;
 
-    for (action = pos_pair->first_action; action; action = next) {
-        next = action->next;
+    while (pos_pair->action_sentinal->next != pos_pair->action_sentinal) {
+        action                          = pos_pair->action_sentinal->next;
+        pos_pair->action_sentinal->next = action->next;
+        action->prev = action->next = NULL;
         action_free(action);
     }
 
-    pos_pair->nactions     = 0;
-    pos_pair->first_action = pos_pair->last_action = NULL;
+    pos_pair->nactions = 0;
+    action_free(pos_pair->action_sentinal);
     pos_pair->prev = pos_pair->next = NULL;
     free(pos_pair);
 }
 
 static PosPair *pos_pair_clone(const PosPair *pos_pair)
 {
-    Action  *action;
+    Action  *act, *sentinal = pos_pair->action_sentinal;
     PosPair *pp = pos_pair_new(pos_pair->pos);
 
-    for (action = pos_pair->first_action; action; action = action->next)
-        pos_pair_action_append(pp, action_clone(action));
+    FOREACH_REV(act, sentinal) pos_pair_action_prepend(pp, action_clone(act));
 
     return pp;
 }
 
 static void pos_pair_action_prepend(PosPair *pos_pair, Action *action)
 {
-    if (pos_pair->first_action) {
-        action->next           = pos_pair->first_action;
-        pos_pair->first_action = action;
-    } else {
-        pos_pair->first_action = pos_pair->last_action = action;
-        action->next                                   = NULL;
-    }
-    pos_pair->nactions++;
-}
+    /* Action *act;
 
-static void pos_pair_action_append(PosPair *pos_pair, Action *action)
-{
-    if (pos_pair->last_action) {
-        pos_pair->last_action->next = action;
-        pos_pair->last_action       = action;
-    } else {
-        pos_pair->first_action = pos_pair->last_action = action;
-    }
+    FOREACH(act, pos_pair->action_sentinal) {
+        if (action->re->type != act->re->type) continue;
+        switch (action->re->type) {
+            case CARET: /* fallthrough */
+            case DOLLAR: action_free(action); return;
+            case CAPTURE:
+                if (action->re->capture_idx == act->re->capture_idx ||
+                    (act->re->capture_idx % 2 == 0 &&
+                     action->re->capture_idx == act->re->capture_idx + 1)) {
+                    return;
+                } else {
+                    break;
+                }
+            default: assert(0 && "unreachable");
+        }
+    } */
+
+    action->prev                    = pos_pair->action_sentinal;
+    action->next                    = pos_pair->action_sentinal->next;
+    pos_pair->action_sentinal->next = action;
+    action->next->prev              = action;
     pos_pair->nactions++;
 }
 
@@ -332,7 +339,7 @@ static PosPairList *pos_pair_list_new(void)
 static void pos_pair_list_free(PosPairList *list)
 {
     pos_pair_list_clear(list);
-    free(list->sentinal);
+    pos_pair_free(list->sentinal);
     free(list);
 }
 
@@ -342,7 +349,7 @@ static PosPairList *pos_pair_list_clone(const PosPairList *list)
     PosPair     *pp;
 
     ppl->len = list->len;
-    FOREACH(pp, list) {
+    FOREACH(pp, list->sentinal) {
         pos_pair_insert_after(pos_pair_clone(pp), ppl->sentinal->prev);
         if (pp == list->gamma) ppl->gamma = ppl->sentinal->prev;
     }
@@ -373,7 +380,7 @@ static void pos_pair_list_remove(PosPairList *list, size_t pos)
     if (pos == GAMMA_POS) {
         pp = list->gamma ? list->gamma : list->sentinal;
     } else {
-        FOREACH(pp, list) {
+        FOREACH(pp, list->sentinal) {
             if (pp->pos == pos) break;
         }
     }
@@ -532,7 +539,7 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
             rfa_construct(re->right, rfa_tmp, first_tmp);
             rfa->npositions = rfa_tmp->npositions;
 
-            FOREACH(pp, rfa->last) {
+            FOREACH(pp, rfa->last->sentinal) {
                 ppl_tmp = pos_pair_list_clone(first_tmp);
                 pos_pair_list_replace_gamma(rfa->follow[pp->pos], ppl_tmp);
                 pos_pair_list_free(ppl_tmp);
@@ -573,7 +580,7 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
                 pos_pair_insert_pos_after(pos_open, rfa->last->sentinal);
                 rfa->last->len++;
             }
-            FOREACH(pp, rfa->last) {
+            FOREACH(pp, rfa->last->sentinal) {
                 rfa->follow[pp->pos]->gamma->pos = pos_close;
                 rfa->follow[pp->pos]->gamma      = NULL;
             }
@@ -596,7 +603,7 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
                 PREPEND_GAMMA(first);
             }
 
-            FOREACH(pp, rfa->last) {
+            FOREACH(pp, rfa->last->sentinal) {
                 ppl_tmp = pos_pair_list_clone(first);
                 pos_pair_list_replace_gamma(rfa->follow[pp->pos], ppl_tmp);
                 pos_pair_list_free(ppl_tmp);
@@ -605,7 +612,7 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
 
         case PLUS:
             rfa_construct(re->left, rfa, first);
-            FOREACH(pp, rfa->last) {
+            FOREACH(pp, rfa->last->sentinal) {
                 ppl_tmp = pos_pair_list_clone(first);
                 if (re->pos) {
                     if (!NULLABLE(first)) APPEND_GAMMA(ppl_tmp);
@@ -638,27 +645,28 @@ static void rfa_absorb(Rfa *rfa, size_t pos, len_t *visited)
 {
     PosPair     *t, *e, *tmp, *pp, *p = NULL;
     PosPairList *follow, *follow_pos = rfa->follow[pos];
+    Action      *act;
 
     visited[pos] = TRUE;
-    FOREACH(t, follow_pos) {
+    FOREACH(t, follow_pos->sentinal) {
         if (!visited[t->pos]) rfa_absorb(rfa, t->pos, visited);
     }
 
     e = follow_pos->sentinal->next;
     while (e != follow_pos->sentinal) {
-        if (e->pos == pos) {
-            if (!IS_NONEPS_TRANSITION(rfa->positions[e->pos])) p = e;
+        if (e->pos == pos && pos != GAMMA_POS) {
+            if (IS_EPS_TRANSITION(rfa->positions[e->pos])) p = e;
             e = e->next;
             continue;
-        } else if (IS_NONEPS_TRANSITION(rfa->positions[e->pos])) {
+        } else if (!IS_EPS_TRANSITION(rfa->positions[e->pos])) {
             e = e->next;
             continue;
         }
 
         tmp    = e;
         follow = rfa->follow[e->pos];
-        FOREACH(t, follow) {
-            FOREACH(pp, follow_pos) {
+        FOREACH(t, follow->sentinal) {
+            FOREACH(pp, follow_pos->sentinal) {
                 if (pp->pos == e->pos || pp->pos == t->pos) break;
             }
             /* since e is in follow_pos, we should at least find e and thus no
@@ -676,23 +684,18 @@ static void rfa_absorb(Rfa *rfa, size_t pos, len_t *visited)
 
         e = pos_pair_remove(e);
         follow_pos->len--;
+        rfa_print(stderr, rfa);
     }
 
     if (p) {
         for (t = p->next; t != follow_pos->sentinal; t = t->next) {
-            pp = pos_pair_clone(p);
-            pos_pair_action_append(pp, action_new(pos, rfa->positions));
-
-            /* prepend pp action list (in its order) to t's action list */
-            pp->last_action->next = t->first_action;
-            t->first_action       = pp->first_action;
-            if (t->last_action == NULL) t->last_action = pp->last_action;
-            t->nactions      += pp->nactions;
-            pp->first_action = pp->last_action = NULL;
-            pos_pair_free(pp);
+            pos_pair_action_prepend(t, action_new(pos, rfa->positions));
+            FOREACH_REV(act, p->action_sentinal)
+            pos_pair_action_prepend(t, action_clone(act));
         }
         pos_pair_remove(p);
         follow_pos->len--;
+        rfa_print(stderr, rfa);
     }
 
     visited[pos] = FALSE;
@@ -736,7 +739,7 @@ static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map)
             insts_len +=
                 sizeof(byte) + sizeof(len_t) + follow->len * sizeof(offset_t);
         /* allocate space for each list of actions */
-        FOREACH(pp, follow) {
+        FOREACH(pp, follow->sentinal) {
             insts_len += emit_transition(pp, NULL, NULL, NULL);
             /* add target state for processing if not visited */
             if (!visited[pp->pos]) vec_push(states, pp->pos);
@@ -794,7 +797,7 @@ static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map)
             *pc++ = TSWITCH;
             MEMWRITE(pc, len_t, follow->len);
             x = follow->len * sizeof(offset_t);
-            FOREACH(pp, follow) {
+            FOREACH(pp, follow->sentinal) {
                 MEMWRITE(pc, offset_t, x - sizeof(offset_t));
                 /* XXX: may be more involved with counters later */
                 x += emit_transition(pp, NULL, prog, pc_map);
@@ -802,7 +805,7 @@ static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map)
             }
         }
         /* write the VM instructions for each set of actions */
-        FOREACH(pp, follow) {
+        FOREACH(pp, follow->sentinal) {
             emit_transition(pp, &pc, prog, pc_map);
             /* add target state for processing if not visited */
             if (!visited[pp->pos]) vec_push(states, pp->pos);
@@ -823,7 +826,7 @@ emit_transition(PosPair *pos_pair, byte **pc, Program *prog, len_t *pc_map)
     len_t   insts_len = 0;
 
     /* XXX: may be more involved with counters later */
-    for (action = pos_pair->first_action; action; action = action->next) {
+    FOREACH(action, pos_pair->action_sentinal) {
         switch (action->re->type) {
             case CARET:
                 insts_len++;
