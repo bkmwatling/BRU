@@ -4,6 +4,6 @@
 #include "compiler.h"
 #include "sre.h"
 
-const Program *glushkov_compile(const Regex *re);
+const Program *glushkov_compile(const Regex *re, const CompilerOpts *opts);
 
 #endif /* GLUSHKOV_H */

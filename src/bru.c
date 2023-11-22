@@ -88,6 +88,22 @@ static ArgConvertResult convert_branch(const char *arg, void *out)
     return ARG_CR_SUCCESS;
 }
 
+static ArgConvertResult convert_capture_semantics(const char *arg, void *out)
+{
+    CaptureSemantics *cs = out;
+
+    if (strcmp(arg, "pcre") == 0) {
+        *cs = CS_PCRE;
+    } else if (strcmp(arg, "re2") == 0) {
+        *cs = CS_RE2;
+    } else {
+        /* fprintf(stderr, "ERROR: invalid type of capturing semantics\n"); */
+        return ARG_CR_FAILURE;
+    }
+
+    return ARG_CR_SUCCESS;
+}
+
 int main(int argc, const char **argv)
 {
     int            arg_idx;
@@ -138,6 +154,10 @@ int main(int argc, const char **argv)
                      "split | tswitch | lswitch",
                      "which type of branching to use for control flow", "split",
                      convert_branch },
+        { STC_ARG_CUSTOM, NULL, "--capture-semantics",
+                     &compiler_opts.capture_semantics, "pcre | re2",
+                     "which type of capturing semantics to compile with", "pcre",
+                     convert_capture_semantics },
         { STC_ARG_CUSTOM, "-s", "--scheduler", &scheduler_type,
                      "spencer | lockstep | thompson",
                      "which scheduler to use for execution", "spencer",

@@ -5,7 +5,8 @@
 #include "sre.h"
 #include "thompson.h"
 
-#define COMPILER_OPTS_DEFAULT ((CompilerOpts){ THOMPSON, FALSE, SC_SPLIT })
+#define COMPILER_OPTS_DEFAULT \
+    ((CompilerOpts){ THOMPSON, FALSE, SC_SPLIT, CS_PCRE })
 
 #define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) + 1))
 
@@ -32,7 +33,7 @@ const Program *compiler_compile(const Compiler *self)
     if (self->opts.construction == THOMPSON) {
         prog = thompson_compile(re);
     } else if (self->opts.construction == GLUSHKOV) {
-        prog = glushkov_compile(re);
+        prog = glushkov_compile(re, &self->opts);
     }
     regex_free(re);
 

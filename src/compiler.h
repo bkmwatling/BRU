@@ -15,10 +15,16 @@ typedef enum {
     SC_LSWITCH,
 } SplitChoice;
 
+typedef enum {
+    CS_PCRE,
+    CS_RE2,
+} CaptureSemantics;
+
 typedef struct {
-    Construction construction;
-    int          only_std_split;
-    SplitChoice  branch;
+    Construction     construction;
+    int              only_std_split;
+    SplitChoice      branch;
+    CaptureSemantics capture_semantics;
 } CompilerOpts;
 
 typedef struct {
