@@ -31,7 +31,7 @@ const Program *compiler_compile(const Compiler *self)
 
     re = parser_parse(self->parser);
     if (self->opts.construction == THOMPSON) {
-        prog = thompson_compile(re);
+        prog = thompson_compile(re, &self->opts);
     } else if (self->opts.construction == GLUSHKOV) {
         prog = glushkov_compile(re, &self->opts);
     }

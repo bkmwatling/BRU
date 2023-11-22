@@ -8,35 +8,38 @@
     (p) = (offset_t *) ((re)->pos ? (pc) : (pc) + sizeof(offset_t)); \
     (q) = (offset_t *) ((re)->pos ? (pc) + sizeof(offset_t) : (pc))
 
-static len_t count(const Regex *re,
-                   len_t       *aux_len,
-                   len_t       *ncaptures,
-                   len_t       *ncounters,
-                   len_t       *mem_len);
-static byte *emit(const Regex *re, byte *pc, Program *prog);
+static len_t count(const Regex        *re,
+                   len_t              *aux_len,
+                   len_t              *ncaptures,
+                   len_t              *ncounters,
+                   len_t              *mem_len,
+                   const CompilerOpts *opts);
+static byte *
+emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts);
 
-const Program *thompson_compile(const Regex *re)
+const Program *thompson_compile(const Regex *re, const CompilerOpts *opts)
 {
     len_t    insts_len, aux_len = 0, ncaptures = 0, ncounters = 0, mem_len = 0;
     Program *prog;
     byte    *pc;
 
-    insts_len = count(re, &aux_len, &ncaptures, &ncounters, &mem_len) + 1;
+    insts_len = count(re, &aux_len, &ncaptures, &ncounters, &mem_len, opts) + 1;
     prog      = program_new(insts_len, aux_len, ncaptures, ncounters, mem_len);
 
     /* set the length fields to 0 as we use them for indices during emitting */
     prog->aux_len = prog->ncounters = prog->mem_len = 0;
-    pc  = emit(re, prog->insts, prog);
+    pc  = emit(re, prog->insts, prog, opts);
     *pc = MATCH;
 
     return prog;
 }
 
-static len_t count(const Regex *re,
-                   len_t       *aux_len,
-                   len_t       *ncaptures,
-                   len_t       *ncounters,
-                   len_t       *mem_len)
+static len_t count(const Regex        *re,
+                   len_t              *aux_len,
+                   len_t              *ncaptures,
+                   len_t              *ncounters,
+                   len_t              *mem_len,
+                   const CompilerOpts *opts)
 {
     len_t n = 0;
 
@@ -53,60 +56,74 @@ static len_t count(const Regex *re,
 
         case ALT:
             n  = 2 * sizeof(byte) + 3 * sizeof(offset_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len) +
-                 count(re->right, aux_len, ncaptures, ncounters, mem_len);
+            n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts) +
+                 count(re->right, aux_len, ncaptures, ncounters, mem_len, opts);
             break;
 
         case CONCAT:
-            n = count(re->left, aux_len, ncaptures, ncounters, mem_len) +
-                count(re->right, aux_len, ncaptures, ncounters, mem_len);
+            n = count(re->left, aux_len, ncaptures, ncounters, mem_len, opts) +
+                count(re->right, aux_len, ncaptures, ncounters, mem_len, opts);
             break;
 
         case CAPTURE:
             n  = 2 * sizeof(byte) + 2 * sizeof(len_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts);
             if (*ncaptures < re->capture_idx + 1)
                 *ncaptures = re->capture_idx + 1;
             break;
 
         case STAR:
-            n  = 5 * sizeof(byte) + 5 * sizeof(offset_t) + 2 * sizeof(len_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            if (opts->capture_semantics == CS_PCRE) {
+                n = 5 * sizeof(byte) + 5 * sizeof(offset_t) + 2 * sizeof(len_t);
+            } else if (opts->capture_semantics == CS_RE2) {
+                n = 5 * sizeof(byte) + 5 * sizeof(offset_t) + 2 * sizeof(len_t);
+            }
+            n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts);
             *mem_len += sizeof(char *);
             break;
 
         case PLUS:
-            n  = 4 * sizeof(byte) + 3 * sizeof(offset_t) + 2 * sizeof(len_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            if (opts->capture_semantics == CS_PCRE) {
+                n = 4 * sizeof(byte) + 3 * sizeof(offset_t) + 2 * sizeof(len_t);
+            } else if (opts->capture_semantics == CS_RE2) {
+                n = 4 * sizeof(byte) + 3 * sizeof(offset_t) + 2 * sizeof(len_t);
+            }
+            n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts);
             *mem_len += sizeof(char *);
             break;
 
         case QUES:
             n  = sizeof(byte) + 2 * sizeof(offset_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts);
             break;
 
         case COUNTER:
-            n = 11 * sizeof(byte) + 5 * sizeof(offset_t) + 6 * sizeof(len_t) +
-                3 * sizeof(cntr_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            if (opts->capture_semantics == CS_PCRE) {
+                n = 11 * sizeof(byte) + 5 * sizeof(offset_t) +
+                    6 * sizeof(len_t) + 3 * sizeof(cntr_t);
+            } else if (opts->capture_semantics == CS_RE2) {
+                n = 11 * sizeof(byte) + 5 * sizeof(offset_t) +
+                    6 * sizeof(len_t) + 3 * sizeof(cntr_t);
+            }
+            n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts);
             ++*ncounters;
             *mem_len += sizeof(char *);
             break;
 
         case LOOKAHEAD:
             n  = 3 * sizeof(byte) + 2 * sizeof(offset_t);
-            n += count(re->left, aux_len, ncaptures, ncounters, mem_len);
+            n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts);
             break;
     }
 
     return n;
 }
 
-static byte *emit(const Regex *re, byte *pc, Program *prog)
+static byte *
+emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
 {
     len_t     c, k;
-    offset_t *p, *q, *r, *t;
+    offset_t *p, *q, *x, *y;
     byte     *mem = prog->memory + prog->mem_len;
 
     switch (re->type) {
@@ -140,20 +157,20 @@ static byte *emit(const Regex *re, byte *pc, Program *prog)
             pc    += 2 * sizeof(offset_t);
             SET_OFFSET(p, pc);
             ++p;
-            pc     = emit(re->left, pc, prog);
+            pc     = emit(re->left, pc, prog, opts);
             *pc++  = JMP;
             q      = (offset_t *) pc;
             pc    += sizeof(offset_t);
             SET_OFFSET(p, pc);
-            pc = emit(re->right, pc, prog);
+            pc = emit(re->right, pc, prog, opts);
             SET_OFFSET(q, pc);
             break;
 
         /* instructions for `re->left`  *
          * instructions for `re->right` */
         case CONCAT:
-            pc = emit(re->left, pc, prog);
-            pc = emit(re->right, pc, prog);
+            pc = emit(re->left, pc, prog, opts);
+            pc = emit(re->right, pc, prog, opts);
             break;
 
         /* `save` k                    *
@@ -163,70 +180,110 @@ static byte *emit(const Regex *re, byte *pc, Program *prog)
             *pc++ = SAVE;
             k     = re->capture_idx;
             MEMWRITE(pc, len_t, 2 * k);
-            pc    = emit(re->left, pc, prog);
+            pc    = emit(re->left, pc, prog, opts);
             *pc++ = SAVE;
             MEMWRITE(pc, len_t, 2 * k + 1);
             break;
 
-        /*     `split` L1, L3              -- L3, L1 if non-greedy *
-         * L1: `epsset` k                                          *
-         *     instructions for `re->left`                         *
-         *     `split` L2, L3              -- L3, L2 if non-greedy *
-         * L2: `epschk` k                                          *
-         *     `jmp` L1                                            *
-         * L3:                                                     */
+        /*     `split` L1, L5                         -- L5, L1 if non-greedy *
+         * L1:                       | `jmp` L3                               *
+         * L2: `epsset` k                                                     *
+         * L3: instructions for `re->left`                                    *
+         *     `split` L4, L5        |                -- L5, L4 if non-greedy *
+         * L4: `epschk` k                                                     *
+         *     `jmp` L2              | `split` L2, L5 -- L5, L2 if non-greedy *
+         * L5:                                                                */
         case STAR:
             *pc++ = SPLIT;
             SPLIT_LABELS_PTRS(p, q, re, pc);
             pc += 2 * sizeof(offset_t);
-
             SET_OFFSET(p, pc);
+
+            if (opts->capture_semantics == CS_RE2) {
+                *pc++  = JMP;
+                y      = (offset_t *) pc;
+                pc    += sizeof(offset_t);
+            }
+
             p              = (offset_t *) pc;
             *pc++          = EPSSET;
             k              = prog->mem_len;
             prog->mem_len += sizeof(const char *);
             MEMWRITE(mem, const char *, NULL);
             MEMWRITE(pc, len_t, k);
-            pc = emit(re->left, pc, prog);
 
-            *pc++ = SPLIT;
-            SPLIT_LABELS_PTRS(r, t, re, pc);
-            pc += 2 * sizeof(offset_t);
+            if (opts->capture_semantics == CS_RE2) SET_OFFSET(y, pc);
 
-            SET_OFFSET(r, pc);
+            pc = emit(re->left, pc, prog, opts);
+
+            if (opts->capture_semantics == CS_PCRE) {
+                *pc++ = SPLIT;
+                SPLIT_LABELS_PTRS(x, y, re, pc);
+                pc += 2 * sizeof(offset_t);
+                SET_OFFSET(x, pc);
+            }
+
             *pc++ = EPSCHK;
             MEMWRITE(pc, len_t, k);
-            *pc++ = JMP;
-            MEMWRITE(pc, offset_t, (byte *) p - (pc + sizeof(offset_t)));
+
+            if (opts->capture_semantics == CS_PCRE) {
+                *pc++ = JMP;
+                MEMWRITE(pc, offset_t, (byte *) p - (pc + sizeof(offset_t)));
+            } else if (opts->capture_semantics == CS_RE2) {
+                *pc++ = SPLIT;
+                SPLIT_LABELS_PTRS(x, y, re, pc);
+                pc += 2 * sizeof(offset_t);
+                SET_OFFSET(x, (byte *) p);
+            }
 
             SET_OFFSET(q, pc);
-            SET_OFFSET(t, pc);
+            SET_OFFSET(y, pc);
             break;
 
-        /* L1: `epsset` k                                          *
-         *     instructions for `re->left`                         *
-         *     `split` L2, L3              -- L3, L2 if non-greedy *
-         * L2: `epschk` k                                          *
-         *     `jmp` L1                                            *
-         * L3:                                                     */
+        /*                           | `jmp` L2                               *
+         * L1: `epsset` k                                                     *
+         * L2: instructions for `re->left`                                    *
+         *     `split` L3, L4        |                -- L4, L3 if non-greedy *
+         * L3: `epschk` k                                                     *
+         *     `jmp` L1              | `split` L1, L4 -- L4, L1 if non-greedy *
+         * L4:                                                                */
         case PLUS:
-            r              = (offset_t *) pc;
+            if (opts->capture_semantics == CS_RE2) {
+                *pc++  = JMP;
+                y      = (offset_t *) pc;
+                pc    += sizeof(offset_t);
+            }
+
+            x              = (offset_t *) pc;
             *pc++          = EPSSET;
             k              = prog->mem_len;
             prog->mem_len += sizeof(const char *);
             MEMWRITE(mem, const char *, NULL);
             MEMWRITE(pc, len_t, k);
-            pc = emit(re->left, pc, prog);
 
-            *pc++ = SPLIT;
-            SPLIT_LABELS_PTRS(p, q, re, pc);
-            pc += 2 * sizeof(offset_t);
+            if (opts->capture_semantics == CS_RE2) SET_OFFSET(y, pc);
 
-            SET_OFFSET(p, pc);
+            pc = emit(re->left, pc, prog, opts);
+
+            if (opts->capture_semantics == CS_PCRE) {
+                *pc++ = SPLIT;
+                SPLIT_LABELS_PTRS(p, q, re, pc);
+                pc += 2 * sizeof(offset_t);
+                SET_OFFSET(p, pc);
+            }
+
             *pc++ = EPSCHK;
             MEMWRITE(pc, len_t, k);
-            *pc++ = JMP;
-            MEMWRITE(pc, offset_t, (byte *) r - (pc + sizeof(offset_t)));
+
+            if (opts->capture_semantics == CS_PCRE) {
+                *pc++ = JMP;
+                MEMWRITE(pc, offset_t, (byte *) x - (pc + sizeof(offset_t)));
+            } else if (opts->capture_semantics == CS_RE2) {
+                *pc++ = SPLIT;
+                SPLIT_LABELS_PTRS(p, q, re, pc);
+                pc += 2 * sizeof(offset_t);
+                SET_OFFSET(p, (byte *) x);
+            }
 
             SET_OFFSET(q, pc);
             break;
@@ -239,20 +296,21 @@ static byte *emit(const Regex *re, byte *pc, Program *prog)
             SPLIT_LABELS_PTRS(p, q, re, pc);
             pc += 2 * sizeof(offset_t);
             SET_OFFSET(p, pc);
-            pc = emit(re->left, pc, prog);
+            pc = emit(re->left, pc, prog, opts);
             SET_OFFSET(q, pc);
             break;
 
-        /*     `reset` c, 0                                        *
-         *     `split` L1, L3              -- L3, L1 if non-greedy *
-         * L1: `cmplt` c, `max`                                    *
-         *     `epsset` k                                          *
-         *     instructions for `re->left`                         *
-         *     `inc` c                                             *
-         *     `split` L2, L3              -- L3, L2 if non-greedy *
-         * L2: `epschk` k                                          *
-         *     `jmp` L1                                            *
-         * L3: `cmpge` c, `min`                                    */
+        /*     `reset` c, 0                                                   *
+         *     `split` L1, L5                         -- L5, L1 if non-greedy *
+         * L1:                       | `jmp` L3                               *
+         * L2: `epsset` k                                                     *
+         * L3: `cmplt` c, `max`                                               *
+         *     instructions for `re->left`                                    *
+         *     `inc` c                                                        *
+         *     `split` L4, L5        |                -- L5, L4 if non-greedy *
+         * L4: `epschk` k                                                     *
+         *     `jmp` L2              | `split` L2, L5 -- L5, L2 if non-greedy *
+         * L5: `cmpge` c, `min`                                               */
         case COUNTER:
             *pc++             = RESET;
             c                 = prog->ncounters++;
@@ -265,33 +323,53 @@ static byte *emit(const Regex *re, byte *pc, Program *prog)
             pc += 2 * sizeof(offset_t);
             SET_OFFSET(p, pc);
 
-            p     = (offset_t *) pc;
-            *pc++ = CMP;
-            MEMWRITE(pc, len_t, c);
-            MEMWRITE(pc, cntr_t, re->max);
-            *pc++ = LT;
+            if (opts->capture_semantics == CS_RE2) {
+                *pc++  = JMP;
+                y      = (offset_t *) pc;
+                pc    += sizeof(offset_t);
+            }
 
+            p              = (offset_t *) pc;
             *pc++          = EPSSET;
             k              = prog->mem_len;
             prog->mem_len += sizeof(const char *);
             MEMWRITE(mem, const char *, NULL);
             MEMWRITE(pc, len_t, k);
-            pc    = emit(re->left, pc, prog);
+
+            if (opts->capture_semantics == CS_RE2) SET_OFFSET(y, pc);
+
+            *pc++ = CMP;
+            MEMWRITE(pc, len_t, c);
+            MEMWRITE(pc, cntr_t, re->max);
+            *pc++ = LT;
+
+            pc = emit(re->left, pc, prog, opts);
+
             *pc++ = INC;
             MEMWRITE(pc, len_t, c);
 
-            *pc++ = SPLIT;
-            SPLIT_LABELS_PTRS(r, t, re, pc);
-            pc += 2 * sizeof(offset_t);
-            SET_OFFSET(r, pc);
+            if (opts->capture_semantics == CS_PCRE) {
+                *pc++ = SPLIT;
+                SPLIT_LABELS_PTRS(x, y, re, pc);
+                pc += 2 * sizeof(offset_t);
+                SET_OFFSET(x, pc);
+            }
 
             *pc++ = EPSCHK;
             MEMWRITE(pc, len_t, k);
-            *pc++ = JMP;
-            MEMWRITE(pc, offset_t, (byte *) p - (pc + sizeof(offset_t)));
+
+            if (opts->capture_semantics == CS_PCRE) {
+                *pc++ = JMP;
+                MEMWRITE(pc, offset_t, (byte *) p - (pc + sizeof(offset_t)));
+            } else if (opts->capture_semantics == CS_RE2) {
+                *pc++ = SPLIT;
+                SPLIT_LABELS_PTRS(x, y, re, pc);
+                pc += 2 * sizeof(offset_t);
+                SET_OFFSET(x, (byte *) p);
+            }
 
             SET_OFFSET(q, pc);
-            SET_OFFSET(t, pc);
+            SET_OFFSET(y, pc);
             *pc++ = CMP;
             MEMWRITE(pc, len_t, c);
             MEMWRITE(pc, cntr_t, re->min);
@@ -309,7 +387,7 @@ static byte *emit(const Regex *re, byte *pc, Program *prog)
             *pc++  = re->pos;
             SET_OFFSET(p, pc);
             ++p;
-            pc    = emit(re->left, pc, prog);
+            pc    = emit(re->left, pc, prog, opts);
             *pc++ = MATCH;
             SET_OFFSET(p, pc);
             break;
