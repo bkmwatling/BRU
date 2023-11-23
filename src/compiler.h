@@ -12,7 +12,6 @@ typedef enum {
 typedef enum {
     SC_SPLIT,
     SC_TSWITCH,
-    SC_LSWITCH,
 } SplitChoice;
 
 typedef enum {

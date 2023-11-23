@@ -194,6 +194,10 @@ emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
          *     `jmp` L2              | `split` L2, L5 -- L5, L2 if non-greedy *
          * L5:                                                                */
         case STAR:
+            k              = prog->mem_len;
+            prog->mem_len += sizeof(const char *);
+            MEMWRITE(mem, const char *, NULL);
+
             *pc++ = SPLIT;
             SPLIT_LABELS_PTRS(p, q, re, pc);
             pc += 2 * sizeof(offset_t);
@@ -205,11 +209,8 @@ emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
                 pc    += sizeof(offset_t);
             }
 
-            p              = (offset_t *) pc;
-            *pc++          = EPSSET;
-            k              = prog->mem_len;
-            prog->mem_len += sizeof(const char *);
-            MEMWRITE(mem, const char *, NULL);
+            p     = (offset_t *) pc;
+            *pc++ = EPSSET;
             MEMWRITE(pc, len_t, k);
 
             if (opts->capture_semantics == CS_RE2) SET_OFFSET(y, pc);
@@ -248,17 +249,18 @@ emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
          *     `jmp` L1              | `split` L1, L4 -- L4, L1 if non-greedy *
          * L4:                                                                */
         case PLUS:
+            k              = prog->mem_len;
+            prog->mem_len += sizeof(const char *);
+            MEMWRITE(mem, const char *, NULL);
+
             if (opts->capture_semantics == CS_RE2) {
                 *pc++  = JMP;
                 y      = (offset_t *) pc;
                 pc    += sizeof(offset_t);
             }
 
-            x              = (offset_t *) pc;
-            *pc++          = EPSSET;
-            k              = prog->mem_len;
-            prog->mem_len += sizeof(const char *);
-            MEMWRITE(mem, const char *, NULL);
+            x     = (offset_t *) pc;
+            *pc++ = EPSSET;
             MEMWRITE(pc, len_t, k);
 
             if (opts->capture_semantics == CS_RE2) SET_OFFSET(y, pc);
@@ -312,6 +314,10 @@ emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
          *     `jmp` L2              | `split` L2, L5 -- L5, L2 if non-greedy *
          * L5: `cmpge` c, `min`                                               */
         case COUNTER:
+            k              = prog->mem_len;
+            prog->mem_len += sizeof(const char *);
+            MEMWRITE(mem, const char *, NULL);
+
             *pc++             = RESET;
             c                 = prog->ncounters++;
             prog->counters[c] = 0;
@@ -329,11 +335,8 @@ emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
                 pc    += sizeof(offset_t);
             }
 
-            p              = (offset_t *) pc;
-            *pc++          = EPSSET;
-            k              = prog->mem_len;
-            prog->mem_len += sizeof(const char *);
-            MEMWRITE(mem, const char *, NULL);
+            p     = (offset_t *) pc;
+            *pc++ = EPSSET;
             MEMWRITE(pc, len_t, k);
 
             if (opts->capture_semantics == CS_RE2) SET_OFFSET(y, pc);

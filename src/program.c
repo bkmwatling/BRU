@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,6 +86,10 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
     pc += x;
     for (idx = 0; insts < pc; idx++) {
         switch (*insts++) {
+            case NOOP:  /* fallthrough */
+            case MATCH: /* fallthrough */
+            case BEGIN: /* fallthrough */
+            case END: break;
             case CHAR: insts += sizeof(char *); break;
             case PRED: insts += 2 * sizeof(len_t); break;
             case SAVE: insts += sizeof(len_t); break;
@@ -96,14 +101,16 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
                 MEMREAD(len, insts, len_t);
                 insts += len * sizeof(offset_t);
                 break;
-            case LSWITCH: break; /* TODO: */
-            case EPSSET:         /* fallthrough */
+            case EPSRESET: /* fallthrough */
+            case EPSSET:   /* fallthrough */
             case EPSCHK: insts += sizeof(len_t); break;
             case RESET: insts += sizeof(len_t) + sizeof(cntr_t); break;
             case CMP: insts += sizeof(len_t) + sizeof(cntr_t) + 1; break;
             case INC: insts += sizeof(len_t); break;
             case ZWA: insts += 2 * sizeof(offset_t) + 1; break;
-            default: break;
+            default:
+                fprintf(stderr, "bytecode = %d\n", insts[-1]);
+                assert(0 && "unreachable");
         }
     }
 
@@ -193,8 +200,11 @@ static const byte *inst_to_str(char         **s,
             }
             break;
 
-        /* TODO: */
-        case LSWITCH: break;
+        case EPSRESET:
+            MEMREAD(n, pc, len_t);
+            ENSURE_SPACE(*s, *len + 17, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "epsreset " LEN_FMT, n);
+            break;
 
         case EPSSET:
             MEMREAD(n, pc, len_t);
@@ -262,6 +272,10 @@ static const byte *inst_to_str(char         **s,
                 offset_to_absolute_index(y, pc, prog->insts), *pc);
             pc++;
             break;
+
+        default:
+            fprintf(stderr, "bytecode = %d\n", pc[-1]);
+            assert(0 && "unreachable");
     }
 
     return pc;

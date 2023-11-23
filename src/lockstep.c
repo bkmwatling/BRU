@@ -199,7 +199,6 @@ void thompson_scheduler_schedule(ThompsonScheduler *self,
         switch (*thread->pc) {
             case CHAR:
             case PRED:
-            case LSWITCH:
                 if (vec_is_empty(self->next)) {
                     vec_push(self->sync, thread);
                 } else {
@@ -256,7 +255,6 @@ ThompsonThread *thompson_scheduler_next(ThompsonScheduler *self)
         switch (*thread->pc) {
             case CHAR:
             case PRED:
-            case LSWITCH:
                 if (!self->in_sync) {
                     thompson_scheduler_schedule(self, thread);
                     thread = thompson_scheduler_next(self);

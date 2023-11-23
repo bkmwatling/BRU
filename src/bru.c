@@ -78,8 +78,6 @@ static ArgConvertResult convert_branch(const char *arg, void *out)
         *branch = SC_SPLIT;
     } else if (strcmp(arg, "tswitch") == 0) {
         *branch = SC_TSWITCH;
-    } else if (strcmp(arg, "lswitch") == 0) {
-        *branch = SC_LSWITCH;
     } else {
         /* fprintf(stderr, "ERROR: invalid branching type\n"); */
         return ARG_CR_FAILURE;

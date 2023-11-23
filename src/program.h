@@ -15,25 +15,25 @@
 /* --- Type definitions ----------------------------------------------------- */
 
 /* Bytecodes */
-#define NOOP    0
-#define MATCH   1
-#define BEGIN   2
-#define END     3
-#define CHAR    4
-#define PRED    5
-#define SAVE    6
-#define JMP     7
-#define SPLIT   8
-#define GSPLIT  9
-#define LSPLIT  10
-#define TSWITCH 11
-#define LSWITCH 12
-#define EPSSET  13
-#define EPSCHK  14
-#define RESET   15
-#define CMP     16
-#define INC     17
-#define ZWA     18
+#define NOOP     0
+#define MATCH    1
+#define BEGIN    2
+#define END      3
+#define CHAR     4
+#define PRED     5
+#define SAVE     6
+#define JMP      7
+#define SPLIT    8
+#define GSPLIT   9
+#define LSPLIT   10
+#define TSWITCH  11
+#define EPSRESET 12
+#define EPSSET   13
+#define EPSCHK   14
+#define RESET    15
+#define CMP      16
+#define INC      17
+#define ZWA      18
 
 /* Order for cmp */
 #define LT 1

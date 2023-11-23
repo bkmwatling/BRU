@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -94,6 +95,7 @@ static int srvm_run(const char    *text,
                     Scheduler     *scheduler,
                     const char   **captures)
 {
+    void          *null    = NULL;
     int            matched = 0, cond;
     const Program *prog    = scheduler_program(scheduler);
     void          *thread, *t;
@@ -207,8 +209,12 @@ static int srvm_run(const char    *text,
                 thread_manager->free(thread);
                 break;
 
-            /* TODO: */
-            case LSWITCH: break;
+            case EPSRESET:
+                MEMREAD(k, pc, len_t);
+                thread_manager->set_pc(thread, pc);
+                thread_manager->set_memory(thread, k, &null, sizeof(null));
+                scheduler_schedule(scheduler, thread);
+                break;
 
             case EPSSET:
                 MEMREAD(k, pc, len_t);
@@ -280,6 +286,8 @@ static int srvm_run(const char    *text,
                 }
                 scheduler_free(s);
                 break;
+
+            default: assert(0 && "unreachable");
         }
     }
 
