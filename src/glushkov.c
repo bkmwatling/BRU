@@ -540,7 +540,7 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
             break;
 
         case ALT:
-            rfa_construct(re->left, rfa, NULL);
+            rfa_construct(re->left, rfa, first);
             rfa_tmp   = RFA_NEW_FROM(rfa);
             first_tmp = pos_pair_list_new();
             rfa_construct(re->right, rfa_tmp, first_tmp);
