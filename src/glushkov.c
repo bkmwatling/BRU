@@ -14,8 +14,7 @@
     (p) = (offset_t *) ((re)->pos ? (pc) : (pc) + sizeof(offset_t)); \
     (q) = (offset_t *) ((re)->pos ? (pc) + sizeof(offset_t) : (pc))
 
-#define IS_EMPTY(pos_pair_list) \
-    ((pos_pair_list)->sentinel->next == (pos_pair_list)->sentinel)
+#define IS_EMPTY(ppl) ((ppl)->sentinel->next == (ppl)->sentinel)
 
 #define FOREACH(elem, sentinel) \
     for ((elem) = (sentinel)->next; (elem) != (sentinel); (elem) = (elem)->next)
@@ -26,18 +25,18 @@
 #define IS_EPS_TRANSITION(re) \
     ((re) != NULL && (re)->type != LITERAL && (re)->type != CC)
 
-#define APPEND_GAMMA(list)                                          \
-    do {                                                            \
-        pos_pair_insert_pos_after(GAMMA_POS, list->sentinel->prev); \
-        list->gamma = list->sentinel->prev;                         \
-        list->len++;                                                \
+#define APPEND_GAMMA(ppl)                                    \
+    do {                                                     \
+        pp_insert_pos_after(ppl->sentinel->prev, GAMMA_POS); \
+        ppl->gamma = ppl->sentinel->prev;                    \
+        ppl->len++;                                          \
     } while (0)
 
-#define PREPEND_GAMMA(list)                                   \
-    do {                                                      \
-        pos_pair_insert_pos_after(GAMMA_POS, list->sentinel); \
-        list->gamma = list->sentinel->next;                   \
-        list->len++;                                          \
+#define PREPEND_GAMMA(ppl)                             \
+    do {                                               \
+        pp_insert_pos_after(ppl->sentinel, GAMMA_POS); \
+        ppl->gamma = ppl->sentinel->next;              \
+        ppl->len++;                                    \
     } while (0)
 
 /* START_POS and GAMMA_POS should be the same since gamma isn't an actual
@@ -46,7 +45,7 @@
 #define GAMMA_POS 0
 
 #define FIRST(rfa)      ((rfa)->follow[START_POS])
-#define NULLABLE(first) (first->gamma != NULL)
+#define NULLABLE(first) ((first)->gamma != NULL)
 
 #define RFA_NEW_FROM(rfa) \
     rfa_new((rfa)->follow, (rfa)->npositions, (rfa)->positions)
@@ -83,69 +82,46 @@ typedef struct {
 } Rfa;
 
 static Action *action_new(size_t pos, const Regex **positions);
-static void    action_free(Action *action);
-static Action *action_clone(const Action *action);
+static void    action_free(Action *self);
+static Action *action_clone(const Action *self);
 
-static void     pos_pair_free(PosPair *pos_pair);
-static PosPair *pos_pair_clone(const PosPair *pos_pair);
-static void     pos_pair_action_prepend(PosPair *pos_pair, Action *action);
-static void     pos_pair_insert_after(PosPair *pos_pair, PosPair *target);
-static PosPair *pos_pair_insert_pos_after(size_t pos, PosPair *target);
-static PosPair *pos_pair_remove(PosPair *pos_pair);
-static int      pos_pair_remove_from(size_t pos, PosPair *start, PosPair *end);
+static void     pp_free(PosPair *self);
+static PosPair *pp_clone(const PosPair *self);
+static void     pp_action_prepend(PosPair *self, Action *action);
+static void     pp_insert_after(PosPair *self, PosPair *pp);
+static PosPair *pp_insert_pos_after(PosPair *self, size_t pos);
+static PosPair *pp_remove(PosPair *self);
+static int      pp_remove_from(size_t pos, PosPair *start, PosPair *end);
 
-static PosPairList *pos_pair_list_new(void);
-static void         pos_pair_list_free(PosPairList *list);
-static PosPairList *pos_pair_list_clone(const PosPairList *list);
-static void         pos_pair_list_clear(PosPairList *list);
-static void         pos_pair_list_remove(PosPairList *list, size_t pos);
-static void pos_pair_list_replace_gamma(PosPairList *list1, PosPairList *list2);
-static void pos_pair_list_append(PosPairList *list1, PosPairList *list2);
+static PosPairList *ppl_new(void);
+static void         ppl_free(PosPairList *self);
+static PosPairList *ppl_clone(const PosPairList *self);
+static void         ppl_clear(PosPairList *self);
+static void         ppl_remove(PosPairList *self, size_t pos);
+static void         ppl_replace_gamma(PosPairList *self, PosPairList *ppl);
+static void         ppl_append(PosPairList *self, PosPairList *ppl);
 
 static Rfa *
 rfa_new(PosPairList **follow, size_t npositions, const Regex **positions);
-static void rfa_free(Rfa *rfa);
+static void rfa_free(Rfa *self);
+static void rfa_construct(Rfa *self, const Regex *re, PosPairList *first);
+static void
+rfa_absorb(Rfa *self, size_t pos, len_t *visited, const CompilerOpts *opts);
+static len_t rfa_insts_len(Rfa *self, len_t *pc_map);
 
 static size_t
 count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters);
-static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first);
-static void
-rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts);
-static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map);
 static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map);
 static len_t
-emit_transition(PosPair *pos_pair, byte **pc, Program *prog, len_t *pc_map);
+emit_transition(PosPair *pp, byte **pc, Program *prog, len_t *pc_map);
 
-static void rfa_print(FILE *stream, Rfa *rfa)
-{
-    size_t   i;
-    PosPair *pp;
-    Action  *act;
-
-    fprintf(stream, "\nRFA FOLLOW SET:\n");
-    for (i = 0; i < rfa->npositions; i++) {
-        fprintf(stream, "%lu: ", i);
-        FOREACH(pp, rfa->follow[i]->sentinel) {
-            fprintf(stream, "%lu->%lu (", i, pp->pos);
-            FOREACH(act, pp->action_sentinel) {
-                if (act != pp->action_sentinel->next) fprintf(stream, ", ");
-                switch (act->re->type) {
-                    case CARET: fprintf(stream, "^"); break;
-                    case DOLLAR: fprintf(stream, "$"); break;
-                    case CAPTURE:
-                        fprintf(stream, "%c_" LEN_FMT,
-                                act->re->capture_idx % 2 == 0 ? '[' : ']',
-                                act->re->capture_idx / 2);
-                        break;
-                    default: assert(0 && "unreachable");
-                }
-            }
-            fprintf(stream, ") ");
-        }
-        fprintf(stream, "\n");
-    }
-    fprintf(stream, "\n");
-}
+#if defined(DEBUG) || defined(DEBUG_GLUSHKOV)
+static void ppl_print(PosPairList *self, FILE *stream);
+static void rfa_print(Rfa *self, FILE *stream);
+#else
+#    define ppl_print(...)
+#    define rfa_print(...)
+#endif
 
 const Program *glushkov_compile(const Regex *re, const CompilerOpts *opts)
 {
@@ -163,12 +139,14 @@ const Program *glushkov_compile(const Regex *re, const CompilerOpts *opts)
     follow     = malloc(npositions * sizeof(PosPairList *));
     visited    = malloc(npositions * sizeof(int));
     memset(visited, 0, npositions * sizeof(int));
-    for (i = 0; i < npositions; i++) follow[i] = pos_pair_list_new();
+    for (i = 0; i < npositions; i++) follow[i] = ppl_new();
 
     positions[START_POS] = NULL;
     rfa                  = rfa_new(follow, 1, positions);
-    rfa_construct(re, rfa, NULL);
+    rfa_construct(rfa, re, NULL);
+    rfa_print(rfa, stderr);
     rfa_absorb(rfa, START_POS, visited, opts);
+    rfa_print(rfa, stderr);
 
     prog = program_new(rfa_insts_len(rfa, visited), aux_len, ncaptures,
                        ncounters, 0);
@@ -179,7 +157,7 @@ const Program *glushkov_compile(const Regex *re, const CompilerOpts *opts)
 
     rfa_free(rfa);
     for (i = 0; i < npositions; i++) {
-        pos_pair_list_free(follow[i]);
+        ppl_free(follow[i]);
         if (i > 0 && positions[i]->type == CAPTURE)
             free((Regex *) positions[i]);
     }
@@ -201,17 +179,17 @@ static Action *action_new(size_t pos, const Regex **positions)
     return action;
 }
 
-static void action_free(Action *action)
+static void action_free(Action *self)
 {
-    action->prev = action->next = NULL;
-    free(action);
+    self->prev = self->next = NULL;
+    free(self);
 }
 
-static Action *action_clone(const Action *action)
+static Action *action_clone(const Action *self)
 {
     Action *act = malloc(sizeof(Action));
 
-    act->re   = action->re;
+    act->re   = self->re;
     act->prev = act->next = NULL;
 
     return act;
@@ -230,38 +208,38 @@ static PosPair *pos_pair_new(size_t pos)
     return pp;
 }
 
-static void pos_pair_free(PosPair *pos_pair)
+static void pp_free(PosPair *self)
 {
     Action *action;
 
-    while (pos_pair->action_sentinel->next != pos_pair->action_sentinel) {
-        action                          = pos_pair->action_sentinel->next;
-        pos_pair->action_sentinel->next = action->next;
+    while (self->action_sentinel->next != self->action_sentinel) {
+        action                      = self->action_sentinel->next;
+        self->action_sentinel->next = action->next;
         action->prev = action->next = NULL;
         action_free(action);
     }
 
-    pos_pair->nactions = 0;
-    action_free(pos_pair->action_sentinel);
-    pos_pair->prev = pos_pair->next = NULL;
-    free(pos_pair);
+    self->nactions = 0;
+    action_free(self->action_sentinel);
+    self->prev = self->next = NULL;
+    free(self);
 }
 
-static PosPair *pos_pair_clone(const PosPair *pos_pair)
+static PosPair *pp_clone(const PosPair *self)
 {
-    Action  *act, *sentinel = pos_pair->action_sentinel;
-    PosPair *pp = pos_pair_new(pos_pair->pos);
+    Action  *act, *sentinel = self->action_sentinel;
+    PosPair *pp = pos_pair_new(self->pos);
 
-    FOREACH_REV(act, sentinel) pos_pair_action_prepend(pp, action_clone(act));
+    FOREACH_REV(act, sentinel) pp_action_prepend(pp, action_clone(act));
 
     return pp;
 }
 
-static void pos_pair_action_prepend(PosPair *pos_pair, Action *action)
+static void pp_action_prepend(PosPair *self, Action *action)
 {
     Action *act, *a;
 
-    FOREACH(act, pos_pair->action_sentinel) {
+    FOREACH(act, self->action_sentinel) {
         if (action->re->type != act->re->type) continue;
         switch (action->re->type) {
             case CARET: /* fallthrough */
@@ -278,12 +256,12 @@ static void pos_pair_action_prepend(PosPair *pos_pair, Action *action)
                            act->re->capture_idx ==
                                action->re->capture_idx + 1) {
                     for (a = act->next;
-                         a != pos_pair->action_sentinel &&
+                         a != self->action_sentinel &&
                          (a->re->type != CAPTURE ||
                           action->re->capture_idx != a->re->capture_idx);
                          a = a->next)
                         ;
-                    if (a == pos_pair->action_sentinel) goto prepend;
+                    if (a == self->action_sentinel) goto prepend;
                     act->prev->next = act->next;
                     act->next->prev = act->prev;
                     act->prev = act->next = NULL;
@@ -298,47 +276,47 @@ static void pos_pair_action_prepend(PosPair *pos_pair, Action *action)
     }
 
 prepend:
-    action->prev                    = pos_pair->action_sentinel;
-    action->next                    = pos_pair->action_sentinel->next;
-    pos_pair->action_sentinel->next = action;
-    action->next->prev              = action;
-    pos_pair->nactions++;
+    action->prev                = self->action_sentinel;
+    action->next                = self->action_sentinel->next;
+    self->action_sentinel->next = action;
+    action->next->prev          = action;
+    self->nactions++;
 }
 
-static void pos_pair_insert_after(PosPair *pos_pair, PosPair *target)
+static void pp_insert_after(PosPair *self, PosPair *pp)
 {
-    pos_pair->prev       = target;
-    pos_pair->next       = target->next;
-    target->next         = pos_pair;
-    pos_pair->next->prev = pos_pair;
+    pp->prev       = self;
+    pp->next       = self->next;
+    self->next     = pp;
+    pp->next->prev = pp;
 }
 
-static PosPair *pos_pair_insert_pos_after(size_t pos, PosPair *target)
+static PosPair *pp_insert_pos_after(PosPair *self, size_t pos)
 {
-    PosPair *pos_pair = pos_pair_new(pos);
-    pos_pair_insert_after(pos_pair, target);
-    return pos_pair;
-}
-
-static PosPair *pos_pair_remove(PosPair *pos_pair)
-{
-    PosPair *pp = pos_pair->next;
-
-    if (pos_pair->prev) pos_pair->prev->next = pos_pair->next;
-    if (pos_pair->next) pos_pair->next->prev = pos_pair->prev;
-    pos_pair->prev = pos_pair->next = NULL;
-
-    pos_pair_free(pos_pair);
+    PosPair *pp = pos_pair_new(pos);
+    pp_insert_after(self, pp);
     return pp;
 }
 
-static int pos_pair_remove_from(size_t pos, PosPair *start, PosPair *end)
+static PosPair *pp_remove(PosPair *self)
+{
+    PosPair *next = self->next;
+
+    if (self->prev) self->prev->next = self->next;
+    if (self->next) self->next->prev = self->prev;
+    self->prev = self->next = NULL;
+
+    pp_free(self);
+    return next;
+}
+
+static int pp_remove_from(size_t pos, PosPair *start, PosPair *end)
 {
     PosPair *pp;
 
     for (pp = start; pp && pp != end; pp = pp->next) {
         if (pp->pos == pos) {
-            pos_pair_remove(pp);
+            pp_remove(pp);
             return TRUE;
         }
     }
@@ -346,110 +324,110 @@ static int pos_pair_remove_from(size_t pos, PosPair *start, PosPair *end)
     return FALSE;
 }
 
-static PosPairList *pos_pair_list_new(void)
+static PosPairList *ppl_new(void)
 {
-    PosPairList *list = malloc(sizeof(PosPairList));
+    PosPairList *ppl = malloc(sizeof(PosPairList));
 
-    list->len            = 0;
-    list->sentinel       = pos_pair_new(START_POS);
-    list->sentinel->prev = list->sentinel->next = list->sentinel;
-    list->gamma                                 = NULL;
+    ppl->len            = 0;
+    ppl->sentinel       = pos_pair_new(START_POS);
+    ppl->sentinel->prev = ppl->sentinel->next = ppl->sentinel;
+    ppl->gamma                                = NULL;
 
-    return list;
+    return ppl;
 }
 
-static void pos_pair_list_free(PosPairList *list)
+static void ppl_free(PosPairList *self)
 {
-    pos_pair_list_clear(list);
-    pos_pair_free(list->sentinel);
-    free(list);
+    ppl_clear(self);
+    pp_free(self->sentinel);
+    free(self);
 }
 
-static PosPairList *pos_pair_list_clone(const PosPairList *list)
+static PosPairList *ppl_clone(const PosPairList *self)
 {
-    PosPairList *ppl = pos_pair_list_new();
+    PosPairList *ppl = ppl_new();
     PosPair     *pp;
 
-    ppl->len = list->len;
-    FOREACH(pp, list->sentinel) {
-        pos_pair_insert_after(pos_pair_clone(pp), ppl->sentinel->prev);
-        if (pp == list->gamma) ppl->gamma = ppl->sentinel->prev;
+    ppl->len = self->len;
+    FOREACH(pp, self->sentinel) {
+        pp_insert_after(ppl->sentinel->prev, pp_clone(pp));
+        if (pp == self->gamma) ppl->gamma = ppl->sentinel->prev;
     }
 
     return ppl;
 }
 
-static void pos_pair_list_clear(PosPairList *list)
+static void ppl_clear(PosPairList *self)
 {
     PosPair *pp;
 
-    while (list->sentinel->next != list->sentinel) {
-        pp                   = list->sentinel->next;
-        list->sentinel->next = pp->next;
+    while (self->sentinel->next != self->sentinel) {
+        pp                   = self->sentinel->next;
+        self->sentinel->next = pp->next;
         pp->prev = pp->next = NULL;
-        pos_pair_free(pp);
+        pp_free(pp);
     }
 
-    list->sentinel->prev = list->sentinel->next = list->sentinel;
-    list->len                                   = 0;
-    list->gamma                                 = NULL;
+    self->sentinel->prev = self->sentinel->next = self->sentinel;
+    self->len                                   = 0;
+    self->gamma                                 = NULL;
 }
 
-static void pos_pair_list_remove(PosPairList *list, size_t pos)
+static void ppl_remove(PosPairList *self, size_t pos)
 {
     PosPair *pp;
 
     if (pos == GAMMA_POS) {
-        pp = list->gamma ? list->gamma : list->sentinel;
+        pp = self->gamma ? self->gamma : self->sentinel;
     } else {
-        FOREACH(pp, list->sentinel) {
+        FOREACH(pp, self->sentinel) {
             if (pp->pos == pos) break;
         }
     }
 
-    if (pp == list->sentinel) return;
+    if (pp == self->sentinel) return;
 
-    pos_pair_remove(pp);
-    list->len--;
-    if (pos == GAMMA_POS) list->gamma = NULL;
+    pp_remove(pp);
+    self->len--;
+    if (pos == GAMMA_POS) self->gamma = NULL;
 }
 
-static void pos_pair_list_replace_gamma(PosPairList *list1, PosPairList *list2)
+static void ppl_replace_gamma(PosPairList *self, PosPairList *ppl)
 {
-    if (list1->gamma == NULL) return;
-    if (IS_EMPTY(list2)) {
-        pos_pair_list_remove(list1, GAMMA_POS);
+    if (self->gamma == NULL) return;
+    if (IS_EMPTY(ppl)) {
+        ppl_remove(self, GAMMA_POS);
         return;
     }
 
-    list1->gamma->prev->next    = list2->sentinel->next;
-    list2->sentinel->next->prev = list1->gamma->prev;
-    list2->sentinel->prev->next = list1->gamma->next;
-    list1->gamma->next->prev    = list2->sentinel->prev;
-    list1->gamma->prev = list1->gamma->next  = NULL;
-    list1->len                              += list2->len - 1;
-    list2->sentinel->prev = list2->sentinel->next = list2->sentinel;
-    list2->len                                    = 0;
+    self->gamma->prev->next   = ppl->sentinel->next;
+    ppl->sentinel->next->prev = self->gamma->prev;
+    ppl->sentinel->prev->next = self->gamma->next;
+    self->gamma->next->prev   = ppl->sentinel->prev;
+    self->gamma->prev = self->gamma->next  = NULL;
+    self->len                             += ppl->len - 1;
+    ppl->sentinel->prev = ppl->sentinel->next = ppl->sentinel;
+    ppl->len                                  = 0;
 
-    pos_pair_free(list1->gamma);
-    list1->gamma = list2->gamma;
-    list2->gamma = NULL;
+    pp_free(self->gamma);
+    self->gamma = ppl->gamma;
+    ppl->gamma  = NULL;
 }
 
-static void pos_pair_list_append(PosPairList *list1, PosPairList *list2)
+static void ppl_append(PosPairList *self, PosPairList *ppl)
 {
-    if (IS_EMPTY(list2)) return;
+    if (IS_EMPTY(ppl)) return;
 
-    list1->sentinel->prev->next  = list2->sentinel->next;
-    list2->sentinel->next->prev  = list1->sentinel->prev;
-    list2->sentinel->prev->next  = list1->sentinel;
-    list1->sentinel->prev        = list2->sentinel->prev;
-    list1->len                  += list2->len;
-    list2->sentinel->prev = list2->sentinel->next = list2->sentinel;
-    list2->len                                    = 0;
+    self->sentinel->prev->next  = ppl->sentinel->next;
+    ppl->sentinel->next->prev   = self->sentinel->prev;
+    ppl->sentinel->prev->next   = self->sentinel;
+    self->sentinel->prev        = ppl->sentinel->prev;
+    self->len                  += ppl->len;
+    ppl->sentinel->prev = ppl->sentinel->next = ppl->sentinel;
+    ppl->len                                  = 0;
 
-    if (list1->gamma == NULL) list1->gamma = list2->gamma;
-    list2->gamma = NULL;
+    if (self->gamma == NULL) self->gamma = ppl->gamma;
+    ppl->gamma = NULL;
 }
 
 static Rfa *
@@ -457,7 +435,7 @@ rfa_new(PosPairList **follow, size_t npositions, const Regex **positions)
 {
     Rfa *rfa = malloc(sizeof(Rfa));
 
-    rfa->last       = pos_pair_list_new();
+    rfa->last       = ppl_new();
     rfa->follow     = follow;
     rfa->npositions = npositions;
     rfa->positions  = positions;
@@ -465,57 +443,13 @@ rfa_new(PosPairList **follow, size_t npositions, const Regex **positions)
     return rfa;
 }
 
-static void rfa_free(Rfa *rfa)
+static void rfa_free(Rfa *self)
 {
-    pos_pair_list_free(rfa->last);
-    free(rfa);
+    ppl_free(self->last);
+    free(self);
 }
 
-static size_t
-count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters)
-{
-    size_t npos = 0;
-
-    switch (re->type) {
-        case CARET:  /* fallthrough */
-        case DOLLAR: /* fallthrough */
-        case LITERAL: npos = 1; break;
-
-        case CC:
-            npos      = 1;
-            *aux_len += re->cc_len * sizeof(Interval);
-            break;
-
-        case ALT: /* fallthrough */
-        case CONCAT:
-            npos = count(re->left, aux_len, ncaptures, ncounters) +
-                   count(re->right, aux_len, ncaptures, ncounters);
-            break;
-
-        case CAPTURE:
-            npos = 2 + count(re->left, aux_len, ncaptures, ncounters);
-            if (*ncaptures < re->capture_idx + 1)
-                *ncaptures = re->capture_idx + 1;
-            break;
-
-        case STAR: /* fallthrough */
-        case PLUS: /* fallthrough */
-        case QUES: npos = count(re->left, aux_len, ncaptures, ncounters); break;
-
-        case COUNTER:
-            npos = count(re->left, aux_len, ncaptures, ncounters);
-            ++*ncounters;
-            break;
-
-        case LOOKAHEAD:
-            npos = 1 + count(re->left, aux_len, ncaptures, ncounters);
-            break;
-    }
-
-    return npos;
-}
-
-static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
+static void rfa_construct(Rfa *self, const Regex *re, PosPairList *first)
 {
     Regex       *re_tmp;
     Rfa         *rfa_tmp;
@@ -524,135 +458,134 @@ static void rfa_construct(const Regex *re, Rfa *rfa, PosPairList *first)
     size_t       pos = 0;
     size_t       pos_open, pos_close; /* for capture positions */
 
-    if (first == NULL) first = FIRST(rfa);
+    if (first == NULL) first = FIRST(self);
     switch (re->type) {
         case CARET:   /* fallthrough */
         case DOLLAR:  /* fallthrough */
         case LITERAL: /* fallthrough */
         case CC:
-            pos                 = rfa->npositions++;
-            rfa->positions[pos] = re;
-            PREPEND_GAMMA(rfa->follow[pos]);
-            pos_pair_insert_pos_after(pos, first->sentinel);
+            pos                  = self->npositions++;
+            self->positions[pos] = re;
+            PREPEND_GAMMA(self->follow[pos]);
+            pp_insert_pos_after(first->sentinel, pos);
             first->len++;
-            pos_pair_insert_pos_after(pos, rfa->last->sentinel);
-            rfa->last->len++;
+            pp_insert_pos_after(self->last->sentinel, pos);
+            self->last->len++;
             break;
 
         case ALT:
-            rfa_construct(re->left, rfa, first);
-            rfa_tmp   = RFA_NEW_FROM(rfa);
-            first_tmp = pos_pair_list_new();
-            rfa_construct(re->right, rfa_tmp, first_tmp);
-            rfa->npositions = rfa_tmp->npositions;
+            rfa_construct(self, re->left, first);
+            rfa_tmp   = RFA_NEW_FROM(self);
+            first_tmp = ppl_new();
+            rfa_construct(rfa_tmp, re->right, first_tmp);
+            self->npositions = rfa_tmp->npositions;
 
-            if (NULLABLE(first)) pos_pair_list_remove(first_tmp, GAMMA_POS);
-            pos_pair_list_append(first, first_tmp);
-            pos_pair_list_append(rfa->last, rfa_tmp->last);
+            if (NULLABLE(first)) ppl_remove(first_tmp, GAMMA_POS);
+            ppl_append(first, first_tmp);
+            ppl_append(self->last, rfa_tmp->last);
 
-            pos_pair_list_free(first_tmp);
+            ppl_free(first_tmp);
             rfa_free(rfa_tmp);
             break;
 
         case CONCAT:
-            rfa_construct(re->left, rfa, first);
-            rfa_tmp   = RFA_NEW_FROM(rfa);
-            first_tmp = pos_pair_list_new();
-            rfa_construct(re->right, rfa_tmp, first_tmp);
-            rfa->npositions = rfa_tmp->npositions;
+            rfa_construct(self, re->left, first);
+            rfa_tmp   = RFA_NEW_FROM(self);
+            first_tmp = ppl_new();
+            rfa_construct(rfa_tmp, re->right, first_tmp);
+            self->npositions = rfa_tmp->npositions;
 
-            FOREACH(pp, rfa->last->sentinel) {
-                ppl_tmp = pos_pair_list_clone(first_tmp);
-                pos_pair_list_replace_gamma(rfa->follow[pp->pos], ppl_tmp);
-                pos_pair_list_free(ppl_tmp);
+            FOREACH(pp, self->last->sentinel) {
+                ppl_tmp = ppl_clone(first_tmp);
+                ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
+                ppl_free(ppl_tmp);
             }
 
-            if (NULLABLE(first)) pos_pair_list_replace_gamma(first, first_tmp);
+            if (NULLABLE(first)) ppl_replace_gamma(first, first_tmp);
 
-            ppl_tmp       = rfa->last;
-            rfa->last     = rfa_tmp->last;
+            ppl_tmp       = self->last;
+            self->last    = rfa_tmp->last;
             rfa_tmp->last = ppl_tmp;
-            if (NULLABLE(first_tmp))
-                pos_pair_list_append(rfa->last, rfa_tmp->last);
+            if (NULLABLE(first_tmp)) ppl_append(self->last, rfa_tmp->last);
 
-            pos_pair_list_free(first_tmp);
+            ppl_free(first_tmp);
             rfa_free(rfa_tmp);
             break;
 
         case CAPTURE:
-            pos_open = rfa->npositions++;
+            pos_open = self->npositions++;
             /* make copy of re to set capture_idx using strategy for VM */
             re_tmp   = malloc(sizeof(Regex));
             memcpy(re_tmp, re, sizeof(Regex));
-            re_tmp->capture_idx      *= 2;
-            rfa->positions[pos_open]  = re_tmp;
+            re_tmp->capture_idx       *= 2;
+            self->positions[pos_open]  = re_tmp;
 
-            rfa_construct(re->left, rfa, first);
+            rfa_construct(self, re->left, first);
 
-            pos_close = rfa->npositions++;
+            pos_close = self->npositions++;
             /* make copy of re to set capture_idx using strategy for VM */
             re_tmp    = malloc(sizeof(Regex));
             memcpy(re_tmp, re, sizeof(Regex));
-            re_tmp->capture_idx       = re_tmp->capture_idx * 2 + 1;
-            rfa->positions[pos_close] = re_tmp;
+            re_tmp->capture_idx        = re_tmp->capture_idx * 2 + 1;
+            self->positions[pos_close] = re_tmp;
 
-            pos_pair_list_append(rfa->follow[pos_open], first);
+            ppl_append(self->follow[pos_open], first);
             /* allows next loop to handle gamma replace */
-            if (NULLABLE(rfa->follow[pos_open])) {
-                pos_pair_insert_pos_after(pos_open, rfa->last->sentinel);
-                rfa->last->len++;
+            if (NULLABLE(self->follow[pos_open])) {
+                pp_insert_pos_after(self->last->sentinel, pos_open);
+                self->last->len++;
             }
-            FOREACH(pp, rfa->last->sentinel) {
-                rfa->follow[pp->pos]->gamma->pos = pos_close;
-                rfa->follow[pp->pos]->gamma      = NULL;
+            FOREACH(pp, self->last->sentinel) {
+                self->follow[pp->pos]->gamma->pos = pos_close;
+                self->follow[pp->pos]->gamma      = NULL;
             }
-            PREPEND_GAMMA(rfa->follow[pos_close]);
-            pos_pair_list_clear(rfa->last);
+            PREPEND_GAMMA(self->follow[pos_close]);
+            ppl_clear(self->last);
 
-            pos_pair_insert_pos_after(pos_open, first->sentinel);
+            pp_insert_pos_after(first->sentinel, pos_open);
             first->len++;
-            pos_pair_insert_pos_after(pos_close, rfa->last->sentinel);
-            rfa->last->len++;
+            pp_insert_pos_after(self->last->sentinel, pos_close);
+            self->last->len++;
 
             break;
 
         case STAR:
-            rfa_construct(re->left, rfa, first);
+            rfa_construct(self, re->left, first);
             if (re->pos) {
                 if (!NULLABLE(first)) APPEND_GAMMA(first);
             } else {
-                pos_pair_list_remove(first, GAMMA_POS);
+                ppl_remove(first, GAMMA_POS);
                 PREPEND_GAMMA(first);
             }
 
-            FOREACH(pp, rfa->last->sentinel) {
-                ppl_tmp = pos_pair_list_clone(first);
-                pos_pair_list_replace_gamma(rfa->follow[pp->pos], ppl_tmp);
-                pos_pair_list_free(ppl_tmp);
+            FOREACH(pp, self->last->sentinel) {
+                ppl_tmp = ppl_clone(first);
+                ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
+                ppl_free(ppl_tmp);
             }
             break;
 
         case PLUS:
-            rfa_construct(re->left, rfa, first);
-            FOREACH(pp, rfa->last->sentinel) {
-                ppl_tmp = pos_pair_list_clone(first);
+            rfa_construct(self, re->left, first);
+            FOREACH(pp, self->last->sentinel) {
+                ppl_tmp = ppl_clone(first);
                 if (re->pos) {
                     if (!NULLABLE(first)) APPEND_GAMMA(ppl_tmp);
                 } else {
-                    pos_pair_list_remove(ppl_tmp, GAMMA_POS);
+                    ppl_remove(ppl_tmp, GAMMA_POS);
                     PREPEND_GAMMA(ppl_tmp);
                 }
-                pos_pair_list_replace_gamma(rfa->follow[pp->pos], ppl_tmp);
-                pos_pair_list_free(ppl_tmp);
+                ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
+                ppl_free(ppl_tmp);
             }
             break;
 
         case QUES:
-            rfa_construct(re->left, rfa, first);
+            rfa_construct(self, re->left, first);
             if (re->pos) {
                 if (!NULLABLE(first)) APPEND_GAMMA(first);
             } else {
-                pos_pair_list_remove(first, GAMMA_POS);
+                ppl_remove(first, GAMMA_POS);
                 PREPEND_GAMMA(first);
             }
             break;
@@ -696,30 +629,30 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
              * need to check if pp is follow_pos->sentinel */
             if (pp->pos != e->pos) continue;
 
-            if (pos_pair_remove_from(t->pos, tmp, follow_pos->sentinel))
+            if (pp_remove_from(t->pos, tmp, follow_pos->sentinel))
                 follow_pos->len--;
-            pp = pos_pair_clone(t);
-            pos_pair_action_prepend(pp, action_new(e->pos, rfa->positions));
+            pp = pp_clone(t);
+            pp_action_prepend(pp, action_new(e->pos, rfa->positions));
             FOREACH_REV(act, e->action_sentinel)
-            pos_pair_action_prepend(pp, action_clone(act));
-            pos_pair_insert_after(pp, tmp);
+            pp_action_prepend(pp, action_clone(act));
+            pp_insert_after(tmp, pp);
             follow_pos->len++;
             tmp = pp;
         }
 
-        e = pos_pair_remove(e);
+        e = pp_remove(e);
         follow_pos->len--;
     }
 
     if (p) {
         if (opts->capture_semantics == CS_PCRE) {
             for (t = p->next; t != follow_pos->sentinel; t = t->next) {
-                pos_pair_action_prepend(t, action_new(pos, rfa->positions));
+                pp_action_prepend(t, action_new(pos, rfa->positions));
                 FOREACH_REV(act, p->action_sentinel)
-                pos_pair_action_prepend(t, action_clone(act));
+                pp_action_prepend(t, action_clone(act));
             }
         }
-        pos_pair_remove(p);
+        pp_remove(p);
         follow_pos->len--;
     }
 
@@ -779,6 +712,50 @@ static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map)
     /* save where `match` instruction will go */
     pc_map[GAMMA_POS] = insts_len;
     return insts_len + 1;
+}
+
+static size_t
+count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters)
+{
+    size_t npos = 0;
+
+    switch (re->type) {
+        case CARET:  /* fallthrough */
+        case DOLLAR: /* fallthrough */
+        case LITERAL: npos = 1; break;
+
+        case CC:
+            npos      = 1;
+            *aux_len += re->cc_len * sizeof(Interval);
+            break;
+
+        case ALT: /* fallthrough */
+        case CONCAT:
+            npos = count(re->left, aux_len, ncaptures, ncounters) +
+                   count(re->right, aux_len, ncaptures, ncounters);
+            break;
+
+        case CAPTURE:
+            npos = 2 + count(re->left, aux_len, ncaptures, ncounters);
+            if (*ncaptures < re->capture_idx + 1)
+                *ncaptures = re->capture_idx + 1;
+            break;
+
+        case STAR: /* fallthrough */
+        case PLUS: /* fallthrough */
+        case QUES: npos = count(re->left, aux_len, ncaptures, ncounters); break;
+
+        case COUNTER:
+            npos = count(re->left, aux_len, ncaptures, ncounters);
+            ++*ncounters;
+            break;
+
+        case LOOKAHEAD:
+            npos = 1 + count(re->left, aux_len, ncaptures, ncounters);
+            break;
+    }
+
+    return npos;
 }
 
 static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map)
@@ -888,3 +865,46 @@ emit_transition(PosPair *pos_pair, byte **pc, Program *prog, len_t *pc_map)
 
     return insts_len;
 }
+
+/* --- Debug functions ------------------------------------------------------ */
+
+#if defined(DEBUG) || defined(DEBUG_GLUSHKOV)
+static void ppl_print(PosPairList *self, FILE *stream)
+{
+    PosPair *pp;
+    Action  *act;
+
+    FOREACH(pp, self->sentinel) {
+        fprintf(stream, "%lu (", pp->pos);
+        FOREACH(act, pp->action_sentinel) {
+            if (act != pp->action_sentinel->next) fprintf(stream, ", ");
+            switch (act->re->type) {
+                case CARET: fprintf(stream, "^"); break;
+                case DOLLAR: fprintf(stream, "$"); break;
+                case CAPTURE:
+                    fprintf(stream, "%c_%d",
+                            act->re->capture_idx % 2 == 0 ? '[' : ']',
+                            act->re->capture_idx / 2);
+                    break;
+                default:
+                    fprintf(stream, "action type = %d\n", act->re->type);
+                    assert(0 && "unreachable");
+            }
+        }
+        fprintf(stream, ") ");
+    }
+}
+
+static void rfa_print(Rfa *rfa, FILE *stream)
+{
+    size_t i;
+
+    fprintf(stream, "\nRFA FOLLOW SET:\n");
+    for (i = 0; i < rfa->npositions; i++) {
+        fprintf(stream, "%lu: ", i);
+        ppl_print(rfa->follow[i], stream);
+        fprintf(stream, "\n");
+    }
+    fprintf(stream, "\n");
+}
+#endif
