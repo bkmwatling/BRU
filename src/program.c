@@ -89,6 +89,7 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
             case NOOP:  /* fallthrough */
             case MATCH: /* fallthrough */
             case BEGIN: /* fallthrough */
+            case MEMO:  /* fallthrough */
             case END: break;
             case CHAR: insts += sizeof(char *); break;
             case PRED: insts += 2 * sizeof(len_t); break;
@@ -133,6 +134,7 @@ static const byte *inst_to_str(char         **s,
     switch (*pc++) {
         case MATCH: STR_PUSH(*s, *len, *alloc, "match"); break;
         case BEGIN: STR_PUSH(*s, *len, *alloc, "begin"); break;
+        case MEMO: STR_PUSH(*s, *len, *alloc, "memoise"); break;
         case END: STR_PUSH(*s, *len, *alloc, "end"); break;
 
         case CHAR:

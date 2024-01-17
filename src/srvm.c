@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -90,6 +91,34 @@ int srvm_matches(ThreadManager *thread_manager,
 
 /* --- Private function definitions ----------------------------------------- */
 
+// XXX: does not check for failed mallocs
+static byte **init_memoised(const Program *prog, const char *text)
+{
+    len_t i;
+    size_t len = strlen(text) + 1;
+    byte **m = malloc(sizeof(byte *) * prog->insts_len);
+    m[0] = malloc(sizeof(byte) * len);
+    memset((void *) m[0], 0, sizeof(byte) * len);
+
+    for (i = 1; i < prog->insts_len; i++) {
+        m[i] = malloc(sizeof(byte) * len);
+        memset((void *) m[i], 0, sizeof(byte) * len);
+    }
+
+    return m;
+}
+
+// XXX: assumes m, m[i] nonnull
+static void destroy_memoised(byte **m, len_t insts_len)
+{
+    len_t i;
+
+    for (i = 0; i < insts_len; i++) {
+        free(m[i]);
+    }
+    free(m);
+}
+
 static int srvm_run(const char    *text,
                     ThreadManager *thread_manager,
                     Scheduler     *scheduler,
@@ -100,12 +129,16 @@ static int srvm_run(const char    *text,
     const Program *prog    = scheduler_program(scheduler);
     void          *thread, *t;
     const byte    *pc;
+    byte         **memoised = init_memoised(prog, text);
     const char    *sp, *codepoint;
     len_t          ncaptures, intervals_len, k;
     offset_t       x, y;
     cntr_t         cval, n;
     Interval      *intervals;
     Scheduler     *s;
+
+#define CURR_INSTR (uint) *(pc - 1)
+    size_t         instr_counts[NBYTECODES] = {0};
 
     while ((thread = scheduler_next(scheduler))) {
         if ((sp = thread_manager->sp(thread)) != text && sp[-1] == '\0') {
@@ -116,10 +149,12 @@ static int srvm_run(const char    *text,
         pc = thread_manager->pc(thread);
         switch (*pc++) {
             case NOOP: /* fallthrough */
+                instr_counts[CURR_INSTR]++;
                 thread_manager->set_pc(thread, pc);
                 scheduler_schedule(scheduler, thread);
 
             case MATCH:
+                instr_counts[CURR_INSTR]++;
                 scheduler_notify_match(scheduler);
                 matched = 1;
                 if (captures)
@@ -130,6 +165,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case BEGIN:
+                instr_counts[CURR_INSTR]++;
                 if (sp == text) {
                     thread_manager->set_pc(thread, pc);
                     scheduler_schedule(scheduler, thread);
@@ -139,6 +175,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case END:
+                instr_counts[CURR_INSTR]++;
                 if (*sp == '\0') {
                     thread_manager->set_pc(thread, pc);
                     scheduler_schedule(scheduler, thread);
@@ -147,7 +184,19 @@ static int srvm_run(const char    *text,
                 }
                 break;
 
+            case MEMO:
+                if (memoised[pc - prog->insts][sp - text]) {
+                    scheduler_kill(scheduler, thread); // TODO
+                } else {
+                    instr_counts[CURR_INSTR]++;
+                    memoised[pc - prog->insts][sp - text] = (byte) 1;
+                    thread_manager->set_pc(thread, pc);
+                    scheduler_schedule(scheduler, thread);
+                }
+                break;
+
             case CHAR: /* fallthrough */
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(codepoint, pc, const char *);
                 if (*sp && utf8_cmp(codepoint, sp) == 0) {
                     thread_manager->set_pc(thread, pc);
@@ -159,6 +208,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case PRED: /* fallthrough */
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(intervals_len, pc, len_t);
                 MEMREAD(k, pc, len_t);
                 intervals = (Interval *) (prog->aux + k);
@@ -172,6 +222,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case SAVE:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->set_capture(thread, k);
@@ -179,12 +230,14 @@ static int srvm_run(const char    *text,
                 break;
 
             case JMP:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(x, pc, offset_t);
                 thread_manager->set_pc(thread, pc + x);
                 scheduler_schedule(scheduler, thread);
                 break;
 
             case SPLIT:
+                instr_counts[CURR_INSTR]++;
                 t = thread_manager->clone(thread);
                 MEMREAD(x, pc, offset_t);
                 thread_manager->set_pc(thread, pc + x);
@@ -199,6 +252,7 @@ static int srvm_run(const char    *text,
             case LSPLIT: break;
 
             case TSWITCH:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 for (; k > 0; k--) {
                     MEMREAD(x, pc, offset_t);
@@ -210,6 +264,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case EPSRESET:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->set_memory(thread, k, &null, sizeof(null));
@@ -217,6 +272,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case EPSSET:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->set_memory(thread, k, &sp, sizeof(sp));
@@ -224,6 +280,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case EPSCHK:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 if (*(char **) thread_manager->memory(thread, k) < sp) {
                     thread_manager->set_pc(thread, pc);
@@ -234,6 +291,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case RESET:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 MEMREAD(cval, pc, cntr_t);
                 thread_manager->set_pc(thread, pc);
@@ -242,6 +300,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case CMP:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 MEMREAD(n, pc, cntr_t);
                 cval = thread_manager->counter(thread, k);
@@ -264,6 +323,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case INC:
+                instr_counts[CURR_INSTR]++;
                 MEMREAD(k, pc, len_t);
                 thread_manager->set_pc(thread, pc);
                 thread_manager->inc_counter(thread, k);
@@ -271,6 +331,7 @@ static int srvm_run(const char    *text,
                 break;
 
             case ZWA:
+                instr_counts[CURR_INSTR]++;
                 t = thread_manager->clone(thread);
                 MEMREAD(x, pc, offset_t);
                 thread_manager->set_pc(t, pc + x);
@@ -290,6 +351,15 @@ static int srvm_run(const char    *text,
             default: assert(0 && "unreachable");
         }
     }
+
+    destroy_memoised(memoised, prog->insts_len);
+
+#define LOG_INSTRS(i) printf(#i ": %lu\n", instr_counts[(uint)i])
+
+    LOG_INSTRS(CHAR);
+    LOG_INSTRS(MEMO);
+
+#undef LOG_INSTRS
 
     return matched;
 }

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <string.h>
 
 #include "thompson.h"
@@ -44,8 +45,9 @@ static len_t count(const Regex        *re,
     len_t n = 0;
 
     switch (re->type) {
-        case CARET: /* fallthrough */
-        case DOLLAR: n = sizeof(byte); break;
+        case CARET:   /* fallthrough */
+        case MEMOISE: /* fallthrough */
+        case DOLLAR:  n = sizeof(byte); break;
 
         case LITERAL: n = sizeof(byte) + sizeof(const char *); break;
 
@@ -114,6 +116,7 @@ static len_t count(const Regex        *re,
             n  = 3 * sizeof(byte) + 2 * sizeof(offset_t);
             n += count(re->left, aux_len, ncaptures, ncounters, mem_len, opts);
             break;
+        case NREGEXTYPES: assert(0 && "unreachable");
     }
 
     return n;
@@ -127,6 +130,7 @@ emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
     byte     *mem = prog->memory + prog->mem_len;
 
     switch (re->type) {
+        case MEMOISE: *pc++ = MEMO; break;
         case CARET: *pc++ = BEGIN; break;
         case DOLLAR: *pc++ = END; break;
 
@@ -394,6 +398,8 @@ emit(const Regex *re, byte *pc, Program *prog, const CompilerOpts *opts)
             *pc++ = MATCH;
             SET_OFFSET(p, pc);
             break;
+
+        case NREGEXTYPES: assert(0 && "unreachable");
     }
 
     return pc;

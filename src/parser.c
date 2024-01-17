@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +28,8 @@ static Regex *
 parse_alt(const Parser *self, const char **const regex, ParseState *ps);
 static Regex *
 parse_concat(const Parser *self, const char **const regex, ParseState *ps);
-static Regex    *parse_terminal(const char *ch, const char **const regex);
+static Regex    *parse_terminal(const Parser *self, const char *ch,
+                                const char **const regex, ParseState *ps);
 static Regex    *parse_cc(const char **const regex);
 static Interval *parse_predefined_cc(const char **const regex,
                                      int                neg,
@@ -105,21 +107,18 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
 
     while (**regex) {
         switch (*(ch = utf8_str_advance(regex))) {
-            case '|': *regex = ch; return tree;
+            case '|':
+                *regex = ch;
+                return tree;
 
-            case '(': subtree = parse_parens(self, regex, ps); break;
-
-            case '^': subtree = regex_anchor(CARET); break;
-
-            case '$': subtree = regex_anchor(DOLLAR); break;
-
-            default:
-                if (*ch == ')' && ps->in_group) {
+            case ')':
+                if (ps->in_group) {
                     *regex = ch;
                     return tree;
-                } else {
-                    subtree = parse_terminal(ch, regex);
                 }
+
+            default:
+                subtree = parse_terminal(self, ch, regex, ps);
         }
 
         switch (*(*regex)++) {
@@ -157,6 +156,26 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
 
         if (subtree) {
             if (min != 1 || max != 1) {
+                switch (subtree->type) {
+                    case CARET:
+                    case DOLLAR:
+                    case MEMOISE:
+                        fprintf(stderr, "Token not quantifiable!\n");
+                        exit(EXIT_FAILURE);
+
+                    case LITERAL:
+                    case CC:
+                    case ALT:
+                    case CONCAT:
+                    case CAPTURE:
+                    case STAR:
+                    case PLUS:
+                    case QUES:
+                    case COUNTER:
+                    case LOOKAHEAD: break;
+                    case NREGEXTYPES: assert(0 && "unreachable");
+                }
+
                 if (self->opts.only_counters) {
                     subtree = regex_counter(subtree, greedy, min, max);
                 } else if (min == 0 && max == CNTR_MAX) {
@@ -184,7 +203,8 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
     return tree;
 }
 
-static Regex *parse_terminal(const char *ch, const char **const regex)
+static Regex *parse_terminal(const Parser *self, const char *ch,
+                             const char **const regex, ParseState *ps)
 {
     len_t cc_len;
 
@@ -194,6 +214,27 @@ static Regex *parse_terminal(const char *ch, const char **const regex)
         case '\\':
             return regex_cc(
                 parse_predefined_cc(regex, FALSE, NULL, &cc_len, NULL), cc_len);
+
+        case '(': return parse_parens(self, regex, ps); break;
+
+        case '^':
+            while (**regex == '^') {
+                ++*regex;
+            }
+            return regex_anchor(CARET); break;
+
+        case '$':
+            while (**regex == '$') {
+                ++*regex;
+            }
+            return regex_anchor(DOLLAR); break;
+
+        // NOTE: not really an anchor, but works in much the same way
+        case '#':
+            while (**regex == '#') {
+                ++*regex;
+            }
+            return regex_anchor(MEMOISE);
 
         case '.': return regex_cc(dot(), 2);
 

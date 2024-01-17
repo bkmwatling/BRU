@@ -30,9 +30,13 @@ EXE         := $(BRU_EXE)
 BRU_SRC     := $(SRCDIR)/$(BRU_EXE).c
 EXE_SRC     := $(BRU_SRC)
 
-SRC         := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
-               $(SRCDIR)/stc/fatp/string_view.c $(SRCDIR)/stc/fatp/vec.c \
+STC_SRC     := $(SRCDIR)/stc/fatp/string_view.c $(SRCDIR)/stc/fatp/vec.c \
                $(SRCDIR)/stc/util/args.c $(SRCDIR)/stc/util/utf.c
+WALKERS_SRC := $(wildcard $(SRCDIR)/walkers/*.c) \
+			   $(wildcard $(SRCDIR)/walkers/thompson/*.c) \
+			   $(wildcard $(SRCDIR)/walkers/glushkov/*.c)
+SRC         := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
+			   $(STC_SRC) $(WALKERS_SRC)
 OBJ         := $(SRC:.c=.o)
 
 ### RULES ######################################################################
