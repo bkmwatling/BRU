@@ -80,7 +80,7 @@ Regex *regex_anchor(RegexType type)
     Regex *re = malloc(sizeof(Regex));
 
     /* check `type` to make sure correct node type */
-    assert(type == CARET || type == DOLLAR);
+    assert(type == CARET || type == DOLLAR || type == MEMOISE);
     re->type = type;
 
     return re;
@@ -162,6 +162,7 @@ void regex_free(Regex *self)
     switch (self->type) {
         case CARET:
         case DOLLAR:
+        case MEMOISE:
         case LITERAL: break;
 
         case CC: free(self->intervals); break;
@@ -178,6 +179,7 @@ void regex_free(Regex *self)
         case QUES:
         case COUNTER:
         case LOOKAHEAD: regex_free(self->left); break;
+        case NREGEXTYPES: assert(0 && "unreachable");
     }
 
     free(self);
@@ -191,6 +193,7 @@ Regex *regex_clone(const Regex *self)
     switch (re->type) {
         case CARET:
         case DOLLAR:
+        case MEMOISE:
         case LITERAL: break;
 
         case CC:
@@ -211,6 +214,7 @@ Regex *regex_clone(const Regex *self)
         case QUES:
         case COUNTER:
         case LOOKAHEAD: re->left = regex_clone(self->left); break;
+        case NREGEXTYPES: assert(0 && "unreachable");
     }
 
     return re;
@@ -242,6 +246,8 @@ static void regex_to_tree_str_indent(char       **s,
         case CARET: STR_PUSH(*s, *len, *alloc, "Caret"); break;
 
         case DOLLAR: STR_PUSH(*s, *len, *alloc, "Dollar"); break;
+
+        case MEMOISE: STR_PUSH(*s, *len, *alloc, "Memoise"); break;
 
         case LITERAL:
             ENSURE_SPACE(*s, *len + 14, *alloc, sizeof(char));
@@ -315,5 +321,6 @@ static void regex_to_tree_str_indent(char       **s,
                 regex_to_tree_str_indent(s, len, alloc, re->left, indent + 2);
             }
             break;
+        case NREGEXTYPES: assert(0 && "unreachable");
     }
 }

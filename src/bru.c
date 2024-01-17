@@ -102,6 +102,25 @@ static ArgConvertResult convert_capture_semantics(const char *arg, void *out)
     return ARG_CR_SUCCESS;
 }
 
+static ArgConvertResult convert_memo_scheme(const char *arg, void *out)
+{
+    MemoScheme *ms = out;
+
+    if (strcmp(arg, "IN") == 0)
+        *ms = MS_IN;
+    else if (strcmp(arg, "CN") == 0)
+        *ms = MS_CN;
+    else if (strcmp(arg, "IAR") == 0)
+        *ms = MS_IAR;
+    else if (strcmp(arg, "none") == 0)
+        *ms = MS_NONE;
+    else {
+        return ARG_CR_FAILURE;
+    }
+
+    return ARG_CR_SUCCESS;
+}
+
 int main(int argc, const char **argv)
 {
     int            arg_idx;
@@ -156,6 +175,10 @@ int main(int argc, const char **argv)
                      &compiler_opts.capture_semantics, "pcre | re2",
                      "which type of capturing semantics to compile with", "pcre",
                      convert_capture_semantics },
+        { STC_ARG_CUSTOM, NULL, "--memo-scheme",
+                     &compiler_opts.memo_scheme, "none | CN | IN | IAR",
+                     "which memoisation scheme to apply", "none",
+                     convert_memo_scheme },
         { STC_ARG_CUSTOM, "-s", "--scheduler", &scheduler_type,
                      "spencer | lockstep | thompson",
                      "which scheduler to use for execution", "spencer",

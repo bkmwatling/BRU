@@ -19,6 +19,7 @@ typedef struct {
 typedef enum {
     CARET,
     DOLLAR,
+    MEMOISE,
     LITERAL,
     CC,
     ALT,
@@ -28,7 +29,8 @@ typedef enum {
     PLUS,
     QUES,
     COUNTER,
-    LOOKAHEAD
+    LOOKAHEAD,
+    NREGEXTYPES
 } RegexType;
 
 typedef struct regex Regex;
@@ -52,6 +54,13 @@ struct regex {
     cntr_t min;
     cntr_t max;
 };
+
+#define IS_UNARY_OP(type)      ((type) == STAR || (type) == PLUS || \
+                                (type) == QUES || (type) == COUNTER)
+#define IS_BINARY_OP(type)     ((type) == CONCAT || (type) == ALT)
+#define IS_OP(type)            (IS_BINARY_OP(type) || IS_UNARY_OP(type))
+#define IS_PARENTHETICAL(type) ((type) == LOOKAHEAD || (type) == CAPTURE)
+#define IS_TERMINAL(type)      (!(IS_OP(type) || IS_PARENTHETICAL(type)))
 
 /* --- Interval function prototypes ----------------------------------------- */
 

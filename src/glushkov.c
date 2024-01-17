@@ -23,7 +23,7 @@
     for ((elem) = (sentinel)->prev; (elem) != (sentinel); (elem) = (elem)->prev)
 
 #define IS_EPS_TRANSITION(re) \
-    ((re) != NULL && (re)->type != LITERAL && (re)->type != CC)
+    ((re) != NULL && (re)->type == CAPTURE)
 
 #define APPEND_GAMMA(ppl)                                    \
     do {                                                     \
@@ -105,6 +105,7 @@ static Rfa *
 rfa_new(PosPairList **follow, size_t npositions, const Regex **positions);
 static void rfa_free(Rfa *self);
 static void rfa_construct(Rfa *self, const Regex *re, PosPairList *first);
+static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited);
 static void
 rfa_absorb(Rfa *self, size_t pos, len_t *visited, const CompilerOpts *opts);
 static len_t rfa_insts_len(Rfa *self, len_t *pc_map);
@@ -144,6 +145,8 @@ const Program *glushkov_compile(const Regex *re, const CompilerOpts *opts)
     positions[START_POS] = NULL;
     rfa                  = rfa_new(follow, 1, positions);
     rfa_construct(rfa, re, NULL);
+    rfa_print(rfa, stderr);
+    rfa_merge_outgoing(rfa, START_POS, visited);
     rfa_print(rfa, stderr);
     rfa_absorb(rfa, START_POS, visited, opts);
     rfa_print(rfa, stderr);
@@ -243,6 +246,7 @@ static void pp_action_prepend(PosPair *self, Action *action)
         if (action->re->type != act->re->type) continue;
         switch (action->re->type) {
             case CARET: /* fallthrough */
+            case MEMOISE: /* fallthrough */
             case DOLLAR: action_free(action); return;
             case CAPTURE:
                 if (action->re->capture_idx == act->re->capture_idx) {
@@ -463,6 +467,7 @@ static void rfa_construct(Rfa *self, const Regex *re, PosPairList *first)
         case CARET:   /* fallthrough */
         case DOLLAR:  /* fallthrough */
         case LITERAL: /* fallthrough */
+        case MEMOISE: /* fallthrough */
         case CC:
             pos                  = self->npositions++;
             self->positions[pos] = re;
@@ -593,7 +598,35 @@ static void rfa_construct(Rfa *self, const Regex *re, PosPairList *first)
         /* TODO: */
         case COUNTER: break;
         case LOOKAHEAD: break;
+        case NREGEXTYPES: assert(0 && "unreachable");
     }
+}
+
+static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited)
+{
+    len_t   *seen;
+    PosPair *t, *e;
+    PosPairList *follow = rfa->follow[pos];
+
+    visited[pos] = TRUE;
+    FOREACH(t, follow->sentinel)
+    {
+        if (!visited[t->pos]) rfa_merge_outgoing(rfa, t->pos, visited);
+    }
+
+    e = follow->sentinel->next;
+    seen = calloc(rfa->npositions, sizeof(len_t));
+    while (e != follow->sentinel) {
+        if (seen[e->pos]) {
+            e = pp_remove(e);
+            follow->len--;
+        } else {
+            seen[e->pos] = TRUE;
+            e = e->next;
+        }
+    }
+    free(seen);
+    visited[pos] = FALSE;
 }
 
 static void
@@ -610,6 +643,7 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
 
     e = follow_pos->sentinel->next;
     while (e != follow_pos->sentinel) {
+        fprintf(stderr, "processing (%zu, %zu)\n", pos, e->pos);
         if (e->pos == pos && pos != GAMMA_POS) {
             if (IS_EPS_TRANSITION(rfa->positions[e->pos])) p = e;
             e = e->next;
@@ -622,6 +656,12 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
         tmp    = e;
         follow = rfa->follow[e->pos];
         FOREACH(t, follow->sentinel) {
+
+            // iterate over edges (pos, pp) up to (pos, e)
+            // looking for an edge (pos, t).
+            // if we find (pos, t), then current value of t can
+            // be skipped since it will have a lower priority than
+            // the one we found.
             FOREACH(pp, follow_pos->sentinel) {
                 if (pp->pos == e->pos || pp->pos == t->pos) break;
             }
@@ -629,8 +669,13 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
              * need to check if pp is follow_pos->sentinel */
             if (pp->pos != e->pos) continue;
 
-            if (pp_remove_from(t->pos, tmp, follow_pos->sentinel))
+            // otherwise, iterate over edges (pos, e) up to the end,
+            // and if any of them are t, delete them as they will have a lower
+            // priority than the current one
+            if (pp_remove_from(t->pos, tmp, follow_pos->sentinel)) {
+                fprintf(stderr, "removed %zu\n", t->pos);
                 follow_pos->len--;
+            }
             pp = pp_clone(t);
             pp_action_prepend(pp, action_new(e->pos, rfa->positions));
             FOREACH_REV(act, e->action_sentinel)
@@ -648,8 +693,9 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
         if (opts->capture_semantics == CS_PCRE) {
             for (t = p->next; t != follow_pos->sentinel; t = t->next) {
                 pp_action_prepend(t, action_new(pos, rfa->positions));
-                FOREACH_REV(act, p->action_sentinel)
-                pp_action_prepend(t, action_clone(act));
+                FOREACH_REV(act, p->action_sentinel) {
+                    pp_action_prepend(t, action_clone(act));
+                }
             }
         }
         pp_remove(p);
@@ -686,6 +732,9 @@ static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map)
                     insts_len += sizeof(byte) + sizeof(const char *);
                     break;
                 case CC: insts_len += sizeof(byte) + 2 * sizeof(len_t); break;
+                case MEMOISE:
+                case CARET:
+                case DOLLAR: insts_len += sizeof(byte); break;
                 default: assert(0 && "unreachable");
             }
         }
@@ -720,8 +769,9 @@ count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters)
     size_t npos = 0;
 
     switch (re->type) {
-        case CARET:  /* fallthrough */
-        case DOLLAR: /* fallthrough */
+        case CARET:   /* fallthrough */
+        case DOLLAR:  /* fallthrough */
+        case MEMOISE: /* fallthrough */
         case LITERAL: npos = 1; break;
 
         case CC:
@@ -753,6 +803,8 @@ count(const Regex *re, len_t *aux_len, len_t *ncaptures, len_t *ncounters)
         case LOOKAHEAD:
             npos = 1 + count(re->left, aux_len, ncaptures, ncounters);
             break;
+
+        case NREGEXTYPES: assert(0 && "unreachable");
     }
 
     return npos;
@@ -791,6 +843,10 @@ static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map)
                     MEMWRITE(pc, len_t, prog->aux_len);
                     prog->aux_len += re->cc_len * sizeof(Interval);
                     break;
+
+                case DOLLAR: *pc++ = END; break;
+                case CARET: *pc++ = BEGIN; break;
+                case MEMOISE: *pc++ = MEMO; break;
                 default: assert(0 && "unreachable");
             }
         }
@@ -836,14 +892,6 @@ emit_transition(PosPair *pos_pair, byte **pc, Program *prog, len_t *pc_map)
     /* XXX: may be more involved with counters later */
     FOREACH(action, pos_pair->action_sentinel) {
         switch (action->re->type) {
-            case CARET:
-                insts_len++;
-                if (pc) *(*pc)++ = BEGIN;
-                break;
-            case DOLLAR:
-                insts_len++;
-                if (pc) *(*pc)++ = END;
-                break;
             case CAPTURE:
                 insts_len += sizeof(byte) + sizeof(len_t);
                 if (pc) {
@@ -880,6 +928,7 @@ static void ppl_print(PosPairList *self, FILE *stream)
             if (act != pp->action_sentinel->next) fprintf(stream, ", ");
             switch (act->re->type) {
                 case CARET: fprintf(stream, "^"); break;
+                case MEMOISE: fprintf(stream, "#"); break;
                 case DOLLAR: fprintf(stream, "$"); break;
                 case CAPTURE:
                     fprintf(stream, "%c_%d",

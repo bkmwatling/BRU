@@ -19,11 +19,19 @@ typedef enum {
     CS_RE2,
 } CaptureSemantics;
 
+typedef enum {
+    MS_NONE,
+    MS_CN,
+    MS_IN,
+    MS_IAR
+} MemoScheme;
+
 typedef struct {
     Construction     construction;
     int              only_std_split;
     SplitChoice      branch;
     CaptureSemantics capture_semantics;
+    MemoScheme       memo_scheme;
 } CompilerOpts;
 
 typedef struct {
