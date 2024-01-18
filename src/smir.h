@@ -1,26 +1,33 @@
-#ifndef _SMIR_H
-#define _SMIR_H
+#ifndef SMIR_H
+#define SMIR_H
 
-#include <cstddef>
+#include <stddef.h>
 #include <stdint.h>
 
-/* --- Data Structures ----------------------------------------------------- */
+#include "sre.h"
 
-typedef struct predicate     Predicate; // regex node?
-typedef Predicate            Action;
+/* --- Macros --------------------------------------------------------------- */
+
+#define NULL_STATE 0
+
+/* --- Type Definitions ----------------------------------------------------- */
+
+typedef Regex                Predicate;
+typedef Regex                Action;
+typedef struct action_list   ActionList;
 typedef struct state_machine StateMachine;
 
 typedef uint32_t state_id; // 0 => nonexistent
 typedef uint64_t trans_id; // (src state_id, idx into outgoing transitions)
 
-/* --- API ----------------------------------------------------------------- */
+/* --- API ------------------------------------------------------------------ */
 
 /**
  * Create a blank state machine.
  *
  * @return the blank state machine
  */
-StateMachine smir_default(void);
+StateMachine *smir_default(void);
 
 /**
  * Create a new state machine with given number of states.
@@ -31,7 +38,14 @@ StateMachine smir_default(void);
  *
  * @return the new state machine
  */
-StateMachine smir_new(uint32_t nstates);
+StateMachine *smir_new(uint32_t nstates);
+
+/**
+ * Free all memory used by the state machine.
+ *
+ * @param[in] self the state machine
+ */
+void smir_free(StateMachine *self);
 
 /**
  * Create a new state in the state machine.
@@ -45,18 +59,29 @@ state_id smir_add_state(StateMachine *self);
 /**
  * Mark a state as initial.
  *
+ * Note: The order of calls to this function determines the priorities by which
+ * the initialisation functions are executed.
+ *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
+ *
+ * @return the unique transition identifier of the initialisation transition
  */
-void smir_set_initial(StateMachine *self, state_id sid);
+trans_id smir_set_initial(StateMachine *self, state_id sid);
 
 /**
  * Mark a state as final.
  *
+ * Note: When this function is called, the priority of the finalisation function
+ * for the state will be lower than any transition added to the state before the
+ * call.
+ *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
+ *
+ * @return the unique transition identifier of the finalisation transition
  */
-void smir_set_final(StateMachine *self, state_id sid);
+trans_id smir_set_final(StateMachine *self, state_id sid);
 
 /**
  * Add an outgoing transition to a state.
@@ -81,8 +106,7 @@ trans_id smir_add_transition(StateMachine *self, state_id sid);
  * @return an array of transition identifiers representing the outgoing
  *         transitions
  */
-trans_id *
-smir_get_outgoing_transitions(StateMachine *self, state_id sid, size_t *n);
+trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n);
 
 /**
  * Get the incoming transitions of a state.
@@ -97,8 +121,7 @@ smir_get_outgoing_transitions(StateMachine *self, state_id sid, size_t *n);
  * @return an array of transition identifiers representing the incoming
  *         transitions
  */
-trans_id *
-smir_get_incoming_transitions(StateMachine *self, state_id sid, size_t *n);
+trans_id *smir_get_in_transitions(StateMachine *self, state_id sid, size_t *n);
 
 /**
  * Get a state's predicate.
@@ -108,7 +131,7 @@ smir_get_incoming_transitions(StateMachine *self, state_id sid, size_t *n);
  *
  * @return the predicate, where NULL indicates the state has no predicate.
  */
-Predicate *smir_get_predicate(StateMachine *self, state_id sid);
+const Predicate *smir_get_predicate(StateMachine *self, state_id sid);
 
 /**
  * Set a state's predicate.
@@ -117,26 +140,9 @@ Predicate *smir_get_predicate(StateMachine *self, state_id sid);
  * @param[in] sid  the unique state identifier
  * @param[in] pred the predicate
  */
-void smir_set_predicate(StateMachine *self, state_id sid, Predicate *pred);
-
-/**
- * Set the destination state of a transition.
- *
- * @param[in] self the state machine
- * @param[in] tid  the unique transition identifier
- * @param[in] dest the unique destination state identifier
- */
-void smir_set_dest(StateMachine *self, trans_id tid, state_id dest);
-
-/**
- * Get the destination state of a transition.
- *
- * @param[in] self the state machine
- * @param[in] tid  the unique transition identifier
- *
- * @return the unique destination state identifier
- */
-state_id smir_get_dest(StateMachine *self, trans_id tid);
+void smir_set_predicate(StateMachine    *self,
+                        state_id         sid,
+                        const Predicate *pred);
 
 /**
  * Get the source state of a transition.
@@ -149,6 +155,25 @@ state_id smir_get_dest(StateMachine *self, trans_id tid);
 state_id smir_get_src(StateMachine *self, trans_id tid);
 
 /**
+ * Get the destination state of a transition.
+ *
+ * @param[in] self the state machine
+ * @param[in] tid  the unique transition identifier
+ *
+ * @return the unique destination state identifier
+ */
+state_id smir_get_dst(StateMachine *self, trans_id tid);
+
+/**
+ * Set the destination state of a transition.
+ *
+ * @param[in] self the state machine
+ * @param[in] tid  the unique transition identifier
+ * @param[in] dst the unique destination state identifier
+ */
+void smir_set_dst(StateMachine *self, trans_id tid, state_id dst);
+
+/**
  * Get the actions of a transition.
  *
  * @param[in] self the state machine
@@ -156,16 +181,25 @@ state_id smir_get_src(StateMachine *self, trans_id tid);
  *
  * @return the actions of the transition
  */
-Action *smir_get_actions(StateMachine *self, trans_id tid);
+const ActionList *smir_get_actions(StateMachine *self, trans_id tid);
 
 /**
  * Append an action to a transition.
  *
  * @param[in] self the state machine
  * @param[in] tid  the unique transition identifier
- * @param[in] act  the action
+ * @param[in] act  the action to append
  */
-void smir_append_action(StateMachine *self, trans_id tid, Action *act);
+void smir_append_action(StateMachine *self, trans_id tid, const Action *act);
+
+/**
+ * Prepend an action to a transition.
+ *
+ * @param[in] self the state machine
+ * @param[in] tid  the unique transition identifier
+ * @param[in] act  the action to prepend
+ */
+void smir_prepend_action(StateMachine *self, trans_id tid, const Action *act);
 
 /**
  * Set the actions of a transition.
@@ -174,9 +208,39 @@ void smir_append_action(StateMachine *self, trans_id tid, Action *act);
  * @param[in] tid  the unique transition identifier
  * @param[in] acts the list of actions
  */
-void smir_set_actions(StateMachine *self, trans_id tid, Action *acts);
+void smir_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
 
-/* --- Extendable API ------------------------------------------------------ */
+/**
+ * Create an empty list of actions.
+ *
+ * @return the empty list of actions
+ */
+ActionList *smir_action_list_new(void);
+
+/**
+ * Free the list of actions.
+ *
+ * @param[in] self the list of actions
+ */
+void smir_action_list_free(ActionList *self);
+
+/**
+ * Append an action to the list of actions.
+ *
+ * @param[in] self the list of actions
+ * @param[in] act  the action to append
+ */
+void smir_action_list_append(ActionList *self, const Action *act);
+
+/**
+ * Prepend an action to the list of actions.
+ *
+ * @param[in] self the list of actions
+ * @param[in] act  the action to prepend
+ */
+void smir_action_list_prepend(ActionList *self, const Action *act);
+
+/* --- Extendable API ------------------------------------------------------- */
 
 /**
  * Set the pre-predicate meta data of a state.
@@ -216,4 +280,4 @@ void smir_set_post_meta(StateMachine *self, state_id sid, void *meta);
  */
 void *smir_get_post_meta(StateMachine *self, state_id sid);
 
-#endif
+#endif /* SMIR_H */
