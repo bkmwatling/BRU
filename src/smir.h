@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "sre.h"
+#include "srvm.h"
 
 /* --- Macros --------------------------------------------------------------- */
 
@@ -19,6 +19,21 @@ typedef struct state_machine StateMachine;
 
 typedef uint32_t state_id; // 0 => nonexistent
 typedef uint64_t trans_id; // (src state_id, idx into outgoing transitions)
+
+/**
+ * TODO: decide on compilation function signature
+ * e.g. void compile_f(void *pre_meta, Prog *p) => push instructions onto p
+ *      void compile_f(void *pre_meta, byte *b) => push instructions onto b
+ *      Prog *compile_f(void *pre_meta)         => compile into sub-program
+ *      ...
+ */
+typedef void (*compile_f)(void *);
+
+/**
+ * TODO: decide on transformer functions for running graph algorithms
+ * on the state machine.
+ */
+typedef void (*transform_f)(StateMachine *self);
 
 /* --- API ------------------------------------------------------------------ */
 
@@ -39,6 +54,15 @@ StateMachine *smir_default(void);
  * @return the new state machine
  */
 StateMachine *smir_new(uint32_t nstates);
+
+/**
+ * Compile a state machine.
+ *
+ * @param[in] self the state machine
+ *
+ * @return the compiled program
+ */
+Program *smir_compile(StateMachine *self);
 
 /**
  * Free all memory used by the state machine.
@@ -85,6 +109,9 @@ trans_id smir_set_final(StateMachine *self, state_id sid);
 
 /**
  * Add an outgoing transition to a state.
+ *
+ * The added transition will not have a destination state.
+ * See \ref smir_set_dst.
  *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
@@ -248,8 +275,10 @@ void smir_action_list_prepend(ActionList *self, const Action *act);
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
  * @param[in] meta the pre-predicate meta data
+ *
+ * @return the previous pre-predicate meta data (initially NULL)
  */
-void smir_set_pre_meta(StateMachine *self, state_id sid, void *meta);
+void *smir_set_pre_meta(StateMachine *self, state_id sid, void *meta);
 
 /**
  * Get the pre-predicate meta data of a state.
@@ -267,8 +296,10 @@ void *smir_get_pre_meta(StateMachine *self, state_id sid);
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
  * @param[in] meta the post-predicate meta data
+ *
+ * @return the previous post-predicate meta data (initially NULL)
  */
-void smir_set_post_meta(StateMachine *self, state_id sid, void *meta);
+void *smir_set_post_meta(StateMachine *self, state_id sid, void *meta);
 
 /**
  * Get the post-predicate meta data of a state.
@@ -279,5 +310,26 @@ void smir_set_post_meta(StateMachine *self, state_id sid, void *meta);
  * @return the post-predicate meta data
  */
 void *smir_get_post_meta(StateMachine *self, state_id sid);
+
+/**
+ * Compile the state machine to VM instructions, including the meta data.
+ *
+ * @param[in] self the state machine
+ * @param[in] pre_meta the compiler for pre-predicate meta data at states
+ * @param[in] post_meta the compiler for post-predicate meta data at states
+ *
+ * @return the compiled program
+ */
+Program *smir_compile_with_meta(StateMachine *self,
+                            compile_f     pre_meta,
+                            compile_f     post_meta);
+
+/**
+ * Transform the state machine (in-place) with the provided transformer.
+ *
+ * @param[in] self        the state machine
+ * @param[in] transformer the transformer
+ */
+void smir_transform(StateMachine *self, transform_f transformer);
 
 #endif /* SMIR_H */

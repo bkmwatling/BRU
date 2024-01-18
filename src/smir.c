@@ -88,6 +88,39 @@ struct state_machine {
     size_t ninits;
 };
 
+/* --- Helper Functions ----------------------------------------------------- */
+
+static void action_list_free(ActionList *al)
+{
+    if (!al) return;
+
+    free(al);
+}
+
+static void trans_free(Trans *transition)
+{
+    ActionList *elem, *next;
+
+    if (!transition) return;
+
+    if (transition->actions_sentinel) {
+        dll_free(transition->actions_sentinel, action_list_free, elem, next);
+    }
+
+    free(transition);
+}
+
+static void state_free(State s)
+{
+    Trans *elem, *next;
+
+    if (s.out_transitions_sentinel) {
+        dll_free(s.out_transitions_sentinel, trans_free, elem, next);
+    }
+
+    // TODO: free in_transitions_sentinel?
+}
+
 /* --- API ------------------------------------------------------------------ */
 
 StateMachine *smir_default(void)
@@ -112,8 +145,30 @@ StateMachine *smir_new(uint32_t nstates)
     return sm;
 }
 
-/* TODO: */
-void smir_free(StateMachine *self);
+Program *smir_compile(StateMachine *self) {
+    return smir_compile_with_meta(self, NULL, NULL);
+}
+
+void smir_free(StateMachine *self)
+{
+    Trans *elem, *next;
+    size_t nstates;
+
+    if (!self) return;
+
+    if (self->states) {
+        nstates = stc_vec_len(self->states);
+        stc_vec_free(self->states);
+
+        while (nstates--) { state_free(self->states[nstates]); }
+    }
+
+    if (self->initial_functions_sentinel) {
+        dll_free(self->initial_functions_sentinel, trans_free, elem, next);
+    }
+
+    free(self);
+}
 
 state_id smir_add_state(StateMachine *self)
 {
@@ -303,10 +358,42 @@ void smir_action_list_prepend(ActionList *self, const Action *act)
 
 /* --- Extendable API ------------------------------------------------------- */
 
-void smir_set_pre_meta(StateMachine *self, state_id sid, void *meta);
+void *smir_set_pre_meta(StateMachine *self, state_id sid, void *meta)
+{
+    void *old_meta = self->states[sid].pre_meta;
 
-void *smir_get_pre_meta(StateMachine *self, state_id sid);
+    self->states[sid].pre_meta = meta;
 
-void smir_set_post_meta(StateMachine *self, state_id sid, void *meta);
+    return old_meta;
+}
 
-void *smir_get_post_meta(StateMachine *self, state_id sid);
+void *smir_get_pre_meta(StateMachine *self, state_id sid)
+{
+    return self->states[sid].pre_meta;
+}
+
+void *smir_set_post_meta(StateMachine *self, state_id sid, void *meta)
+{
+    void *old_meta = self->states[sid].post_meta;
+
+    self->states[sid].post_meta = meta;
+
+    return old_meta;
+}
+
+void *smir_get_post_meta(StateMachine *self, state_id sid)
+{
+    return self->states[sid].post_meta;
+}
+
+Program *smir_compile_with_meta(StateMachine *self,
+                                compile_f     pre_meta,
+                                compile_f     post_meta)
+{
+    assert(0 && "TODO");
+}
+
+void smir_transform(StateMachine *self, transform_f transformer)
+{
+    assert(0 && "TODO");
+}
