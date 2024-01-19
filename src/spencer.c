@@ -156,14 +156,15 @@ void spencer_scheduler_init(SpencerScheduler *self, const char *text)
     spencer_scheduler_schedule(
         self,
         spencer_thread_new(prog->insts, text, prog->ncaptures, prog->counters,
-                           prog->ncounters, prog->memory, prog->mem_len));
+                           stc_vec_len_unsafe(prog->counters), prog->memory,
+                           stc_vec_len_unsafe(prog->memory)));
 
     for (; text_len > 0; text_len--) {
         spencer_scheduler_schedule(
-            self,
-            spencer_thread_new(prog->insts, text + text_len, prog->ncaptures,
-                               prog->counters, prog->ncounters, prog->memory,
-                               prog->mem_len));
+            self, spencer_thread_new(
+                      prog->insts, text + text_len, prog->ncaptures,
+                      prog->counters, stc_vec_len_unsafe(prog->counters),
+                      prog->memory, stc_vec_len_unsafe(prog->memory)));
     }
 }
 

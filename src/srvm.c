@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "srvm.h"
+#include "stc/fatp/vec.h"
 
 /* --- Type definitions ----------------------------------------------------- */
 
@@ -93,11 +94,11 @@ static byte **init_memoised(const Program *prog, const char *text)
 {
     len_t  i;
     size_t len = strlen(text) + 1;
-    byte **m   = malloc(sizeof(byte *) * prog->insts_len);
+    byte **m   = malloc(sizeof(byte *) * stc_vec_len_unsafe(prog->insts));
     m[0]       = malloc(sizeof(byte) * len);
     memset((void *) m[0], 0, sizeof(byte) * len);
 
-    for (i = 1; i < prog->insts_len; i++) {
+    for (i = 1; i < stc_vec_len_unsafe(prog->insts); i++) {
         m[i] = malloc(sizeof(byte) * len);
         memset((void *) m[i], 0, sizeof(byte) * len);
     }
@@ -347,7 +348,7 @@ static int srvm_run(const char    *text,
         }
     }
 
-    destroy_memoised(memoised, prog->insts_len);
+    destroy_memoised(memoised, stc_vec_len_unsafe(prog->insts));
 
 #define LOG_INSTRS(i) printf(#i ": %lu\n", instr_counts[(uint) i])
 

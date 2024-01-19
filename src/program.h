@@ -1,16 +1,32 @@
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
+#include "stc/fatp/vec.h"
+
 #include "sre.h"
 #include "types.h"
 
-#define MEMWRITE(pc, type, val) \
-    *((type *) (pc))  = (val);  \
-    (pc)             += sizeof(type);
+#define BCWRITE(insts, bytecode) stc_vec_push(insts, bytecode)
 
-#define MEMREAD(dst, pc, type) \
-    (dst)  = *((type *) (pc)); \
-    (pc)  += sizeof(type);
+#define MEMWRITE(bytes, type, val)                                         \
+    do {                                                                   \
+        stc_vec_reserve(bytes, sizeof(type));                              \
+        *((type *) ((bytes) + stc_vec_len_unsafe(bytes)))  = (val);        \
+        stc_vec_len_unsafe(bytes)                         += sizeof(type); \
+    } while (0)
+
+#define MEMCPY(bytes, val, size)                                  \
+    do {                                                          \
+        stc_vec_reserve(bytes, size);                             \
+        memcpy((bytes) + stc_vec_len_unsafe(bytes), (val), size); \
+        stc_vec_len_unsafe(bytes) += size;                        \
+    } while (0)
+
+#define MEMREAD(dst, pc, type)     \
+    do {                           \
+        (dst)  = *((type *) (pc)); \
+        (pc)  += sizeof(type);     \
+    } while (0)
 
 /* --- Type definitions ----------------------------------------------------- */
 
@@ -46,24 +62,22 @@
 #define GT 6
 
 typedef struct {
-    byte   *insts;
-    len_t   insts_len;
-    byte   *aux;
-    len_t   aux_len;
-    len_t   ncaptures;
-    cntr_t *counters;
-    len_t   ncounters;
-    byte   *memory;
-    len_t   mem_len;
+    byte   *insts;    /*<< stc_vec                                            */
+    byte   *aux;      /*<< stc_vec                                            */
+    cntr_t *counters; /*<< stc_vec                                            */
+    byte   *memory;   /*<< stc_vec                                            */
+    size_t  ncaptures;
 } Program;
 
 /* --- Program function prototypes ------------------------------------------ */
 
-Program *program_new(len_t insts_len,
-                     len_t aux_len,
-                     len_t ncaptures,
-                     len_t ncounters,
-                     len_t mem_len);
+/* NOTE: values of 0 mean those pointers are NULL and shouldn't be used */
+Program *program_new(size_t insts_len,
+                     size_t aux_len,
+                     size_t ncounters,
+                     size_t mem_len,
+                     size_t ncaptures);
+Program *program_default(void);
 void     program_free(Program *self);
 char    *program_to_str(const Program *self);
 

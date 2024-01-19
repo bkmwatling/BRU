@@ -183,9 +183,10 @@ void thompson_scheduler_init(ThompsonScheduler *self, const char *text)
     const Program *prog = self->prog;
 
     thompson_scheduler_schedule(
-        self, thompson_thread_new(prog->insts, &self->sp, prog->ncaptures,
-                                  prog->counters, prog->ncounters, prog->memory,
-                                  prog->mem_len));
+        self,
+        thompson_thread_new(prog->insts, &self->sp, prog->ncaptures,
+                            prog->counters, stc_vec_len_unsafe(prog->counters),
+                            prog->memory, stc_vec_len_unsafe(prog->memory)));
     (void) text;
 }
 

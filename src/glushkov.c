@@ -149,11 +149,9 @@ const Program *glushkov_compile(const Regex *re, const CompilerOpts *opts)
     rfa_absorb(rfa, START_POS, visited, opts);
     rfa_print(rfa, stderr);
 
-    prog = program_new(rfa_insts_len(rfa, visited), aux_len, ncaptures,
-                       ncounters, 0);
+    prog = program_new(rfa_insts_len(rfa, visited), aux_len, ncounters, 0,
+                       ncaptures);
 
-    /* set the length fields to 0 as we use them for indices during emitting */
-    prog->aux_len = prog->ncounters = 0;
     emit(rfa, prog->insts, prog, visited);
 
     rfa_free(rfa);
@@ -836,10 +834,11 @@ static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map)
                 case CC:
                     *pc++ = PRED;
                     MEMWRITE(pc, len_t, re->cc_len);
-                    memcpy(prog->aux + prog->aux_len, re->intervals,
-                           re->cc_len * sizeof(Interval));
-                    MEMWRITE(pc, len_t, prog->aux_len);
-                    prog->aux_len += re->cc_len * sizeof(Interval);
+                    memcpy(prog->aux + stc_vec_len_unsafe(prog->aux),
+                           re->intervals, re->cc_len * sizeof(Interval));
+                    MEMWRITE(pc, len_t, stc_vec_len_unsafe(prog->aux));
+                    stc_vec_len_unsafe(prog->aux) +=
+                        re->cc_len * sizeof(Interval);
                     break;
 
                 case DOLLAR: *pc++ = END; break;
