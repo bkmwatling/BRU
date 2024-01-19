@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STC_VEC_ENABLE_SHORT_NAMES
 #include "stc/fatp/vec.h"
 
 #include "glushkov.h"
@@ -22,8 +21,7 @@
 #define FOREACH_REV(elem, sentinel) \
     for ((elem) = (sentinel)->prev; (elem) != (sentinel); (elem) = (elem)->prev)
 
-#define IS_EPS_TRANSITION(re) \
-    ((re) != NULL && (re)->type == CAPTURE)
+#define IS_EPS_TRANSITION(re) ((re) != NULL && (re)->type == CAPTURE)
 
 #define APPEND_GAMMA(ppl)                                    \
     do {                                                     \
@@ -245,7 +243,7 @@ static void pp_action_prepend(PosPair *self, Action *action)
     FOREACH(act, self->action_sentinel) {
         if (action->re->type != act->re->type) continue;
         switch (action->re->type) {
-            case CARET: /* fallthrough */
+            case CARET:   /* fallthrough */
             case MEMOISE: /* fallthrough */
             case DOLLAR: action_free(action); return;
             case CAPTURE:
@@ -604,17 +602,16 @@ static void rfa_construct(Rfa *self, const Regex *re, PosPairList *first)
 
 static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited)
 {
-    len_t   *seen;
-    PosPair *t, *e;
+    len_t       *seen;
+    PosPair     *t, *e;
     PosPairList *follow = rfa->follow[pos];
 
     visited[pos] = TRUE;
-    FOREACH(t, follow->sentinel)
-    {
+    FOREACH(t, follow->sentinel) {
         if (!visited[t->pos]) rfa_merge_outgoing(rfa, t->pos, visited);
     }
 
-    e = follow->sentinel->next;
+    e    = follow->sentinel->next;
     seen = calloc(rfa->npositions, sizeof(len_t));
     while (e != follow->sentinel) {
         if (seen[e->pos]) {
@@ -622,7 +619,7 @@ static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited)
             follow->len--;
         } else {
             seen[e->pos] = TRUE;
-            e = e->next;
+            e            = e->next;
         }
     }
     free(seen);
@@ -693,7 +690,8 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
         if (opts->capture_semantics == CS_PCRE) {
             for (t = p->next; t != follow_pos->sentinel; t = t->next) {
                 pp_action_prepend(t, action_new(pos, rfa->positions));
-                FOREACH_REV(act, p->action_sentinel) {
+                FOREACH_REV(act, p->action_sentinel)
+                {
                     pp_action_prepend(t, action_clone(act));
                 }
             }
@@ -718,13 +716,13 @@ static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map)
 
     /* initialise processing */
     memset(visited, 0, rfa->npositions * sizeof(byte));
-    vec_init(states, rfa->npositions);
-    vec_push(states, START_POS);
+    stc_vec_init(states, rfa->npositions);
+    stc_vec_push(states, START_POS);
     visited[START_POS] = TRUE;
 
     /* process each state in states (possibly adding more states) */
-    while (vec_len_unsafe(states) > 0) {
-        pos = vec_pop(states);
+    while (stc_vec_len_unsafe(states) > 0) {
+        pos = stc_vec_pop(states);
         if (pos != START_POS) {
             pc_map[pos] = insts_len;
             switch ((re = rfa->positions[pos])->type) {
@@ -750,13 +748,13 @@ static len_t rfa_insts_len(Rfa *rfa, len_t *pc_map)
             insts_len += emit_transition(pp, NULL, NULL, NULL);
             /* add target state for processing if not visited */
             if (!visited[pp->pos]) {
-                vec_push(states, pp->pos);
+                stc_vec_push(states, pp->pos);
                 visited[pp->pos] = TRUE;
             }
         }
     }
     free(visited);
-    vec_free(states);
+    stc_vec_free(states);
 
     /* save where `match` instruction will go */
     pc_map[GAMMA_POS] = insts_len;
@@ -822,13 +820,13 @@ static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map)
 
     /* initialise processing */
     memset(visited, 0, rfa->npositions * sizeof(byte));
-    vec_init(states, rfa->npositions);
-    vec_push(states, START_POS);
+    stc_vec_init(states, rfa->npositions);
+    stc_vec_push(states, START_POS);
     visited[START_POS] = TRUE;
 
     /* process each state in states (possibly adding more states) */
-    while (vec_len_unsafe(states) > 0) {
-        pos = vec_pop(states);
+    while (stc_vec_len_unsafe(states) > 0) {
+        pos = stc_vec_pop(states);
         if (pos != START_POS) {
             switch ((re = rfa->positions[pos])->type) {
                 case LITERAL:
@@ -870,13 +868,13 @@ static byte *emit(const Rfa *rfa, byte *pc, Program *prog, len_t *pc_map)
             emit_transition(pp, &pc, prog, pc_map);
             /* add target state for processing if not visited */
             if (!visited[pp->pos]) {
-                vec_push(states, pp->pos);
+                stc_vec_push(states, pp->pos);
                 visited[pp->pos] = TRUE;
             }
         }
     }
     free(visited);
-    vec_free(states);
+    stc_vec_free(states);
 
     /* write `match` instruction */
     *pc = MATCH;

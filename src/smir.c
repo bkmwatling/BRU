@@ -1,8 +1,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "smir.h"
 #include "stc/fatp/vec.h"
+
+#include "smir.h"
 
 /* --- Macros --------------------------------------------------------------- */
 
@@ -61,8 +62,6 @@ typedef struct {
     const Predicate *pred;
     Trans           *out_transitions_sentinel;
     size_t           nout;
-    Trans           *in_transitions_sentinel;
-    size_t           nin;
     void            *pre_meta;
     void            *post_meta;
 } State;
@@ -90,35 +89,27 @@ struct state_machine {
 
 /* --- Helper Functions ----------------------------------------------------- */
 
-static void action_list_free(ActionList *al)
+static void action_list_free(ActionList *self)
 {
-    if (!al) return;
+    if (!self) return;
 
-    free(al);
+    free(self);
 }
 
-static void trans_free(Trans *transition)
+static void trans_free(Trans *self)
 {
-    ActionList *elem, *next;
+    if (!self) return;
 
-    if (!transition) return;
-
-    if (transition->actions_sentinel) {
-        dll_free(transition->actions_sentinel, action_list_free, elem, next);
-    }
-
-    free(transition);
+    if (self->actions_sentinel) smir_action_list_free(self->actions_sentinel);
+    free(self);
 }
 
-static void state_free(State s)
+static void state_free(State *self)
 {
     Trans *elem, *next;
 
-    if (s.out_transitions_sentinel) {
-        dll_free(s.out_transitions_sentinel, trans_free, elem, next);
-    }
-
-    // TODO: free in_transitions_sentinel?
+    if (self->out_transitions_sentinel)
+        dll_free(self->out_transitions_sentinel, trans_free, elem, next);
 }
 
 /* --- API ------------------------------------------------------------------ */
@@ -145,10 +136,6 @@ StateMachine *smir_new(uint32_t nstates)
     return sm;
 }
 
-Program *smir_compile(StateMachine *self) {
-    return smir_compile_with_meta(self, NULL, NULL);
-}
-
 void smir_free(StateMachine *self)
 {
     Trans *elem, *next;
@@ -158,16 +145,19 @@ void smir_free(StateMachine *self)
 
     if (self->states) {
         nstates = stc_vec_len(self->states);
+        while (nstates) state_free(&self->states[--nstates]);
         stc_vec_free(self->states);
-
-        while (nstates--) { state_free(self->states[nstates]); }
     }
 
-    if (self->initial_functions_sentinel) {
+    if (self->initial_functions_sentinel)
         dll_free(self->initial_functions_sentinel, trans_free, elem, next);
-    }
 
     free(self);
+}
+
+Program *smir_compile(StateMachine *self)
+{
+    return smir_compile_with_meta(self, NULL, NULL);
 }
 
 state_id smir_add_state(StateMachine *self)
@@ -176,7 +166,6 @@ state_id smir_add_state(StateMachine *self)
     State    state = { 0 };
 
     dll_init(state.out_transitions_sentinel);
-    dll_init(state.in_transitions_sentinel);
     stc_vec_push(self->states, state);
 
     return sid;
@@ -211,20 +200,14 @@ trans_id smir_add_transition(StateMachine *self, state_id sid)
 
 trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n)
 {
-    State    *state = self->states + sid;
+    State    *state = &self->states[sid];
     trans_id *tids  = malloc(state->nout * sizeof(tids[0]));
     size_t    i;
 
     for (i = 0; i < state->nout; i++) tids[i] = trans_id_from_parts(sid, i);
-    if (n) *n = i;
+    if (n) *n = state->nout;
 
     return tids;
-}
-
-trans_id *smir_get_in_transitions(StateMachine *self, state_id sid, size_t *n)
-{
-    /* NOTE: do we even need this */
-    assert(0 && "TODO");
 }
 
 const Predicate *smir_get_predicate(StateMachine *self, state_id sid)
@@ -239,12 +222,13 @@ void smir_set_predicate(StateMachine *self, state_id sid, const Predicate *pred)
 
 state_id smir_get_src(StateMachine *self, trans_id tid)
 {
+    (void) self;
     return trans_id_sid(tid);
 }
 
 state_id smir_get_dst(StateMachine *self, trans_id tid)
 {
-    State *state = self->states + trans_id_sid(tid);
+    State *state = &self->states[trans_id_sid(tid)];
     Trans *transition;
     size_t idx;
 
@@ -256,22 +240,18 @@ state_id smir_get_dst(StateMachine *self, trans_id tid)
 
 void smir_set_dst(StateMachine *self, trans_id tid, state_id dst)
 {
-    State *state = self->states + trans_id_sid(tid);
+    State *state = &self->states[trans_id_sid(tid)];
     Trans *transition;
     size_t idx;
 
     idx = trans_id_idx(tid);
     dll_get(state->out_transitions_sentinel, idx, transition);
-
-    /* TODO: update incoming transition of old dst and add to incoming
-     * transitions of new dst */
-
     transition->dst = dst;
 }
 
 const ActionList *smir_get_actions(StateMachine *self, trans_id tid)
 {
-    State *state = self->states + trans_id_sid(tid);
+    State *state = &self->states[trans_id_sid(tid)];
     Trans *transition;
     size_t idx;
 
@@ -283,7 +263,7 @@ const ActionList *smir_get_actions(StateMachine *self, trans_id tid)
 
 void smir_append_action(StateMachine *self, trans_id tid, const Action *act)
 {
-    State      *state = self->states + trans_id_sid(tid);
+    State      *state = &self->states[trans_id_sid(tid)];
     ActionList *al    = malloc(sizeof(*al));
     Trans      *transition;
     size_t      idx;
@@ -297,7 +277,7 @@ void smir_append_action(StateMachine *self, trans_id tid, const Action *act)
 
 void smir_prepend_action(StateMachine *self, trans_id tid, const Action *act)
 {
-    State      *state = self->states + trans_id_sid(tid);
+    State      *state = &self->states[trans_id_sid(tid)];
     ActionList *al    = malloc(sizeof(*al));
     Trans      *transition;
     size_t      idx;
@@ -311,7 +291,7 @@ void smir_prepend_action(StateMachine *self, trans_id tid, const Action *act)
 
 void smir_set_actions(StateMachine *self, trans_id tid, ActionList *acts)
 {
-    State *state = self->states + trans_id_sid(tid);
+    State *state = &self->states[trans_id_sid(tid)];
     Trans *transition;
     size_t idx;
 

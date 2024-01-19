@@ -27,7 +27,7 @@ typedef uint64_t trans_id; // (src state_id, idx into outgoing transitions)
  *      Prog *compile_f(void *pre_meta)         => compile into sub-program
  *      ...
  */
-typedef void (*compile_f)(void *);
+typedef void (*compile_f)(void *, Program *);
 
 /**
  * TODO: decide on transformer functions for running graph algorithms
@@ -45,7 +45,7 @@ typedef void (*transform_f)(StateMachine *self);
 StateMachine *smir_default(void);
 
 /**
- * Create a new state machine with given number of states.
+ * Create a new state machine with a given number of states.
  *
  * Each state is assigned a unique state identifier in [1...nstates].
  *
@@ -56,6 +56,13 @@ StateMachine *smir_default(void);
 StateMachine *smir_new(uint32_t nstates);
 
 /**
+ * Free all memory used by the state machine.
+ *
+ * @param[in] self the state machine
+ */
+void smir_free(StateMachine *self);
+
+/**
  * Compile a state machine.
  *
  * @param[in] self the state machine
@@ -63,13 +70,6 @@ StateMachine *smir_new(uint32_t nstates);
  * @return the compiled program
  */
 Program *smir_compile(StateMachine *self);
-
-/**
- * Free all memory used by the state machine.
- *
- * @param[in] self the state machine
- */
-void smir_free(StateMachine *self);
 
 /**
  * Create a new state in the state machine.
@@ -136,21 +136,6 @@ trans_id smir_add_transition(StateMachine *self, state_id sid);
 trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n);
 
 /**
- * Get the incoming transitions of a state.
- *
- * The returned array is created with a call to `malloc`, and the memory
- * should be released using a single call to `free`.
- *
- * @param[in] self the state machine
- * @param[in] sid  the unique state identifier
- * @param[out] n   the length of the returned array
- *
- * @return an array of transition identifiers representing the incoming
- *         transitions
- */
-trans_id *smir_get_in_transitions(StateMachine *self, state_id sid, size_t *n);
-
-/**
  * Get a state's predicate.
  *
  * @param[in] self the state machine
@@ -177,7 +162,7 @@ void smir_set_predicate(StateMachine    *self,
  * @param[in] self the state machine
  * @param[in] tid  the unique transition identifier
  *
- * @return the unique source state identifier
+ * @return the unique state identifier of the source state
  */
 state_id smir_get_src(StateMachine *self, trans_id tid);
 
@@ -187,7 +172,7 @@ state_id smir_get_src(StateMachine *self, trans_id tid);
  * @param[in] self the state machine
  * @param[in] tid  the unique transition identifier
  *
- * @return the unique destination state identifier
+ * @return the unique state identifier of the destination state
  */
 state_id smir_get_dst(StateMachine *self, trans_id tid);
 
@@ -196,7 +181,7 @@ state_id smir_get_dst(StateMachine *self, trans_id tid);
  *
  * @param[in] self the state machine
  * @param[in] tid  the unique transition identifier
- * @param[in] dst the unique destination state identifier
+ * @param[in] dst  the unique state identifier of the destination state
  */
 void smir_set_dst(StateMachine *self, trans_id tid, state_id dst);
 
@@ -314,15 +299,15 @@ void *smir_get_post_meta(StateMachine *self, state_id sid);
 /**
  * Compile the state machine to VM instructions, including the meta data.
  *
- * @param[in] self the state machine
- * @param[in] pre_meta the compiler for pre-predicate meta data at states
+ * @param[in] self      the state machine
+ * @param[in] pre_meta  the compiler for pre-predicate meta data at states
  * @param[in] post_meta the compiler for post-predicate meta data at states
  *
  * @return the compiled program
  */
 Program *smir_compile_with_meta(StateMachine *self,
-                            compile_f     pre_meta,
-                            compile_f     post_meta);
+                                compile_f     pre_meta,
+                                compile_f     post_meta);
 
 /**
  * Transform the state machine (in-place) with the provided transformer.

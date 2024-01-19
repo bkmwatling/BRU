@@ -3,10 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STC_SV_ENABLE_SHORT_NAMES
-#include "stc/fatp/string_view.h"
-
-#include "program.h"
 #include "srvm.h"
 
 /* --- Type definitions ----------------------------------------------------- */
@@ -59,22 +55,23 @@ int srvm_match(SRVM *self, const char *text)
                     self->captures);
 }
 
-StringView srvm_capture(SRVM *self, len_t idx)
+StcStringView srvm_capture(SRVM *self, len_t idx)
 {
-    if (idx >= self->ncaptures) return (StringView){ 0, NULL };
+    if (idx >= self->ncaptures) return (StcStringView){ 0, NULL };
 
-    return sv_from_range(self->captures[2 * idx], self->captures[2 * idx + 1]);
+    return stc_sv_from_range(self->captures[2 * idx],
+                             self->captures[2 * idx + 1]);
 }
 
-StringView *srvm_captures(SRVM *self, len_t *ncaptures)
+StcStringView *srvm_captures(SRVM *self, len_t *ncaptures)
 {
-    len_t       i;
-    StringView *captures = malloc(self->ncaptures * sizeof(StringView));
+    len_t          i;
+    StcStringView *captures = malloc(self->ncaptures * sizeof(StcStringView));
 
     if (ncaptures) *ncaptures = self->ncaptures;
     for (i = 0; i < self->ncaptures; i++)
         captures[i] =
-            sv_from_range(self->captures[2 * i], self->captures[2 * i + 1]);
+            stc_sv_from_range(self->captures[2 * i], self->captures[2 * i + 1]);
 
     return captures;
 }
@@ -94,10 +91,10 @@ int srvm_matches(ThreadManager *thread_manager,
 // XXX: does not check for failed mallocs
 static byte **init_memoised(const Program *prog, const char *text)
 {
-    len_t i;
+    len_t  i;
     size_t len = strlen(text) + 1;
-    byte **m = malloc(sizeof(byte *) * prog->insts_len);
-    m[0] = malloc(sizeof(byte) * len);
+    byte **m   = malloc(sizeof(byte *) * prog->insts_len);
+    m[0]       = malloc(sizeof(byte) * len);
     memset((void *) m[0], 0, sizeof(byte) * len);
 
     for (i = 1; i < prog->insts_len; i++) {
@@ -113,9 +110,7 @@ static void destroy_memoised(byte **m, len_t insts_len)
 {
     len_t i;
 
-    for (i = 0; i < insts_len; i++) {
-        free(m[i]);
-    }
+    for (i = 0; i < insts_len; i++) { free(m[i]); }
     free(m);
 }
 
@@ -137,8 +132,8 @@ static int srvm_run(const char    *text,
     Interval      *intervals;
     Scheduler     *s;
 
-#define CURR_INSTR (uint) *(pc - 1)
-    size_t         instr_counts[NBYTECODES] = {0};
+#define CURR_INSTR (uint) * (pc - 1)
+    size_t instr_counts[NBYTECODES] = { 0 };
 
     while ((thread = scheduler_next(scheduler))) {
         if ((sp = thread_manager->sp(thread)) != text && sp[-1] == '\0') {
@@ -198,7 +193,7 @@ static int srvm_run(const char    *text,
             case CHAR: /* fallthrough */
                 instr_counts[CURR_INSTR]++;
                 MEMREAD(codepoint, pc, const char *);
-                if (*sp && utf8_cmp(codepoint, sp) == 0) {
+                if (*sp && stc_utf8_cmp(codepoint, sp) == 0) {
                     thread_manager->set_pc(thread, pc);
                     thread_manager->try_inc_sp(thread);
                     scheduler_schedule(scheduler, thread);
@@ -354,7 +349,7 @@ static int srvm_run(const char    *text,
 
     destroy_memoised(memoised, prog->insts_len);
 
-#define LOG_INSTRS(i) printf(#i ": %lu\n", instr_counts[(uint)i])
+#define LOG_INSTRS(i) printf(#i ": %lu\n", instr_counts[(uint) i])
 
     LOG_INSTRS(CHAR);
     LOG_INSTRS(MEMO);

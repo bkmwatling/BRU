@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STC_UTF_ENABLE_SHORT_NAMES
 #include "stc/util/utf.h"
 
 #include "program.h"
@@ -139,9 +138,10 @@ static const byte *inst_to_str(char         **s,
 
         case CHAR:
             MEMREAD(p, pc, char *);
-            ENSURE_SPACE(*s, *len + utf8_nbytes(p) + 6, *alloc, sizeof(char));
+            ENSURE_SPACE(*s, *len + stc_utf8_nbytes(p) + 6, *alloc,
+                         sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "char %.*s",
-                             utf8_nbytes(p), p);
+                             stc_utf8_nbytes(p), p);
             break;
 
         case PRED:

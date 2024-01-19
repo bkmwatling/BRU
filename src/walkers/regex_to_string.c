@@ -1,30 +1,27 @@
-#include "regex_to_string.h"
-
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include "../utils.h"
+#include "regex_to_string.h"
 
 /* --- data structures ----------------------------------------------------- */
 
-#define ENSURE_SPACE(sb, n) do {                                       \
-                                while ((sb)->cap - (sb)->len < (n)) {  \
-                                    (sb)->cap <<= 2;                   \
-                                };                                     \
-                                (sb)->s = realloc((sb)->s, (sb)->cap); \
-                            } while (0)
+#define SB_ENSURE_SPACE(sb, n) \
+    ENSURE_SPACE((sb)->s, (sb)->len, (sb)->cap, sizeof(char))
 
 #define DEFAULT_CAP 32
 
 typedef struct {
-    char *s;
+    char  *s;
     size_t len;
     size_t cap;
 } StringBuilder;
 
 static void appendn(StringBuilder *sb, const char *s, size_t n)
 {
-    ENSURE_SPACE(sb, n);
+    SB_ENSURE_SPACE(sb, n);
     strncpy(sb->s + sb->len, s, n);
     sb->len += n;
 }
@@ -36,8 +33,8 @@ static void append(StringBuilder *sb, const char *s)
 
 static void appendf(StringBuilder *sb, const char *fmt, ...)
 {
-    char *s;
-    size_t len;
+    char   *s;
+    size_t  len;
     va_list args;
 
     va_start(args, fmt);
@@ -47,14 +44,13 @@ static void appendf(StringBuilder *sb, const char *fmt, ...)
 
     printf("append: %s\n", fmt);
     s = malloc(sizeof(char) * len);
-    if (!s)
-        return;
+    if (!s) return;
 
     va_start(args, fmt);
     vsnprintf(s, len, fmt, args);
     va_end(args);
 
-    ENSURE_SPACE(sb, len);
+    SB_ENSURE_SPACE(sb, len);
     strncpy(sb->s + sb->len, s, sb->cap - sb->len);
     sb->len += len - 1;
 
@@ -65,10 +61,9 @@ static StringBuilder *string_builder()
 {
     StringBuilder *sb = malloc(sizeof(StringBuilder));
 
-    if (!sb)
-        return NULL;
+    if (!sb) return NULL;
 
-    sb->s = malloc(sizeof(char) * DEFAULT_CAP);
+    sb->s   = malloc(sizeof(char) * DEFAULT_CAP);
     sb->cap = DEFAULT_CAP;
     sb->len = 0;
 
@@ -80,12 +75,11 @@ static StringBuilder *string_builder()
 LISTEN_TERMINAL_F()
 {
     GET_STATE(StringBuilder *, sb);
-    switch (REGEX->type)
-    {
+    switch (REGEX->type) {
         case CARET: append(sb, "^"); break;
         case DOLLAR: append(sb, "$"); break;
         case MEMOISE: append(sb, "#"); break;
-        case LITERAL: appendn(sb, REGEX->ch, utf8_nbytes(REGEX->ch)); break;
+        case LITERAL: appendn(sb, REGEX->ch, stc_utf8_nbytes(REGEX->ch)); break;
 
         case CC: printf("CC printer not supported"); // TODO
         default: break;
@@ -120,20 +114,15 @@ LISTENER_F(PREORDER, CONCAT)
     GET_STATE(StringBuilder *, sb);
 
     // lower priority operators as child must have parenthesis
-    if (REGEX->left->type == ALT) {
-        append(sb, "(?:");
-    }
+    if (REGEX->left->type == ALT) append(sb, "(?:");
 }
 
 LISTENER_F(INORDER, CONCAT)
 {
     GET_STATE(StringBuilder *, sb);
 
-    
     // lower priority operators as child must have parenthesis
-    if (REGEX->left->type == ALT) {
-        append(sb, ")");
-    }
+    if (REGEX->left->type == ALT) append(sb, ")");
 
     if (IS_BINARY_OP(REGEX->right->type)) {
         // ALT => as above
@@ -146,9 +135,7 @@ LISTENER_F(POSTORDER, CONCAT)
 {
     GET_STATE(StringBuilder *, sb);
 
-    if (IS_BINARY_OP(REGEX->right->type)) {
-        append(sb, ")");
-    }
+    if (IS_BINARY_OP(REGEX->right->type)) append(sb, ")");
 }
 
 /* --- CAPTURE ------------------------------------------------------------- */
@@ -158,7 +145,7 @@ LISTENER_F(PREORDER, CAPTURE)
     GET_STATE(StringBuilder *, sb);
     append(sb, "(");
 
-    (void)REGEX;
+    (void) REGEX;
 }
 
 LISTENER_F(POSTORDER, CAPTURE)
@@ -166,7 +153,7 @@ LISTENER_F(POSTORDER, CAPTURE)
     GET_STATE(StringBuilder *, sb);
     append(sb, ")");
 
-    (void)REGEX;
+    (void) REGEX;
 }
 
 /* --- STAR ---------------------------------------------------------------- */
@@ -174,10 +161,9 @@ LISTENER_F(POSTORDER, CAPTURE)
 LISTENER_F(PREORDER, STAR)
 {
     GET_STATE(StringBuilder *, sb);
-    
+
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type))
-        append(sb, "(?:");
+    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
 }
 
 LISTENER_F(POSTORDER, STAR)
@@ -185,14 +171,10 @@ LISTENER_F(POSTORDER, STAR)
     GET_STATE(StringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type))
-        append(sb, ")");
+    if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     append(sb, "*");
-    if (!REGEX->pos) {
-        // lazy
-        append(sb, "?");
-    }
+    if (!REGEX->pos) append(sb, "?"); // lazy
 }
 
 /* --- PLUS ---------------------------------------------------------------- */
@@ -200,10 +182,9 @@ LISTENER_F(POSTORDER, STAR)
 LISTENER_F(PREORDER, PLUS)
 {
     GET_STATE(StringBuilder *, sb);
-    
+
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type))
-        append(sb, "(?:");
+    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
 }
 
 LISTENER_F(POSTORDER, PLUS)
@@ -211,14 +192,10 @@ LISTENER_F(POSTORDER, PLUS)
     GET_STATE(StringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type))
-        append(sb, ")");
+    if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     append(sb, "+");
-    if (!REGEX->pos) {
-        // lazy
-        append(sb, "?");
-    }
+    if (!REGEX->pos) append(sb, "?"); // lazy
 }
 
 /* --- QUES ---------------------------------------------------------------- */
@@ -226,10 +203,9 @@ LISTENER_F(POSTORDER, PLUS)
 LISTENER_F(PREORDER, QUES)
 {
     GET_STATE(StringBuilder *, sb);
-    
+
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type))
-        append(sb, "(?:");
+    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
 }
 
 LISTENER_F(POSTORDER, QUES)
@@ -237,14 +213,10 @@ LISTENER_F(POSTORDER, QUES)
     GET_STATE(StringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type))
-        append(sb, ")");
+    if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     append(sb, "?");
-    if (!REGEX->pos) {
-        // lazy
-        append(sb, "?");
-    }
+    if (!REGEX->pos) append(sb, "?"); // lazy
 }
 
 /* --- COUNTER ------------------------------------------------------------- */
@@ -252,10 +224,9 @@ LISTENER_F(POSTORDER, QUES)
 LISTENER_F(PREORDER, COUNTER)
 {
     GET_STATE(StringBuilder *, sb);
-    
+
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type))
-        append(sb, "(?:");
+    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
 }
 
 LISTENER_F(POSTORDER, COUNTER)
@@ -263,14 +234,10 @@ LISTENER_F(POSTORDER, COUNTER)
     GET_STATE(StringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type))
-        append(sb, ")");
+    if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     appendf(sb, "{" CNTR_FMT ", " CNTR_FMT "}", REGEX->min, REGEX->max);
-    if (!REGEX->pos) {
-        // lazy
-        append(sb, "?");
-    }
+    if (!REGEX->pos) append(sb, "?"); // lazy
 }
 
 /* --- LOOKAHEAD ----------------------------------------------------------- */
@@ -292,19 +259,18 @@ LISTENER_F(POSTORDER, LOOKAHEAD)
     GET_STATE(StringBuilder *, sb);
 
     append(sb, ")");
-    (void)REGEX;
+    (void) REGEX;
 }
 
 /* --- API routine --------------------------------------------------------- */
 
 char *regex_to_string(Regex *re)
 {
-    Walker *w;
+    Walker        *w;
     StringBuilder *sb;
-    char *str;
+    char          *str;
 
-    if (!re)
-        return NULL;
+    if (!re) return NULL;
 
     w = walker_init();
     REGISTER_LISTEN_TERMINAL_F(w);
@@ -337,7 +303,7 @@ char *regex_to_string(Regex *re)
     walker_walk(w, &re);
 
     sb = (StringBuilder *) w->state;
-    ENSURE_SPACE(sb, 1);
+    SB_ENSURE_SPACE(sb, 1);
     sb->s[sb->len] = '\0';
 
     str = sb->s;
@@ -348,5 +314,3 @@ char *regex_to_string(Regex *re)
 
     return str;
 }
-
-

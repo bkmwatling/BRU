@@ -1,7 +1,5 @@
-#include <assert.h>
 #include <stdlib.h>
 
-#define STC_VEC_ENABLE_SHORT_NAMES
 #include "stc/fatp/vec.h"
 
 #include "lockstep.h"
@@ -155,7 +153,7 @@ static int thompson_threads_contains(ThompsonThread **threads,
 {
     size_t i, len;
 
-    len = vec_len(threads);
+    len = stc_vec_len(threads);
     for (i = 0; i < len; i++) {
         if (thompson_thread_eq(threads[i], thread)) return TRUE;
     }
@@ -173,9 +171,9 @@ ThompsonScheduler *thompson_scheduler_new(const Program *program,
     s->prog = program;
     s->text = s->sp = text;
     s->curr = s->next = s->sync = NULL;
-    vec_default_init(s->curr);
-    vec_default_init(s->next);
-    vec_default_init(s->sync);
+    stc_vec_default_init(s->curr);
+    stc_vec_default_init(s->next);
+    stc_vec_default_init(s->sync);
 
     return s;
 }
@@ -199,14 +197,14 @@ void thompson_scheduler_schedule(ThompsonScheduler *self,
         switch (*thread->pc) {
             case CHAR:
             case PRED:
-                if (vec_is_empty(self->next)) {
-                    vec_push(self->sync, thread);
+                if (stc_vec_is_empty(self->next)) {
+                    stc_vec_push(self->sync, thread);
                 } else {
-                    vec_push(self->next, thread);
+                    stc_vec_push(self->next, thread);
                 }
                 break;
 
-            default: vec_push(self->next, thread); break;
+            default: stc_vec_push(self->next, thread); break;
         }
     } else {
         thompson_thread_free(thread);
@@ -221,8 +219,8 @@ void thompson_scheduler_schedule_in_order(ThompsonScheduler *self,
 
 int thompson_scheduler_has_next(const ThompsonScheduler *self)
 {
-    return !vec_is_empty(self->curr) || !vec_is_empty(self->next) ||
-           !vec_is_empty(self->sync);
+    return !stc_vec_is_empty(self->curr) || !stc_vec_is_empty(self->next) ||
+           !stc_vec_is_empty(self->sync);
 }
 
 ThompsonThread *thompson_scheduler_next(ThompsonScheduler *self)
@@ -230,14 +228,14 @@ ThompsonThread *thompson_scheduler_next(ThompsonScheduler *self)
     ThompsonThread  *thread = NULL;
     ThompsonThread **tmp;
 
-    if (vec_is_empty(self->curr)) {
+    if (stc_vec_is_empty(self->curr)) {
         if (self->in_sync) {
             self->in_sync = FALSE;
-            self->sp      = utf8_str_next(self->sp);
+            self->sp      = stc_utf8_str_next(self->sp);
             thompson_scheduler_init(self, self->text);
         }
 
-        if (vec_is_empty(self->next)) {
+        if (stc_vec_is_empty(self->next)) {
             self->in_sync = TRUE;
             tmp           = self->curr;
             self->curr    = self->sync;
@@ -249,9 +247,9 @@ ThompsonThread *thompson_scheduler_next(ThompsonScheduler *self)
         }
     }
 
-    if (!vec_is_empty(self->curr)) {
+    if (!stc_vec_is_empty(self->curr)) {
         thread = self->curr[0];
-        vec_remove(self->curr, 0);
+        stc_vec_remove(self->curr, 0);
         switch (*thread->pc) {
             case CHAR:
             case PRED:
@@ -275,33 +273,33 @@ void thompson_scheduler_reset(ThompsonScheduler *self)
     self->sp      = self->text;
     self->in_sync = FALSE;
 
-    len = vec_len(self->curr);
+    len = stc_vec_len(self->curr);
     for (i = 0; i < len; i++) {
         if (self->curr[i]) thompson_thread_free(self->curr[i]);
     }
-    vec_clear(self->curr);
+    stc_vec_clear(self->curr);
 
-    len = vec_len(self->next);
+    len = stc_vec_len(self->next);
     for (i = 0; i < len; i++) {
         if (self->next[i]) thompson_thread_free(self->next[i]);
     }
-    vec_clear(self->next);
+    stc_vec_clear(self->next);
 
-    len = vec_len(self->sync);
+    len = stc_vec_len(self->sync);
     for (i = 0; i < len; i++) {
         if (self->sync[i]) thompson_thread_free(self->sync[i]);
     }
-    vec_clear(self->sync);
+    stc_vec_clear(self->sync);
 }
 
 void thompson_scheduler_notify_match(ThompsonScheduler *self)
 {
-    size_t i, len = vec_len(self->curr);
+    size_t i, len = stc_vec_len(self->curr);
 
     for (i = 0; i < len; i++) {
         if (self->curr[i]) thompson_thread_free(self->curr[i]);
     }
-    vec_clear(self->curr);
+    stc_vec_clear(self->curr);
 }
 
 void thompson_scheduler_kill(ThompsonScheduler *self, ThompsonThread *thread)
@@ -332,9 +330,9 @@ const Program *thompson_scheduler_program(const ThompsonScheduler *self)
 void thompson_scheduler_free(ThompsonScheduler *self)
 {
     thompson_scheduler_reset(self);
-    vec_free(self->curr);
-    vec_free(self->next);
-    vec_free(self->sync);
+    stc_vec_free(self->curr);
+    stc_vec_free(self->next);
+    stc_vec_free(self->sync);
     free(self);
 }
 

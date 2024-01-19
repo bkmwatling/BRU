@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 
-#define STC_UTF_ENABLE_SHORT_NAMES
 #include "stc/util/utf.h"
 
 #include "types.h"
@@ -55,8 +54,8 @@ struct regex {
     cntr_t max;
 };
 
-#define IS_UNARY_OP(type)      ((type) == STAR || (type) == PLUS || \
-                                (type) == QUES || (type) == COUNTER)
+#define IS_UNARY_OP(type) \
+    ((type) == STAR || (type) == PLUS || (type) == QUES || (type) == COUNTER)
 #define IS_BINARY_OP(type)     ((type) == CONCAT || (type) == ALT)
 #define IS_OP(type)            (IS_BINARY_OP(type) || IS_UNARY_OP(type))
 #define IS_PARENTHETICAL(type) ((type) == LOOKAHEAD || (type) == CAPTURE)
@@ -64,9 +63,9 @@ struct regex {
 
 /* --- Interval function prototypes ----------------------------------------- */
 
-#define interval_predicate(interval, codepoint)        \
-    ((utf8_cmp((interval).lbound, (codepoint)) <= 0 && \
-      utf8_cmp((codepoint), (interval).ubound) >= 0) != (interval).neg)
+#define interval_predicate(interval, codepoint)            \
+    ((stc_utf8_cmp((interval).lbound, (codepoint)) <= 0 && \
+      stc_utf8_cmp((codepoint), (interval).ubound) >= 0) != (interval).neg)
 
 Interval interval(int neg, const char *lbound, const char *ubound);
 char    *interval_to_str(Interval *self);

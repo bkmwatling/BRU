@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STC_UTF_ENABLE_SHORT_NAMES
 #include "stc/util/utf.h"
 
 #include "sre.h"
@@ -32,8 +31,8 @@ char *interval_to_str(Interval *self)
 
     if (self->neg) *p++ = '^';
     p += snprintf(p, INTERVAL_MAX_BUF + 1, "(%.*s, %.*s)",
-                  utf8_nbytes(self->lbound), self->lbound,
-                  utf8_nbytes(self->ubound), self->ubound);
+                  stc_utf8_nbytes(self->lbound), self->lbound,
+                  stc_utf8_nbytes(self->ubound), self->ubound);
 
     return s;
 }
@@ -252,7 +251,7 @@ static void regex_to_tree_str_indent(char       **s,
         case LITERAL:
             ENSURE_SPACE(*s, *len + 14, *alloc, sizeof(char));
             *len += snprintf(*s + *len, *alloc - *len, "Literal(%.*s)",
-                             utf8_nbytes(re->ch), re->ch);
+                             stc_utf8_nbytes(re->ch), re->ch);
             break;
 
         case CC:
