@@ -8,7 +8,12 @@
 
 /* --- Macros --------------------------------------------------------------- */
 
-#define NULL_STATE 0
+#define NULL_STATE       0
+#define INITIAL_STATE_ID NULL_STATE
+#define FINAL_STATE_ID   NULL_STATE
+
+#define IS_INITIAL_STATE(sid) (sid == INITIAL_STATE_ID)
+#define IS_FINAL_STATE(sid)   (sid == FINAL_STATE_ID)
 
 /* --- Type Definitions ----------------------------------------------------- */
 
@@ -81,7 +86,16 @@ Program *smir_compile(StateMachine *self);
 state_id smir_add_state(StateMachine *self);
 
 /**
- * Mark a state as initial.
+ * Get the current number of states in the state machine.
+ *
+ * @param self the state machine
+ *
+ * @return the number of states
+ */
+size_t smir_get_nstates(StateMachine *self);
+
+/**
+ * Mark a state as initial by inserting a blank initial transition to the state.
  *
  * Note: The order of calls to this function determines the priorities by which
  * the initialisation functions are executed.
@@ -92,6 +106,19 @@ state_id smir_add_state(StateMachine *self);
  * @return the unique transition identifier of the initialisation transition
  */
 trans_id smir_set_initial(StateMachine *self, state_id sid);
+
+/**
+ * Get the initial transitions of the state machine.
+ *
+ * Convenience function equivalent to calling @ref smir_get_out_transitions
+ * with @ref INITIAL_STATE_ID.
+ *
+ * @param[in]  self the state machine
+ * @param[out] n    the number of initial transitions
+ *
+ * @return the identifiers representing the initial transitions
+ */
+trans_id *smir_get_initial(StateMachine *self, size_t *n);
 
 /**
  * Mark a state as final.
