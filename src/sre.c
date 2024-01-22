@@ -11,11 +11,11 @@
 #define BUF              512
 #define INTERVAL_MAX_BUF 13
 
-static void regex_to_tree_str_indent(char       **s,
-                                     size_t      *len,
-                                     size_t      *alloc,
-                                     const Regex *re,
-                                     int          indent);
+static void regex_to_tree_str_indent(char           **s,
+                                     size_t          *len,
+                                     size_t          *alloc,
+                                     const RegexNode *re,
+                                     int              indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
@@ -35,6 +35,16 @@ char *interval_to_str(Interval *self)
                   stc_utf8_nbytes(self->ubound), self->ubound);
 
     return s;
+}
+
+Interval *intervals_clone(Interval *intervals, size_t len)
+{
+    Interval *clone;
+
+    clone = malloc(sizeof(*clone) * len);
+    memcpy(clone, intervals, sizeof(*clone) * len);
+
+    return clone;
 }
 
 int intervals_predicate(Interval *intervals, size_t len, const char *codepoint)
@@ -74,9 +84,9 @@ char *intervals_to_str(Interval *intervals, size_t len)
 
 /* --- Regex ---------------------------------------------------------------- */
 
-Regex *regex_anchor(RegexType type)
+RegexNode *regex_anchor(RegexType type)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
     /* check `type` to make sure correct node type */
     assert(type == CARET || type == DOLLAR || type == MEMOISE);
@@ -85,9 +95,9 @@ Regex *regex_anchor(RegexType type)
     return re;
 }
 
-Regex *regex_literal(const char *ch)
+RegexNode *regex_literal(const char *ch)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
     re->type = LITERAL;
     re->ch   = ch;
@@ -95,9 +105,9 @@ Regex *regex_literal(const char *ch)
     return re;
 }
 
-Regex *regex_cc(Interval *intervals, len_t len)
+RegexNode *regex_cc(Interval *intervals, len_t len)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
     re->type      = CC;
     re->intervals = intervals;
@@ -106,9 +116,9 @@ Regex *regex_cc(Interval *intervals, len_t len)
     return re;
 }
 
-Regex *regex_branch(RegexType type, Regex *left, Regex *right)
+RegexNode *regex_branch(RegexType type, RegexNode *left, RegexNode *right)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
     /* check `type` to make sure correct node type */
     assert(type == ALT || type == CONCAT);
@@ -119,9 +129,9 @@ Regex *regex_branch(RegexType type, Regex *left, Regex *right)
     return re;
 }
 
-Regex *regex_capture(Regex *child, len_t idx)
+RegexNode *regex_capture(RegexNode *child, len_t idx)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
     re->type        = CAPTURE;
     re->left        = child;
@@ -130,9 +140,9 @@ Regex *regex_capture(Regex *child, len_t idx)
     return re;
 }
 
-Regex *regex_single_child(RegexType type, Regex *child, byte pos)
+RegexNode *regex_single_child(RegexType type, RegexNode *child, byte pos)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
     /* check `type` to make sure correct node type */
     assert(type == STAR || type == PLUS || type == QUES || type == LOOKAHEAD);
@@ -143,9 +153,9 @@ Regex *regex_single_child(RegexType type, Regex *child, byte pos)
     return re;
 }
 
-Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max)
+RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
     re->type = COUNTER;
     re->left = child;
@@ -156,7 +166,7 @@ Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max)
     return re;
 }
 
-void regex_free(Regex *self)
+void regex_node_free(RegexNode *self)
 {
     switch (self->type) {
         case CARET:
@@ -168,8 +178,8 @@ void regex_free(Regex *self)
 
         case ALT:
         case CONCAT:
-            regex_free(self->left);
-            regex_free(self->right);
+            regex_node_free(self->left);
+            regex_node_free(self->right);
             break;
 
         case CAPTURE:
@@ -177,18 +187,18 @@ void regex_free(Regex *self)
         case PLUS:
         case QUES:
         case COUNTER:
-        case LOOKAHEAD: regex_free(self->left); break;
+        case LOOKAHEAD: regex_node_free(self->left); break;
         case NREGEXTYPES: assert(0 && "unreachable");
     }
 
-    free(self);
+    free((void *) self);
 }
 
-Regex *regex_clone(const Regex *self)
+RegexNode *regex_clone(RegexNode *self)
 {
-    Regex *re = malloc(sizeof(Regex));
+    RegexNode *re = malloc(sizeof(RegexNode));
 
-    memcpy(re, self, sizeof(Regex));
+    memcpy(re, self, sizeof(RegexNode));
     switch (re->type) {
         case CARET:
         case DOLLAR:
@@ -219,7 +229,7 @@ Regex *regex_clone(const Regex *self)
     return re;
 }
 
-char *regex_to_tree_str(const Regex *self)
+char *regex_to_tree_str(const RegexNode *self)
 {
     size_t len = 0, alloc = BUF;
 
@@ -228,11 +238,11 @@ char *regex_to_tree_str(const Regex *self)
     return s;
 }
 
-static void regex_to_tree_str_indent(char       **s,
-                                     size_t      *len,
-                                     size_t      *alloc,
-                                     const Regex *re,
-                                     int          indent)
+static void regex_to_tree_str_indent(char           **s,
+                                     size_t          *len,
+                                     size_t          *alloc,
+                                     const RegexNode *re,
+                                     int              indent)
 {
     char *p;
 

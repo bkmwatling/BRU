@@ -6,8 +6,8 @@
 /**
  * Convert the given regex tree to a string.
  *
- * @param re The regular expression
+ * @param[in] re The regular expression parse tree
  */
-char *regex_to_string(Regex *re);
+char *regex_to_string(RegexNode *re);
 
 #endif

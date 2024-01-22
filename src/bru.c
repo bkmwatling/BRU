@@ -122,7 +122,7 @@ int main(int argc, const char **argv)
     SchedulerType  scheduler_type;
     Parser        *p;
     Compiler      *c;
-    Regex         *re;
+    Regex          re;
     const Program *prog;
     CompilerOpts   compiler_opts;
     ParserOpts     parser_opts;
@@ -186,19 +186,20 @@ int main(int argc, const char **argv)
     if (cmd == CMD_PARSE) {
         stc_args_parse_exact(argc, argv, args + 1, 5, NULL);
 
-        p  = parser_new(regex, &parser_opts);
+        p  = parser_new(strdup(regex), &parser_opts);
         re = parser_parse(p);
-        s  = regex_to_tree_str(re);
+        s  = regex_to_tree_str(re.root);
 
         printf("%s\n", s);
 
         parser_free(p);
-        regex_free(re);
+        regex_node_free(re.root);
         free(s);
     } else if (cmd == CMD_COMPILE) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 3, NULL);
 
-        c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
+        c    = compiler_new(parser_new(strdup(regex), &parser_opts),
+                            &compiler_opts);
         prog = compiler_compile(c);
         s    = program_to_str(prog);
 
@@ -210,7 +211,8 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_MATCH) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
 
-        c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
+        c    = compiler_new(parser_new(strdup(regex), &parser_opts),
+                            &compiler_opts);
         prog = compiler_compile(c);
         if (scheduler_type == SCH_SPENSER) {
             thread_manager = spencer_thread_manager_new();

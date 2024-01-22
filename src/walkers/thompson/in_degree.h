@@ -9,6 +9,6 @@
  *
  * @param r A pointer to the parsed regular expression
  */
-void in_degree_thompson(Regex **r);
+void in_degree_thompson(RegexNode **r);
 
 #endif

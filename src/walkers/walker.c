@@ -5,36 +5,18 @@
 
 /* --- identity walker ----------------------------------------------------- */
 
-WALK_TERMINAL_F()
-{
-    TRIGGER_TERMINAL();
-}
+WALK_TERMINAL_F() { TRIGGER_TERMINAL(); }
 
 // one for each RegexType defined in sre.h
-WALKER_F(CARET)
-{
-    WALK_TERMINAL();
-}
+WALKER_F(CARET) { WALK_TERMINAL(); }
 
-WALKER_F(DOLLAR)
-{
-    WALK_TERMINAL();
-}
+WALKER_F(DOLLAR) { WALK_TERMINAL(); }
 
-WALKER_F(MEMOISE)
-{
-    WALK_TERMINAL();
-}
+WALKER_F(MEMOISE) { WALK_TERMINAL(); }
 
-WALKER_F(LITERAL)
-{
-    WALK_TERMINAL();
-}
+WALKER_F(LITERAL) { WALK_TERMINAL(); }
 
-WALKER_F(CC)
-{
-    WALK_TERMINAL();
-}
+WALKER_F(CC) { WALK_TERMINAL(); }
 
 WALKER_F(ALT)
 {
@@ -101,7 +83,6 @@ WALKER_F(LOOKAHEAD)
     TRIGGER(POSTORDER);
 }
 
-
 /* --- API routines -------------------------------------------------------- */
 
 Walker *walker_init()
@@ -109,11 +90,10 @@ Walker *walker_init()
     Walker *w;
 
     w = malloc(sizeof(Walker));
-    if (!w)
-        return NULL;
+    if (!w) return NULL;
 
-    w->regex = NULL;
-    w->state = NULL;
+    w->regex           = NULL;
+    w->state           = NULL;
     w->listen_terminal = NULL;
     memset(w->walk, 0, sizeof(w->walk));
     memset(w->trigger, 0, sizeof(w->trigger));
@@ -136,15 +116,13 @@ Walker *walker_init()
     return w;
 }
 
-Regex *walker_walk(Walker *walker, Regex **regex)
+RegexNode *walker_walk(Walker *walker, RegexNode **regex)
 {
-    Regex *prev = NULL;
+    RegexNode *prev = NULL;
 
-    if (!walker || !regex || !(*regex))
-        return NULL;
+    if (!walker || !regex || !(*regex)) return NULL;
 
-    if (walker->regex)
-        prev = *walker->regex;
+    if (walker->regex) prev = *walker->regex;
 
     walker->regex = regex;
     WALK(walker, *(walker->regex));
@@ -152,16 +130,14 @@ Regex *walker_walk(Walker *walker, Regex **regex)
     return prev;
 }
 
-Regex *walker_release(Walker *walker)
+RegexNode *walker_release(Walker *walker)
 {
-    Regex *out = NULL;
+    RegexNode *out = NULL;
 
-    if (walker)
-    {
+    if (walker) {
         out = *walker->regex;
         free(walker);
     }
 
     return out;
 }
-

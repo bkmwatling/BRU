@@ -8,6 +8,6 @@
  *
  * @param r A pointer to the parsed regular expression
  */
-void infinite_ambiguity_removal_thompson(Regex **r);
+void infinite_ambiguity_removal_thompson(RegexNode **r);
 
 #endif

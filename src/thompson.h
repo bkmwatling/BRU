@@ -2,8 +2,8 @@
 #define THOMPSON_H
 
 #include "compiler.h"
-#include "sre.h"
+#include "smir.h"
 
-const Program *thompson_compile(const Regex *re, const CompilerOpts *opts);
+StateMachine *thompson_construct(Regex re, const CompilerOpts *opts);
 
 #endif /* THOMPSON_H */

@@ -2,8 +2,8 @@
 #define GLUSHKOV_H
 
 #include "compiler.h"
-#include "sre.h"
+#include "smir.h"
 
-const Program *glushkov_compile(const Regex *re, const CompilerOpts *opts);
+StateMachine *glushkov_construct(Regex re, const CompilerOpts *opts);
 
 #endif /* GLUSHKOV_H */

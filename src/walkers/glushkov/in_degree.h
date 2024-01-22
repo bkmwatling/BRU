@@ -9,7 +9,6 @@
  *
  * @param r A pointer to the parsed regular expression
  */
-void in_degree_glushkov(Regex **r);
+void in_degree_glushkov(RegexNode **r);
 
 #endif
-

@@ -3,10 +3,10 @@
 #define NULLABLE 0x1
 #define LAST1    0x2
 
-#define HAS              &
-#define AND              &
-#define OR               |
-#define NOT              ~
+#define HAS &
+#define AND &
+#define OR  |
+#define NOT ~
 
 #define SET_NULLABLE(x, f) SET_FLAG(x, f)
 #define SET_LAST1(x, f)    SET_FLAG(x, f)
@@ -18,7 +18,7 @@
 WALKER_F(ALT)
 {
     byte *state = WALKER->state;
-    byte left;
+    byte  left;
 
     TRIGGER(PREORDER);
     WALK_LEFT();
@@ -30,14 +30,14 @@ WALKER_F(ALT)
     WALK_RIGHT();
     TRIGGER(POSTORDER);
 
-    SET_NULLABLE(*state, (left OR *state) HAS NULLABLE);
+    SET_NULLABLE(*state, (left OR * state) HAS NULLABLE);
     SET_FLAG(*state, LAST1);
 }
 
 WALKER_F(CONCAT)
 {
     byte *state = WALKER->state;
-    byte left;
+    byte  left;
 
     TRIGGER(PREORDER);
     WALK_LEFT();
@@ -53,8 +53,8 @@ WALKER_F(CONCAT)
     WALK_RIGHT();
     TRIGGER(POSTORDER);
 
-    SET_NULLABLE(*state,
-                 (left AND *state) HAS NULLABLE AND NOT((left HAS LAST1) >> 1));
+    SET_NULLABLE(*state, (left AND * state)
+                             HAS NULLABLE AND NOT((left HAS LAST1) >> 1));
     SET_LAST1(*state, (*state HAS NULLABLE) << 1);
 }
 
@@ -149,24 +149,22 @@ WALKER_F(LOOKAHEAD)
     TRIGGER(POSTORDER);
 }
 
-
 LISTEN_TERMINAL_F()
 {
     GET_STATE(byte *, state);
     CLEAR_FLAG(*state, NULLABLE OR LAST1);
 
-    (void)REGEX;
+    (void) REGEX;
 }
 
-void in_degree_glushkov(Regex **r)
+void in_degree_glushkov(RegexNode **r)
 {
     Walker *w;
-    byte last;
+    byte    last;
 
-    if (!r || !(*r))
-        return;
+    if (!r || !(*r)) return;
 
-    w = walker_init();
+    w        = walker_init();
     w->state = &last;
 
     SET_WALKER_F(w, ALT);
@@ -180,8 +178,6 @@ void in_degree_glushkov(Regex **r)
 
     REGISTER_LISTEN_TERMINAL_F(w);
 
-
     walker_walk(w, r);
     walker_release(w);
 }
-

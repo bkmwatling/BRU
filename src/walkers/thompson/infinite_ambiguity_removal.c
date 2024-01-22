@@ -2,12 +2,11 @@
 
 /* --- API routine --------------------------------------------------------- */
 
-void infinite_ambiguity_removal_thompson(Regex **r)
+void infinite_ambiguity_removal_thompson(RegexNode **r)
 {
     Walker *w;
 
-    if (!r || !(*r))
-        return;
+    if (!r || !(*r)) return;
 
     w = walker_init();
     // TODO: add walker functions
@@ -15,4 +14,3 @@ void infinite_ambiguity_removal_thompson(Regex **r)
     walker_walk(w, r);
     walker_release(w);
 }
-

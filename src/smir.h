@@ -17,8 +17,23 @@
 
 /* --- Type Definitions ----------------------------------------------------- */
 
-typedef Regex                Predicate;
-typedef Regex                Action;
+typedef enum {
+    ACT_BEGIN,
+    ACT_END,
+
+    ACT_CHAR,
+    ACT_PRED,
+
+    ACT_MEMO,
+    ACT_SAVE,
+    ACT_EPSCHK,
+    ACT_EPSSET
+} ActionType;
+
+typedef ActionType PredicateType;
+
+typedef struct action        Action;
+typedef Action               Predicate;
 typedef struct action_list   ActionList;
 typedef struct state_machine StateMachine;
 
@@ -45,20 +60,23 @@ typedef void (*transform_f)(StateMachine *self);
 /**
  * Create a blank state machine.
  *
+ * @param[in] regex the underlying regular expression
+ *
  * @return the blank state machine
  */
-StateMachine *smir_default(void);
+StateMachine *smir_default(const char *regex);
 
 /**
  * Create a new state machine with a given number of states.
  *
  * Each state is assigned a unique state identifier in [1...nstates].
  *
+ * @param[in] regex the underlying regular expression
  * @param[in] nstates the number of states
  *
  * @return the new state machine
  */
-StateMachine *smir_new(uint32_t nstates);
+StateMachine *smir_new(const char *regex, uint32_t nstates);
 
 /**
  * Free all memory used by the state machine.
@@ -88,7 +106,7 @@ state_id smir_add_state(StateMachine *self);
 /**
  * Get the current number of states in the state machine.
  *
- * @param self the state machine
+ * @param[in] self the state machine
  *
  * @return the number of states
  */
@@ -211,6 +229,48 @@ state_id smir_get_dst(StateMachine *self, trans_id tid);
  * @param[in] dst  the unique state identifier of the destination state
  */
 void smir_set_dst(StateMachine *self, trans_id tid, state_id dst);
+
+/**
+ * Create an action for zero-width assertions.
+ *
+ * Valid types are ACT_BEGIN and ACT_END.
+ *
+ * @param[in] type the type of zero-width assertion
+ *
+ * @return the action
+ */
+const Action *smir_action_zwa(ActionType type);
+
+/**
+ * Create an action for matching against a character.
+ *
+ * @param[in] ch the character
+ *
+ * @return the action
+ */
+const Action *smir_action_char(const char *ch);
+
+/**
+ * Create an action for matching against a predicate.
+ *
+ * @param[in] pred     the predicate
+ * @param[in] pred_len the length of the predicate
+ *
+ * @return the action
+ */
+const Action *smir_action_predicate(Interval *pred, len_t pred_len);
+
+/**
+ * Create an action which require relative pointers into memory.
+ *
+ * Valid types are ACT_SAVE, ACT_EPSCHK, ACT_EPSSET, ACT_MEMO.
+ *
+ * @param[in] type the type of the action
+ * @param[in] k    the index into memory
+ *
+ * @return the action
+ */
+const Action *smir_action_num(ActionType type, len_t k);
 
 /**
  * Get the actions of a transition.

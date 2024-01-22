@@ -8,6 +8,6 @@
  *
  * @param r The parsed regular expression.
  */
-void closure_node_thompson(Regex **r);
+void closure_node_thompson(RegexNode **r);
 
 #endif

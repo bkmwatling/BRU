@@ -36,23 +36,18 @@
 
 #include "../sre.h"
 
-/* --- data structures ----------------------------------------------------- */
+/* --- data structures ------------------------------------------------------ */
 
 typedef struct walker Walker;
-typedef void (*listener_f)(void *state, Regex *curr);
+typedef void (*listener_f)(void *state, RegexNode *curr);
 
 // double pointer to facilitate replacing current node in tree
-typedef void (*walker_f)(Walker *w, Regex **curr);
+typedef void (*walker_f)(Walker *w, RegexNode **curr);
 
-typedef enum {
-    PREORDER,
-    INORDER,
-    POSTORDER,
-    NEVENTS
-} ListenerEvent;
+typedef enum { PREORDER, INORDER, POSTORDER, NEVENTS } ListenerEvent;
 
 struct walker {
-    Regex    **regex;
+    RegexNode **regex;
 
     // visitor API
     walker_f walk[NREGEXTYPES];
@@ -66,60 +61,59 @@ struct walker {
     void *state;
 };
 
-/* --- convenience macros -------------------------------------------------- */
+/* --- convenience macros --------------------------------------------------- */
 
 #define WALKER _w
 #define REGEX  _r
-#define WALKER_F(type) static void __walk_##type(Walker *WALKER, Regex **REGEX)
-
+#define WALKER_F(type) \
+    static void __walk_##type(Walker *WALKER, RegexNode **REGEX)
 
 #define SET_WALKER_F(w, type) (w)->walk[type] = __walk_##type
 #define WALK(w, r)            (w)->walk[(r)->type]((w), &(r))
 
 #define WALK_TERMINAL_F() \
-                     static void __walk_terminal(Walker *WALKER, Regex **REGEX)
+    static void __walk_terminal(Walker *WALKER, RegexNode **REGEX)
 
 #define SET_WALK_TERMINAL_F(w) (w)->walk_terminal = __walk_terminal
 #define WALK_TERMINAL()        WALKER->walk_terminal(WALKER, REGEX)
-
 
 #define CURRENT (*REGEX)
 #define LEFT    CURRENT->left
 #define RIGHT   CURRENT->right
 #define CHILD   LEFT
 
-#define WALK_LEFT()  if (LEFT) \
-                         WALK(WALKER, LEFT)
-#define WALK_RIGHT() if (RIGHT) \
-                         WALK(WALKER, RIGHT)
+#define WALK_LEFT() \
+    if (LEFT) WALK(WALKER, LEFT)
+#define WALK_RIGHT() \
+    if (RIGHT) WALK(WALKER, RIGHT)
 
-#define TRIGGER(event) \
-            if (WALKER->trigger[event][CURRENT->type]) \
-                WALKER->trigger[event][CURRENT->type](WALKER->state, CURRENT)
+#define TRIGGER(event)                         \
+    if (WALKER->trigger[event][CURRENT->type]) \
+    WALKER->trigger[event][CURRENT->type](WALKER->state, CURRENT)
 
-#define TRIGGER_TERMINAL() if (WALKER->listen_terminal) \
-                               WALKER->listen_terminal(WALKER->state, CURRENT)
+#define TRIGGER_TERMINAL() \
+    if (WALKER->listen_terminal) WALKER->listen_terminal(WALKER->state, CURRENT)
 
 #define SET_CURRENT(exp) *REGEX = exp
-#define SET_LEFT(exp)    LEFT  = exp
+#define SET_LEFT(exp)    LEFT = exp
 #define SET_RIGHT(exp)   RIGHT = exp
 #define SET_CHILD(exp)   CHILD = exp
 
 #define STATE _state
 #define LISTENER_F(event, type) \
-                static void __listen_##event##_##type(void *STATE, Regex *REGEX)
+    static void __listen_##event##_##type(void *STATE, RegexNode *REGEX)
 
 #define GET_STATE(cast, varname) cast varname = (cast) (STATE)
 
 #define REGISTER_LISTENER_F(w, event, type) \
-                          (w)->trigger[event][type] = __listen_##event##_##type
+    (w)->trigger[event][type] = __listen_##event##_##type
 
 #define LISTEN_TERMINAL_F() \
-                      static void __listen_terminal(void *STATE, Regex *REGEX)
+    static void __listen_terminal(void *STATE, RegexNode *REGEX)
 
 #define REGISTER_LISTEN_TERMINAL_F(w) (w)->listen_terminal = __listen_terminal
 
-/* --- API ----------------------------------------------------------------- */
+/* --- API ------------------------------------------------------------------ */
 
 /**
  * Creates a generic walker.
@@ -139,13 +133,13 @@ Walker *walker_init(void);
  * @returns      NULL if any arguments are NULL (including *r), else the
  *               previously walked regex (NULL on the first call)
  */
-Regex *walker_walk(Walker *walker, Regex **r);
+RegexNode *walker_walk(Walker *walker, RegexNode **r);
 
 /**
  * Release the memory used by the given walker, returning the underlying regex.
  *
  * @param walker The walker
  */
-Regex *walker_release(Walker *walker);
+RegexNode *walker_release(Walker *walker);
 
 #endif /* WALKER_H */

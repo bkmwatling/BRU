@@ -264,7 +264,7 @@ LISTENER_F(POSTORDER, LOOKAHEAD)
 
 /* --- API routine --------------------------------------------------------- */
 
-char *regex_to_string(Regex *re)
+char *regex_to_string(RegexNode *re)
 {
     Walker        *w;
     StringBuilder *sb;

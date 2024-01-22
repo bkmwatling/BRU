@@ -23,28 +23,28 @@ typedef struct {
     len_t ncaptures;
 } ParseState;
 
-static Regex *
+static RegexNode *
 parse_alt(const Parser *self, const char **const regex, ParseState *ps);
-static Regex *
+static RegexNode *
 parse_concat(const Parser *self, const char **const regex, ParseState *ps);
-static Regex    *parse_terminal(const Parser      *self,
-                                const char        *ch,
-                                const char **const regex,
-                                ParseState        *ps);
-static Regex    *parse_cc(const char **const regex);
-static Interval *parse_predefined_cc(const char **const regex,
-                                     int                neg,
-                                     Interval          *interval,
-                                     len_t             *cc_len,
-                                     len_t             *cc_alloc);
-static Regex *
+static RegexNode *parse_terminal(const Parser      *self,
+                                 const char        *ch,
+                                 const char **const regex,
+                                 ParseState        *ps);
+static RegexNode *parse_cc(const char **const regex);
+static Interval  *parse_predefined_cc(const char **const regex,
+                                      int                neg,
+                                      Interval          *interval,
+                                      len_t             *cc_len,
+                                      len_t             *cc_alloc);
+static RegexNode *
 parse_parens(const Parser *self, const char **const regex, ParseState *ps);
-static void   parse_curly(const char **const regex, cntr_t *min, cntr_t *max);
-static Regex *parser_regex_counter(Regex *child,
-                                   byte   greedy,
-                                   cntr_t min,
-                                   cntr_t max,
-                                   int    expand_counters);
+static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max);
+static RegexNode *parser_regex_counter(RegexNode *child,
+                                       byte       greedy,
+                                       cntr_t     min,
+                                       cntr_t     max,
+                                       int        expand_counters);
 
 static Interval *dot(void)
 {
@@ -57,32 +57,28 @@ static Interval *dot(void)
 Parser *parser_new(const char *regex, const ParserOpts *opts)
 {
     Parser *parser = malloc(sizeof(Parser));
-    parser->regex  = malloc((strlen(regex) + 1) * sizeof(char));
-    strcpy((char *) parser->regex, regex);
-    parser->opts = opts ? *opts : PARSER_OPTS_DEFAULT;
+    parser->regex  = regex;
+    parser->opts   = opts ? *opts : PARSER_OPTS_DEFAULT;
     return parser;
 }
 
-void parser_free(Parser *self)
-{
-    free((void *) self->regex);
-    free(self);
-}
+void parser_free(Parser *self) { free(self); }
 
-Regex *parser_parse(const Parser *self)
+Regex parser_parse(const Parser *self)
 {
     const char *r  = self->regex;
     ParseState  ps = { 0, 0, self->opts.whole_match_capture ? 1 : 0 };
-    Regex      *re = parse_alt(self, &r, &ps);
+    RegexNode  *re = parse_alt(self, &r, &ps);
 
     if (self->opts.whole_match_capture && re) re = regex_capture(re, 0);
-    return re;
+
+    return (Regex){ self->regex, re };
 }
 
-static Regex *
+static RegexNode *
 parse_alt(const Parser *self, const char **const regex, ParseState *ps)
 {
-    Regex *tree = NULL;
+    RegexNode *tree = NULL;
 
     while (**regex) {
         if (**regex == '|') {
@@ -98,10 +94,10 @@ parse_alt(const Parser *self, const char **const regex, ParseState *ps)
     return tree;
 }
 
-static Regex *
+static RegexNode *
 parse_concat(const Parser *self, const char **const regex, ParseState *ps)
 {
-    Regex      *tree = NULL, *subtree = NULL;
+    RegexNode  *tree = NULL, *subtree = NULL;
     const char *ch;
     cntr_t      min, max;
     int         greedy;
@@ -201,10 +197,10 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
     return tree;
 }
 
-static Regex *parse_terminal(const Parser      *self,
-                             const char        *ch,
-                             const char **const regex,
-                             ParseState        *ps)
+static RegexNode *parse_terminal(const Parser      *self,
+                                 const char        *ch,
+                                 const char **const regex,
+                                 ParseState        *ps)
 {
     len_t cc_len;
 
@@ -236,7 +232,7 @@ static Regex *parse_terminal(const Parser      *self,
     }
 }
 
-static Regex *parse_cc(const char **const regex)
+static RegexNode *parse_cc(const char **const regex)
 {
     const char *ch;
     int         neg;
@@ -382,10 +378,10 @@ static Interval *parse_predefined_cc(const char **const regex,
     return intervals;
 }
 
-static Regex *
+static RegexNode *
 parse_parens(const Parser *self, const char **const regex, ParseState *ps)
 {
-    Regex      *tree;
+    RegexNode  *tree;
     ParseState  ps_tmp;
     const char *ch;
     len_t       ncaptures;
@@ -466,14 +462,14 @@ static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max)
     }
 }
 
-static Regex *parser_regex_counter(Regex *child,
-                                   byte   greedy,
-                                   cntr_t min,
-                                   cntr_t max,
-                                   int    expand_counters)
+static RegexNode *parser_regex_counter(RegexNode *child,
+                                       byte       greedy,
+                                       cntr_t     min,
+                                       cntr_t     max,
+                                       int        expand_counters)
 {
-    Regex *counter, *left, *right;
-    cntr_t i;
+    RegexNode *counter, *left, *right;
+    cntr_t     i;
 
     if (!expand_counters) {
         counter = regex_counter(child, greedy, min, max);

@@ -7,6 +7,6 @@
 #include "in_degree.h"
 #include "infinite_ambiguity_removal.h"
 
-typedef void (*memoise_f)(Regex **r);
+typedef void (*memoise_f)(RegexNode **r);
 
 #endif

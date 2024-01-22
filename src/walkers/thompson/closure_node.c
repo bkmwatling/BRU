@@ -1,6 +1,5 @@
 #include "closure_node.h"
 
-
 /* --- walk routines ------------------------------------------------------- */
 
 WALKER_F(STAR)
@@ -21,12 +20,11 @@ WALKER_F(PLUS)
 
 /* --- API routines -------------------------------------------------------- */
 
-void closure_node_thompson(Regex **r)
+void closure_node_thompson(RegexNode **r)
 {
     Walker *w;
 
-    if (!r || !(*r))
-        return;
+    if (!r || !(*r)) return;
 
     w = walker_init();
     SET_WALKER_F(w, STAR);
@@ -35,4 +33,3 @@ void closure_node_thompson(Regex **r)
     walker_walk(w, r);
     walker_release(w);
 }
-

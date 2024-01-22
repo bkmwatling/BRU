@@ -24,14 +24,16 @@ static const byte *inst_to_str(char         **s,
 
 /* --- Program -------------------------------------------------------------- */
 
-Program *program_new(size_t insts_len,
-                     size_t aux_len,
-                     size_t ncounters,
-                     size_t mem_len,
-                     size_t ncaptures)
+Program *program_new(const char *regex,
+                     size_t      insts_len,
+                     size_t      aux_len,
+                     size_t      ncounters,
+                     size_t      mem_len,
+                     size_t      ncaptures)
 {
     Program *prog = calloc(1, sizeof(Program));
 
+    prog->regex = regex;
     stc_vec_init(prog->insts, insts_len);
     stc_vec_init(prog->aux, aux_len);
     stc_vec_init(prog->counters, ncounters);
@@ -46,10 +48,11 @@ Program *program_new(size_t insts_len,
     return prog;
 }
 
-Program *program_default(void)
+Program *program_default(const char *regex)
 {
     Program *prog = calloc(1, sizeof(Program));
 
+    prog->regex = regex;
     stc_vec_default_init(prog->insts);
     stc_vec_default_init(prog->aux);
     stc_vec_default_init(prog->counters);
@@ -65,6 +68,7 @@ Program *program_default(void)
 
 void program_free(Program *self)
 {
+    free((void *) self->regex);
     stc_vec_free(self->insts);
     stc_vec_free(self->aux);
     stc_vec_free(self->counters);
@@ -79,9 +83,9 @@ char *program_to_str(const Program *self)
     len_t       i  = 0;
     const byte *pc = self->insts;
 
-    while (pc - self->insts < stc_vec_len_unsafe(self->insts)) {
+    while (pc < self->insts + stc_vec_len_unsafe(self->insts)) {
         ENSURE_SPACE(s, len + 6, alloc, sizeof(char));
-        len += snprintf(s + len, alloc - len, "%3d: ", i++);
+        len += snprintf(s + len, alloc - len, "%4d: ", i++);
         pc   = inst_to_str(&s, &len, &alloc, pc, self);
         STR_PUSH(s, len, alloc, "\n");
     }

@@ -42,12 +42,11 @@ WALKER_F(QUES)
 
 /* --- API routines -------------------------------------------------------- */
 
-void in_degree_thompson(Regex **r)
+void in_degree_thompson(RegexNode **r)
 {
     Walker *w;
 
-    if (!r || !(*r))
-        return;
+    if (!r || !(*r)) return;
 
     w = walker_init();
     SET_WALKER_F(w, STAR);
@@ -57,4 +56,3 @@ void in_degree_thompson(Regex **r)
     walker_walk(w, r);
     walker_release(w);
 }
-

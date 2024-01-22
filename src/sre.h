@@ -32,22 +32,27 @@ typedef enum {
     NREGEXTYPES
 } RegexType;
 
-typedef struct regex Regex;
+typedef struct regex_node RegexNode;
 
-struct regex {
+typedef struct {
+    const char *regex;
+    RegexNode  *root;
+} Regex;
+
+struct regex_node {
     RegexType type;
 
     union {
         const char *ch;
         Interval   *intervals;
-        Regex      *left;
+        RegexNode  *left;
     };
 
     union {
-        byte   pos;
-        len_t  cc_len;
-        len_t  capture_idx;
-        Regex *right;
+        byte       pos;
+        len_t      cc_len;
+        len_t      capture_idx;
+        RegexNode *right;
     };
 
     cntr_t min;
@@ -70,21 +75,22 @@ struct regex {
 Interval interval(int neg, const char *lbound, const char *ubound);
 char    *interval_to_str(Interval *self);
 
+Interval *intervals_clone(Interval *intervals, size_t len);
 int intervals_predicate(Interval *intervals, size_t len, const char *codepoint);
 char *intervals_to_str(Interval *intervals, size_t len);
 
 /* --- Regex function prototypes -------------------------------------------- */
 
-Regex *regex_anchor(RegexType type);
-Regex *regex_literal(const char *ch);
-Regex *regex_cc(Interval *intervals, len_t len);
-Regex *regex_branch(RegexType kind, Regex *left, Regex *right);
-Regex *regex_capture(Regex *child, len_t idx);
-Regex *regex_single_child(RegexType kind, Regex *child, byte pos);
-Regex *regex_counter(Regex *child, byte greedy, cntr_t min, cntr_t max);
+RegexNode *regex_anchor(RegexType type);
+RegexNode *regex_literal(const char *ch);
+RegexNode *regex_cc(Interval *intervals, len_t len);
+RegexNode *regex_branch(RegexType kind, RegexNode *left, RegexNode *right);
+RegexNode *regex_capture(RegexNode *child, len_t idx);
+RegexNode *regex_single_child(RegexType kind, RegexNode *child, byte pos);
+RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max);
 
-void   regex_free(Regex *self);
-Regex *regex_clone(const Regex *self);
-char  *regex_to_tree_str(const Regex *self);
+void       regex_node_free(RegexNode *self);
+RegexNode *regex_clone(RegexNode *self);
+char      *regex_to_tree_str(const RegexNode *self);
 
 #endif /* SRE_H */

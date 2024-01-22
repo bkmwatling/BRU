@@ -17,6 +17,6 @@ typedef struct {
 
 Parser *parser_new(const char *regex, const ParserOpts *opts);
 void    parser_free(Parser *self);
-Regex  *parser_parse(const Parser *self);
+Regex   parser_parse(const Parser *self);
 
 #endif /* PARSER_H */
