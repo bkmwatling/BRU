@@ -6,7 +6,7 @@
 #include "sre.h"
 #include "types.h"
 
-#define BCWRITE(insts, bytecode) stc_vec_push(insts, bytecode)
+#define BCWRITE(insts, bytecode) stc_vec_push_back(insts, bytecode)
 
 #define MEMWRITE(bytes, type, val)                                         \
     do {                                                                   \

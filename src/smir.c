@@ -199,7 +199,7 @@ state_id smir_add_state(StateMachine *self)
     State    state = { 0 };
 
     dll_init(state.out_transitions_sentinel);
-    stc_vec_push(self->states, state);
+    stc_vec_push_back(self->states, state);
 
     return sid + 1;
 }
@@ -474,6 +474,8 @@ void *smir_get_post_meta(StateMachine *self, state_id sid)
 
 void smir_transform(StateMachine *self, transform_f transformer)
 {
+    (void) self;
+    (void) transformer;
     assert(0 && "TODO");
 }
 
@@ -671,9 +673,8 @@ Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
     // compile `initial .. states .. final` states
     // and store entry and exit ptrs
     compile_initial(sm, prog, compiled_states);
-    for (sid = 1; sid <= n; sid++) {
+    for (sid = 1; sid <= n; sid++)
         compile_state(sm, prog, sid, pre, post, compiled_states);
-    }
     compiled_states[sid].entry = stc_vec_len_unsafe(prog->insts);
     compiled_states[sid].exit  = 0;
     BCWRITE(prog->insts, MATCH);
@@ -681,9 +682,8 @@ Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
     stc_vec_len_unsafe(compiled_states) = n + 2;
 
     // compile out transitions for each state
-    for (sid = 1; sid <= n; sid++) {
+    for (sid = 1; sid <= n; sid++)
         compile_transitions(sm, prog, sid, compiled_states);
-    }
 
     // cleanup
     stc_vec_free(compiled_states);

@@ -85,7 +85,7 @@ WALKER_F(LOOKAHEAD)
 
 /* --- API routines -------------------------------------------------------- */
 
-Walker *walker_init()
+Walker *walker_init(void)
 {
     Walker *w;
 

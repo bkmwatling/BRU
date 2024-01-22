@@ -154,9 +154,8 @@ static int thompson_threads_contains(ThompsonThread **threads,
     size_t i, len;
 
     len = stc_vec_len(threads);
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
         if (thompson_thread_eq(threads[i], thread)) return TRUE;
-    }
 
     return FALSE;
 }
@@ -198,14 +197,12 @@ void thompson_scheduler_schedule(ThompsonScheduler *self,
         switch (*thread->pc) {
             case CHAR:
             case PRED:
-                if (stc_vec_is_empty(self->next)) {
-                    stc_vec_push(self->sync, thread);
-                } else {
-                    stc_vec_push(self->next, thread);
-                }
+                if (stc_vec_is_empty(self->next))
+                    stc_vec_push_back(self->sync, thread);
+                else stc_vec_push_back(self->next, thread);
                 break;
 
-            default: stc_vec_push(self->next, thread); break;
+            default: stc_vec_push_back(self->next, thread); break;
         }
     } else {
         thompson_thread_free(thread);
@@ -275,21 +272,18 @@ void thompson_scheduler_reset(ThompsonScheduler *self)
     self->in_sync = FALSE;
 
     len = stc_vec_len(self->curr);
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
         if (self->curr[i]) thompson_thread_free(self->curr[i]);
-    }
     stc_vec_clear(self->curr);
 
     len = stc_vec_len(self->next);
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
         if (self->next[i]) thompson_thread_free(self->next[i]);
-    }
     stc_vec_clear(self->next);
 
     len = stc_vec_len(self->sync);
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
         if (self->sync[i]) thompson_thread_free(self->sync[i]);
-    }
     stc_vec_clear(self->sync);
 }
 
@@ -297,9 +291,8 @@ void thompson_scheduler_notify_match(ThompsonScheduler *self)
 {
     size_t i, len = stc_vec_len(self->curr);
 
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
         if (self->curr[i]) thompson_thread_free(self->curr[i]);
-    }
     stc_vec_clear(self->curr);
 }
 

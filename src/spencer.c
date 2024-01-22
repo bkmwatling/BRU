@@ -142,7 +142,6 @@ SpencerScheduler *spencer_scheduler_new(const Program *program)
     s->prog         = program;
     s->in_order_idx = 0;
     s->active       = NULL;
-    s->stack        = NULL;
     stc_vec_default_init(s->stack);
 
     return s;
@@ -171,11 +170,8 @@ void spencer_scheduler_init(SpencerScheduler *self, const char *text)
 void spencer_scheduler_schedule(SpencerScheduler *self, SpencerThread *thread)
 {
     self->in_order_idx = stc_vec_len_unsafe(self->stack) + 1;
-    if (self->active) {
-        stc_vec_push(self->stack, thread);
-    } else {
-        self->active = thread;
-    }
+    if (self->active) stc_vec_push_back(self->stack, thread);
+    else self->active = thread;
 }
 
 void spencer_scheduler_schedule_in_order(SpencerScheduler *self,
@@ -187,7 +183,7 @@ void spencer_scheduler_schedule_in_order(SpencerScheduler *self,
         spencer_scheduler_schedule(self, thread);
         self->in_order_idx = len;
     } else if (self->in_order_idx == len) {
-        stc_vec_push(self->stack, thread);
+        stc_vec_push_back(self->stack, thread);
     } else {
         stc_vec_insert(self->stack, self->in_order_idx, thread);
     }
@@ -220,9 +216,8 @@ void spencer_scheduler_reset(SpencerScheduler *self)
         self->active = NULL;
     }
 
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
         if (self->stack[i]) spencer_thread_free(self->stack[i]);
-    }
     stc_vec_clear(self->stack);
 }
 

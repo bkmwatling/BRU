@@ -57,7 +57,7 @@ static void appendf(StringBuilder *sb, const char *fmt, ...)
     free(s);
 }
 
-static StringBuilder *string_builder()
+static StringBuilder *string_builder(void)
 {
     StringBuilder *sb = malloc(sizeof(StringBuilder));
 

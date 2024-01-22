@@ -1,6 +1,6 @@
 # The virtual machine approach to optimised regular expression matching in C
 
-The repo contains separate Rust source files for each stage of compiling
+The repo contains separate C source files for each stage of compiling
 _regular expressions_ into _virtual machine (VM)_ instructions. The main
 framework source code is contained over the C files `bru.c`, `compiler.c`,
 `parser.c`, `scheduler.h`, `smir.c`, `sre.c`, and `srvm.c` in the `src/`
@@ -13,7 +13,9 @@ parse tree as an intermediate representation for generating VM instructions.
 
 The `compiler.c` file contains the code to generate VM instructions from the
 parse tree using the constructions defined in other files (e.g. `thompson.c` and
-`glushkov.c`).
+`glushkov.c`). The constructions actually convert the regular expression parse
+tree into the _state machine intermediate representation (SMIR)_ which is then
+compiled to VM instructions.
 
 Finally, the actual regular expression matcher is contained in the `srvm.c` file
 which contains the source code for the actual execution of the VM with compiled
@@ -44,7 +46,7 @@ of the program, you can run:
 ./bin/bru compile [OPTIONS] <regex>
 ```
 
-To run the BRU matcher, simply run:
+To run _Brendan's regex utility (BRU)_ matcher, simply run:
 
 ```bash
 ./bin/bru match [OPTIONS] <regex> <input>
