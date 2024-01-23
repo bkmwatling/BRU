@@ -145,12 +145,10 @@ StateMachine *smir_default(const char *regex)
 {
     StateMachine *sm = malloc(sizeof(*sm));
 
-    sm->regex                      = regex;
-    sm->initial_functions_sentinel = NULL;
-    sm->states                     = NULL;
-    sm->ninits                     = 0;
-    dll_init(sm->initial_functions_sentinel);
+    sm->regex  = regex;
+    sm->ninits = 0;
     stc_vec_default_init(sm->states);
+    dll_init(sm->initial_functions_sentinel);
 
     return sm;
 }
@@ -159,12 +157,10 @@ StateMachine *smir_new(const char *regex, uint32_t nstates)
 {
     StateMachine *sm = malloc(sizeof(*sm));
 
-    sm->regex                      = regex;
-    sm->initial_functions_sentinel = NULL;
-    sm->states                     = NULL;
-    sm->ninits                     = 0;
-    dll_init(sm->initial_functions_sentinel);
+    sm->regex  = regex;
+    sm->ninits = 0;
     stc_vec_init(sm->states, nstates);
+    dll_init(sm->initial_functions_sentinel);
 
     return sm;
 }
@@ -489,17 +485,16 @@ void smir_transform(StateMachine *self, transform_f transformer)
 
 #define PC(insts) ((insts) + stc_vec_len_unsafe(insts))
 
-#define SET_OFFSET(insts, offset_idx)                \
-    memset(insts + offset_idx, 0, sizeof(offset_t)); \
-    *((offset_t *) ((insts) + (offset_idx))) =       \
-        (offset_t) stc_vec_len_unsafe(insts) -       \
+#define SET_OFFSET(insts, offset_idx)          \
+    *((offset_t *) ((insts) + (offset_idx))) = \
+        (offset_t) stc_vec_len_unsafe(insts) - \
         ((offset_idx) + sizeof(offset_t))
 
 /* --- Data Structures ------------------------------------------------------ */
 
 typedef struct {
-    offset_t entry; /*<< where the state is compiled in the program */
-    offset_t exit;  /*<< the to-be-filled outgoing transition offsets */
+    offset_t entry; /*<< where the state is compiled in the program           */
+    offset_t exit;  /*<< the to-be-filled outgoing transition offsets         */
 } CompiledState;
 
 /* --- Helper Routines ------------------------------------------------------ */
@@ -610,7 +605,7 @@ static void compile_state(StateMachine  *sm,
     out = smir_get_out_transitions(sm, sid, &n);
 
     switch (n) {
-        case 0: goto done;
+        case 0: compiled_states[sid].exit = 0; goto done;
 
         case 1: BCWRITE(prog->insts, JMP); break;
 
@@ -663,8 +658,8 @@ compile_initial(StateMachine *sm, Program *prog, CompiledState *compiled_states)
 
 Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
 {
-    Program       *prog            = program_default(sm->regex);
-    CompiledState *compiled_states = NULL;
+    Program       *prog = program_default(sm->regex);
+    CompiledState *compiled_states;
     size_t         n, sid;
 
     n = smir_get_nstates(sm);
@@ -682,7 +677,7 @@ Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
     stc_vec_len_unsafe(compiled_states) = n + 2;
 
     // compile out transitions for each state
-    for (sid = 1; sid <= n; sid++)
+    for (sid = 0; sid <= n; sid++)
         compile_transitions(sm, prog, sid, compiled_states);
 
     // cleanup
