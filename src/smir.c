@@ -63,22 +63,23 @@ struct action {
     ActionType type;
 
     union {
-        const char *ch;   /*<< type = ACT_CHAR */
-        Interval   *pred; /*<< type = ACT_PRED */
+        const char *ch;   /*<< type = ACT_CHAR                                */
+        Interval   *pred; /*<< type = ACT_PRED                                */
     };
 
     union {
-        len_t pred_len; /*<< type = ACT_PRED */
-        len_t k; /*<< type = ACT_SAVE | ACT_EPSSET | ACT_EPSCHK | ACT_MEMO */
+        len_t pred_len; /*<< type = ACT_PRED                                  */
+        len_t k; /*<< type = ACT_SAVE | ACT_EPSSET | ACT_EPSCHK | ACT_MEMO    */
     };
 };
 
 typedef struct {
-    const Predicate *pred;
-    Trans           *out_transitions_sentinel;
-    size_t           nout;
-    void            *pre_meta;
-    void            *post_meta;
+    ActionList *actions_sentinel;
+    size_t      nactions;
+    Trans      *out_transitions_sentinel;
+    size_t      nout;
+    void       *pre_meta;
+    void       *post_meta;
 } State;
 
 struct trans {
@@ -133,8 +134,7 @@ static void state_free(State *self)
 {
     Trans *elem, *next;
 
-    action_free(self->pred);
-
+    if (self->actions_sentinel) smir_action_list_free(self->actions_sentinel);
     if (self->out_transitions_sentinel)
         dll_free(self->out_transitions_sentinel, trans_free, elem, next);
 }
@@ -191,16 +191,16 @@ Program *smir_compile(StateMachine *self)
 
 state_id smir_add_state(StateMachine *self)
 {
-    state_id sid   = stc_vec_len(self->states);
-    State    state = { 0 };
+    State state = { 0 };
 
+    dll_init(state.actions_sentinel);
     dll_init(state.out_transitions_sentinel);
     stc_vec_push_back(self->states, state);
 
-    return sid + 1;
+    return stc_vec_len_unsafe(self->states);
 }
 
-size_t smir_get_nstates(StateMachine *self)
+size_t smir_get_num_states(StateMachine *self)
 {
     return stc_vec_len_unsafe(self->states);
 }
@@ -258,14 +258,55 @@ trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n)
     return tids;
 }
 
-const Predicate *smir_get_predicate(StateMachine *self, state_id sid)
+size_t smir_state_get_num_actions(StateMachine *self, state_id sid)
 {
-    return sid ? self->states[sid - 1].pred : NULL;
+    return sid ? self->states[sid - 1].nactions : 0;
 }
 
-void smir_set_predicate(StateMachine *self, state_id sid, const Predicate *pred)
+const ActionList *smir_state_get_actions(StateMachine *self, state_id sid)
 {
-    if (sid) self->states[sid - 1].pred = pred;
+    return sid ? self->states[sid - 1].actions_sentinel : NULL;
+}
+
+void smir_state_append_action(StateMachine *self,
+                              state_id      sid,
+                              const Action *act)
+{
+    ActionList *al;
+    if (sid) {
+        al      = malloc(sizeof(*al));
+        al->act = act;
+        dll_push_back(self->states[sid - 1].actions_sentinel, al);
+        self->states[sid - 1].nactions++;
+    }
+}
+
+void smir_state_prepend_action(StateMachine *self,
+                               state_id      sid,
+                               const Action *act)
+{
+    ActionList *al;
+    if (sid) {
+        al      = malloc(sizeof(*al));
+        al->act = act;
+        dll_push_front(self->states[sid - 1].actions_sentinel, al);
+        self->states[sid - 1].nactions++;
+    }
+}
+
+void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts)
+{
+    ActionList *al = malloc(sizeof(*al));
+    State      *state;
+
+    if (!sid) return;
+
+    state = &self->states[sid - 1];
+    smir_action_list_free(state->actions_sentinel);
+    state->actions_sentinel = acts;
+    for (state->nactions = 0, acts                                = acts->next;
+         acts != state->actions_sentinel; state->nactions++, acts = acts->next)
+        ;
 }
 
 state_id smir_get_src(StateMachine *self, trans_id tid)
@@ -340,7 +381,7 @@ const Action *smir_action_num(ActionType type, len_t k)
     return act;
 }
 
-size_t smir_get_num_actions(StateMachine *self, trans_id tid)
+size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid)
 {
     Trans   *transition, *transitions;
     uint32_t idx = trans_id_idx(tid);
@@ -353,7 +394,7 @@ size_t smir_get_num_actions(StateMachine *self, trans_id tid)
     return transition->nactions;
 }
 
-const ActionList *smir_get_actions(StateMachine *self, trans_id tid)
+const ActionList *smir_trans_get_actions(StateMachine *self, trans_id tid)
 {
     Trans   *transition, *transitions;
     uint32_t idx = trans_id_idx(tid);
@@ -366,7 +407,9 @@ const ActionList *smir_get_actions(StateMachine *self, trans_id tid)
     return transition->actions_sentinel;
 }
 
-void smir_append_action(StateMachine *self, trans_id tid, const Action *act)
+void smir_trans_append_action(StateMachine *self,
+                              trans_id      tid,
+                              const Action *act)
 {
     Trans      *transition, *transitions;
     ActionList *al  = malloc(sizeof(*al));
@@ -381,7 +424,9 @@ void smir_append_action(StateMachine *self, trans_id tid, const Action *act)
     transition->nactions++;
 }
 
-void smir_prepend_action(StateMachine *self, trans_id tid, const Action *act)
+void smir_trans_prepend_action(StateMachine *self,
+                               trans_id      tid,
+                               const Action *act)
 {
     Trans      *transition, *transitions;
     ActionList *al  = malloc(sizeof(*al));
@@ -396,7 +441,7 @@ void smir_prepend_action(StateMachine *self, trans_id tid, const Action *act)
     transition->nactions++;
 }
 
-void smir_set_actions(StateMachine *self, trans_id tid, ActionList *acts)
+void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts)
 {
     Trans      *transition, *transitions;
     ActionList *al  = malloc(sizeof(*al));
@@ -648,7 +693,7 @@ static size_t count_bytes_transition(StateMachine *sm, trans_id tid)
 {
     size_t size;
 
-    size = count_bytes_actions(smir_get_actions(sm, tid));
+    size = count_bytes_actions(smir_trans_get_actions(sm, tid));
     size++;
     size += sizeof(offset_t);
 
@@ -666,7 +711,7 @@ static byte *compile_transition(StateMachine  *sm,
     offset_t          jmp_target_idx;
     offset_t          offset_idx;
 
-    acts = smir_get_actions(sm, tid);
+    acts = smir_trans_get_actions(sm, tid);
     dst  = smir_get_dst(sm, tid);
 
     pc = compile_actions(pc, prog, acts);
@@ -674,7 +719,7 @@ static byte *compile_transition(StateMachine  *sm,
     BCWRITE(pc, JMP);
     offset_idx     = pc - prog->insts;
     jmp_target_idx = IS_FINAL_STATE(dst)
-                         ? compiled_states[smir_get_nstates(sm) + 1].entry
+                         ? compiled_states[smir_get_num_states(sm) + 1].entry
                          : compiled_states[dst].entry;
     MEMWRITE(pc, offset_t, jmp_target_idx - (offset_idx + sizeof(offset_t)));
 
@@ -688,18 +733,19 @@ static void compile_state(StateMachine  *sm,
                           compile_f      post,
                           CompiledState *compiled_states)
 {
-    trans_id     *out;
-    const Action *pred;
-    size_t        i, n, size;
+    trans_id         *out;
+    const ActionList *acts;
+    size_t            i, n, size;
 
     compiled_states[sid].entry = stc_vec_len_unsafe(prog->insts);
 
     if (pre) pre(smir_get_pre_meta(sm, sid), prog);
-    if ((pred = smir_get_predicate(sm, sid))) {
-        size = count_bytes_predicate(pred);
+    if (smir_state_get_num_actions(sm, sid)) {
+        acts = smir_state_get_actions(sm, sid);
+        size = count_bytes_actions(acts);
         RESERVE(prog->insts, size);
-        compile_predicate(prog->insts + stc_vec_len_unsafe(prog->insts) - size,
-                          prog, pred);
+        compile_actions(prog->insts + stc_vec_len_unsafe(prog->insts) - size,
+                        prog, acts);
     }
     if (post) post(smir_get_post_meta(sm, sid), prog);
 
@@ -722,7 +768,7 @@ static void compile_state(StateMachine  *sm,
     RESERVE(prog->insts, n * sizeof(offset_t));
 
     for (i = 0, size = 0; i < n; i++)
-        if (smir_get_num_actions(sm, out[i]))
+        if (smir_trans_get_num_actions(sm, out[i]))
             size += count_bytes_transition(sm, out[i]);
 
     compiled_states[sid].transitions = stc_vec_len_unsafe(prog->insts);
@@ -749,12 +795,12 @@ static void compile_transitions(StateMachine  *sm,
     out = smir_get_out_transitions(sm, sid, &n);
     pc  = prog->insts + compiled_states[sid].transitions;
     for (i = 0; i < n; offset_idx += sizeof(offset_t), i++) {
-        if (smir_get_num_actions(sm, out[i])) {
+        if (smir_trans_get_num_actions(sm, out[i])) {
             SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
             pc = compile_transition(sm, pc, prog, out[i], compiled_states);
         } else {
             sid = smir_get_dst(sm, out[i]);
-            if (!sid) sid = smir_get_nstates(sm) + 1;
+            if (!sid) sid = smir_get_num_states(sm) + 1;
             SET_OFFSET(prog->insts, offset_idx, compiled_states[sid].entry);
         }
     }
@@ -776,7 +822,7 @@ Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
     CompiledState *compiled_states;
     size_t         n, sid;
 
-    n = smir_get_nstates(sm);
+    n = smir_get_num_states(sm);
     stc_vec_init(compiled_states, n + 2);
 
     // compile `initial .. states .. final` states

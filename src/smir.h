@@ -110,7 +110,7 @@ state_id smir_add_state(StateMachine *self);
  *
  * @return the number of states
  */
-size_t smir_get_nstates(StateMachine *self);
+size_t smir_get_num_states(StateMachine *self);
 
 /**
  * Mark a state as initial by inserting a blank initial transition to the state.
@@ -181,25 +181,55 @@ trans_id smir_add_transition(StateMachine *self, state_id sid);
 trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n);
 
 /**
- * Get a state's predicate.
+ * Get the number of actions on a state.
  *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
  *
- * @return the predicate, where NULL indicates the state has no predicate.
+ * @return the number of actions
  */
-const Predicate *smir_get_predicate(StateMachine *self, state_id sid);
+size_t smir_state_get_num_actions(StateMachine *self, state_id sid);
 
 /**
- * Set a state's predicate.
+ * Get the actions of a state.
  *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
- * @param[in] pred the predicate
+ *
+ * @return the actions of the state
  */
-void smir_set_predicate(StateMachine    *self,
-                        state_id         sid,
-                        const Predicate *pred);
+const ActionList *smir_state_get_actions(StateMachine *self, state_id sid);
+
+/**
+ * Append an action to a state.
+ *
+ * @param[in] self the state machine
+ * @param[in] sid  the unique state identifier
+ * @param[in] act  the action to append
+ */
+void smir_state_append_action(StateMachine *self,
+                              state_id      sid,
+                              const Action *act);
+
+/**
+ * Prepend an action to a state.
+ *
+ * @param[in] self the state machine
+ * @param[in] sid  the unique state identifier
+ * @param[in] act  the action to prepend
+ */
+void smir_state_prepend_action(StateMachine *self,
+                               state_id      sid,
+                               const Action *act);
+
+/**
+ * Set the actions of a state.
+ *
+ * @param[in] self the state machine
+ * @param[in] sid  the unique state identifier
+ * @param[in] acts the list of actions
+ */
+void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts);
 
 /**
  * Get the source state of a transition.
@@ -280,7 +310,7 @@ const Action *smir_action_num(ActionType type, len_t k);
  *
  * @return the number of actions
  */
-size_t smir_get_num_actions(StateMachine *self, trans_id tid);
+size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid);
 
 /**
  * Get the actions of a transition.
@@ -290,7 +320,7 @@ size_t smir_get_num_actions(StateMachine *self, trans_id tid);
  *
  * @return the actions of the transition
  */
-const ActionList *smir_get_actions(StateMachine *self, trans_id tid);
+const ActionList *smir_trans_get_actions(StateMachine *self, trans_id tid);
 
 /**
  * Append an action to a transition.
@@ -299,7 +329,9 @@ const ActionList *smir_get_actions(StateMachine *self, trans_id tid);
  * @param[in] tid  the unique transition identifier
  * @param[in] act  the action to append
  */
-void smir_append_action(StateMachine *self, trans_id tid, const Action *act);
+void smir_trans_append_action(StateMachine *self,
+                              trans_id      tid,
+                              const Action *act);
 
 /**
  * Prepend an action to a transition.
@@ -308,7 +340,9 @@ void smir_append_action(StateMachine *self, trans_id tid, const Action *act);
  * @param[in] tid  the unique transition identifier
  * @param[in] act  the action to prepend
  */
-void smir_prepend_action(StateMachine *self, trans_id tid, const Action *act);
+void smir_trans_prepend_action(StateMachine *self,
+                               trans_id      tid,
+                               const Action *act);
 
 /**
  * Set the actions of a transition.
@@ -317,7 +351,7 @@ void smir_prepend_action(StateMachine *self, trans_id tid, const Action *act);
  * @param[in] tid  the unique transition identifier
  * @param[in] acts the list of actions
  */
-void smir_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
+void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
 
 /**
  * Create an empty list of actions.

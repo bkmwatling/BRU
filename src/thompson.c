@@ -62,45 +62,34 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
 
     switch (re->type) {
         case CARET:
-            state_ids.initial = smir_add_state(sm);
-            state_ids.final   = smir_add_state(sm);
-            out               = smir_add_transition(sm, state_ids.initial);
-            smir_set_dst(sm, out, state_ids.final);
-            smir_append_action(sm, out, smir_action_zwa(ACT_BEGIN));
+            state_ids.initial = state_ids.final = smir_add_state(sm);
+            smir_state_append_action(sm, state_ids.final,
+                                     smir_action_zwa(ACT_BEGIN));
             break;
 
         case DOLLAR:
-            state_ids.initial = smir_add_state(sm);
-            state_ids.final   = smir_add_state(sm);
-            out               = smir_add_transition(sm, state_ids.initial);
-            smir_set_dst(sm, out, state_ids.final);
-            smir_append_action(sm, out, smir_action_zwa(ACT_END));
+            state_ids.initial = state_ids.final = smir_add_state(sm);
+            smir_state_append_action(sm, state_ids.final,
+                                     smir_action_zwa(ACT_END));
             break;
 
         case MEMOISE:
-            state_ids.initial = smir_add_state(sm);
-            state_ids.final   = smir_add_state(sm);
-            out               = smir_add_transition(sm, state_ids.initial);
-            smir_set_dst(sm, out, state_ids.final);
-            smir_append_action(sm, out, smir_action_num(ACT_MEMO, *k));
+            state_ids.initial = state_ids.final = smir_add_state(sm);
+            smir_state_append_action(sm, state_ids.final,
+                                     smir_action_num(ACT_MEMO, *k));
             k += sizeof(byte *);
             break;
 
         case LITERAL:
-            state_ids.initial = smir_add_state(sm);
-            state_ids.final   = smir_add_state(sm);
-            out               = smir_add_transition(sm, state_ids.initial);
-            smir_set_dst(sm, out, state_ids.final);
-            smir_append_action(sm, out, smir_action_char(re->ch));
+            state_ids.initial = state_ids.final = smir_add_state(sm);
+            smir_state_append_action(sm, state_ids.final,
+                                     smir_action_char(re->ch));
             break;
 
         case CC:
-            state_ids.initial = smir_add_state(sm);
-            state_ids.final   = smir_add_state(sm);
-            out               = smir_add_transition(sm, state_ids.initial);
-            smir_set_dst(sm, out, state_ids.final);
-            smir_append_action(
-                sm, out,
+            state_ids.initial = state_ids.final = smir_add_state(sm);
+            smir_state_append_action(
+                sm, state_ids.final,
                 smir_action_predicate(
                     intervals_clone(re->intervals, re->cc_len), re->cc_len));
             break;
@@ -140,13 +129,13 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
 
             out = smir_add_transition(sm, state_ids.initial);
             smir_set_dst(sm, out, child_state_ids.initial);
-            smir_append_action(sm, out,
-                               smir_action_num(ACT_SAVE, re->capture_idx));
+            smir_trans_append_action(
+                sm, out, smir_action_num(ACT_SAVE, re->capture_idx));
 
             out = smir_add_transition(sm, child_state_ids.final);
             smir_set_dst(sm, out, state_ids.final);
-            smir_append_action(sm, out,
-                               smir_action_num(ACT_SAVE, re->capture_idx + 1));
+            smir_trans_append_action(
+                sm, out, smir_action_num(ACT_SAVE, re->capture_idx + 1));
             break;
 
         case STAR:
@@ -158,14 +147,17 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
             smir_set_dst(sm, enter, child_state_ids.initial);
             smir_set_dst(sm, leave, state_ids.final);
             if (opts->capture_semantics == CS_PCRE)
-                smir_append_action(sm, enter, smir_action_num(ACT_EPSSET, *k));
+                smir_trans_append_action(sm, enter,
+                                         smir_action_num(ACT_EPSSET, *k));
 
             SET_TRANS_PRIORITY(sm, re, child_state_ids.final, enter, leave);
             smir_set_dst(sm, enter, child_state_ids.initial);
             smir_set_dst(sm, leave, state_ids.final);
-            smir_append_action(sm, enter, smir_action_num(ACT_EPSCHK, *k));
+            smir_trans_append_action(sm, enter,
+                                     smir_action_num(ACT_EPSCHK, *k));
             if (opts->capture_semantics == CS_RE2)
-                smir_append_action(sm, enter, smir_action_num(ACT_EPSSET, *k));
+                smir_trans_append_action(sm, enter,
+                                         smir_action_num(ACT_EPSSET, *k));
 
             *k += sizeof(const char *);
             break;
@@ -177,7 +169,8 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
 
                 out = smir_add_transition(sm, state_ids.initial);
                 smir_set_dst(sm, out, child_state_ids.initial);
-                smir_append_action(sm, out, smir_action_num(ACT_EPSSET, *k));
+                smir_trans_append_action(sm, out,
+                                         smir_action_num(ACT_EPSSET, *k));
             } else {
                 state_ids = child_state_ids = emit(sm, re->left, opts, k);
             }
@@ -186,9 +179,11 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
             SET_TRANS_PRIORITY(sm, re, child_state_ids.final, enter, leave);
             smir_set_dst(sm, enter, child_state_ids.initial);
             smir_set_dst(sm, leave, state_ids.final);
-            smir_append_action(sm, enter, smir_action_num(ACT_EPSCHK, *k));
+            smir_trans_append_action(sm, enter,
+                                     smir_action_num(ACT_EPSCHK, *k));
             if (opts->capture_semantics == CS_RE2)
-                smir_append_action(sm, enter, smir_action_num(ACT_EPSSET, *k));
+                smir_trans_append_action(sm, enter,
+                                         smir_action_num(ACT_EPSSET, *k));
 
             *k += sizeof(const char *);
             break;
