@@ -6,9 +6,17 @@
 #include "sre.h"
 #include "types.h"
 
-#define BCWRITE(insts, bytecode) stc_vec_push_back(insts, bytecode)
+#define BCWRITE(pc, bytecode) *(pc)++ = (bytecode)
 
-#define MEMWRITE(bytes, type, val)                                         \
+#define BCPUSH(insts, bytecode) stc_vec_push_back(insts, bytecode)
+
+#define MEMWRITE(pc, type, val)           \
+    do {                                  \
+        *((type *) (pc))  = (val);        \
+        (pc)             += sizeof(type); \
+    } while (0)
+
+#define MEMPUSH(bytes, type, val)                                          \
     do {                                                                   \
         stc_vec_reserve(bytes, sizeof(type));                              \
         *((type *) ((bytes) + stc_vec_len_unsafe(bytes)))  = (val);        \

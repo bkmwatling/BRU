@@ -273,6 +273,16 @@ const Action *smir_action_predicate(Interval *pred, len_t pred_len);
 const Action *smir_action_num(ActionType type, len_t k);
 
 /**
+ * Get the number of actions on a transition.
+ *
+ * @param[in] self the state machine
+ * @param[in] tid  the unique transition identifier
+ *
+ * @return the number of actions
+ */
+size_t smir_get_num_actions(StateMachine *self, trans_id tid);
+
+/**
  * Get the actions of a transition.
  *
  * @param[in] self the state machine

@@ -340,6 +340,19 @@ const Action *smir_action_num(ActionType type, len_t k)
     return act;
 }
 
+size_t smir_get_num_actions(StateMachine *self, trans_id tid)
+{
+    Trans   *transition, *transitions;
+    uint32_t idx = trans_id_idx(tid);
+    state_id sid = trans_id_sid(tid);
+
+    transitions = sid ? self->states[sid - 1].out_transitions_sentinel
+                      : self->initial_functions_sentinel;
+    dll_get(transitions, idx, transition);
+
+    return transition->nactions;
+}
+
 const ActionList *smir_get_actions(StateMachine *self, trans_id tid)
 {
     Trans   *transition, *transitions;
@@ -485,60 +498,127 @@ void smir_transform(StateMachine *self, transform_f transformer)
 
 #define PC(insts) ((insts) + stc_vec_len_unsafe(insts))
 
-#define SET_OFFSET(insts, offset_idx)          \
+#define SET_OFFSET(insts, offset_idx, idx)     \
     *((offset_t *) ((insts) + (offset_idx))) = \
-        (offset_t) stc_vec_len_unsafe(insts) - \
-        ((offset_idx) + sizeof(offset_t))
+        (offset_t) (idx) - ((offset_idx) + sizeof(offset_t))
 
 /* --- Data Structures ------------------------------------------------------ */
 
 typedef struct {
-    offset_t entry; /*<< where the state is compiled in the program           */
-    offset_t exit;  /*<< the to-be-filled outgoing transition offsets         */
+    offset_t entry;     /*<< where the state is compiled in the program       */
+    offset_t exit;      /*<< the to-be-filled outgoing transition offsets     */
+    size_t transitions; /*<< where the transitions start                      */
 } CompiledState;
 
 /* --- Helper Routines ------------------------------------------------------ */
 
-static void compile_predicate(Program *prog, const Predicate *pred)
+static size_t count_bytes_predicate(const Predicate *pred)
 {
-    if (!pred) return;
+    size_t size = 0;
 
     switch (pred->type) {
-        case ACT_BEGIN: BCWRITE(prog->insts, BEGIN); break;
-        case ACT_END: BCWRITE(prog->insts, END); break;
+        case ACT_BEGIN: size++; break;
+        case ACT_END: size++; break;
 
         case ACT_CHAR:
-            BCWRITE(prog->insts, CHAR);
-            MEMWRITE(prog->insts, const char *, pred->ch);
+            size++;
+            size += sizeof(const char *);
             break;
 
         case ACT_PRED:
-            BCWRITE(prog->insts, PRED);
-            MEMWRITE(prog->insts, len_t, pred->pred_len);
-            MEMWRITE(prog->insts, len_t, stc_vec_len_unsafe(prog->aux));
-            MEMCPY(prog->aux, pred->pred, pred->pred_len * sizeof(Interval));
+            size++;
+            size += sizeof(len_t);
+            size += sizeof(len_t);
             break;
 
         case ACT_MEMO:
-            BCWRITE(prog->insts, MEMO);
-            MEMWRITE(prog->insts, len_t, pred->k);
+            size++;
+            size += sizeof(len_t);
             break;
 
         case ACT_EPSCHK:
-            BCWRITE(prog->insts, EPSCHK);
-            MEMWRITE(prog->insts, len_t, pred->k);
+            size++;
+            size += sizeof(len_t);
             break;
 
         case ACT_SAVE:
         case ACT_EPSSET: assert(0 && "Invalid predicate node!"); break;
     }
+
+    return size;
 }
 
-static void compile_actions(Program *prog, const ActionList *acts)
+static byte *compile_predicate(byte *pc, Program *prog, const Predicate *pred)
+{
+    switch (pred->type) {
+        case ACT_BEGIN: BCWRITE(pc, BEGIN); break;
+        case ACT_END: BCWRITE(pc, END); break;
+
+        case ACT_CHAR:
+            BCWRITE(pc, CHAR);
+            MEMWRITE(pc, const char *, pred->ch);
+            break;
+
+        case ACT_PRED:
+            BCWRITE(pc, PRED);
+            MEMWRITE(pc, len_t, pred->pred_len);
+            MEMWRITE(pc, len_t, stc_vec_len_unsafe(prog->aux));
+            MEMCPY(prog->aux, pred->pred, pred->pred_len * sizeof(Interval));
+            break;
+
+        case ACT_MEMO:
+            BCWRITE(pc, MEMO);
+            MEMWRITE(pc, len_t, pred->k);
+            break;
+
+        case ACT_EPSCHK:
+            BCWRITE(pc, EPSCHK);
+            MEMWRITE(pc, len_t, pred->k);
+            break;
+
+        case ACT_SAVE:
+        case ACT_EPSSET: assert(0 && "Invalid predicate node!"); break;
+    }
+
+    return pc;
+}
+
+static size_t count_bytes_actions(const ActionList *acts)
+{
+    ActionList *n;
+    size_t      size;
+
+    if (!acts) return 0;
+
+    for (n = acts->next, size = 0; n != acts; n = n->next) {
+        switch (n->act->type) {
+            case ACT_BEGIN:
+            case ACT_END:
+            case ACT_CHAR:
+            case ACT_PRED:
+            case ACT_EPSCHK:
+            case ACT_MEMO: size = count_bytes_predicate(n->act); break;
+
+            case ACT_SAVE:
+                size++;
+                size += sizeof(len_t);
+                break;
+
+            case ACT_EPSSET:
+                size++;
+                size += sizeof(len_t);
+                break;
+        }
+    }
+
+    return size;
+}
+
+static byte *compile_actions(byte *pc, Program *prog, const ActionList *acts)
 {
     ActionList *n;
 
-    if (!acts) return;
+    if (!acts) return pc;
 
     for (n = acts->next; n != acts; n = n->next) {
         switch (n->act->type) {
@@ -547,43 +627,58 @@ static void compile_actions(Program *prog, const ActionList *acts)
             case ACT_CHAR:
             case ACT_PRED:
             case ACT_EPSCHK:
-            case ACT_MEMO: compile_predicate(prog, n->act); break;
+            case ACT_MEMO: pc = compile_predicate(pc, prog, n->act); break;
 
             case ACT_SAVE:
-                BCWRITE(prog->insts, SAVE);
-                MEMWRITE(prog->insts, len_t, n->act->k);
+                BCWRITE(pc, SAVE);
+                MEMWRITE(pc, len_t, n->act->k);
                 break;
 
             case ACT_EPSSET:
-                BCWRITE(prog->insts, EPSSET);
-                MEMWRITE(prog->insts, len_t, n->act->k);
+                BCWRITE(pc, EPSSET);
+                MEMWRITE(pc, len_t, n->act->k);
                 break;
         }
     }
+
+    return pc;
 }
 
-static void compile_transition(StateMachine  *sm,
-                               Program       *prog,
-                               trans_id       tid,
-                               CompiledState *compiled_states)
+static size_t count_bytes_transition(StateMachine *sm, trans_id tid)
 {
+    size_t size;
+
+    size = count_bytes_actions(smir_get_actions(sm, tid));
+    size++;
+    size += sizeof(offset_t);
+
+    return size;
+}
+
+static byte *compile_transition(StateMachine  *sm,
+                                byte          *pc,
+                                Program       *prog,
+                                trans_id       tid,
+                                CompiledState *compiled_states)
+{
+    const ActionList *acts;
     state_id          dst;
     offset_t          jmp_target_idx;
     offset_t          offset_idx;
-    const ActionList *acts;
 
     acts = smir_get_actions(sm, tid);
     dst  = smir_get_dst(sm, tid);
 
-    compile_actions(prog, acts);
+    pc = compile_actions(pc, prog, acts);
 
-    BCWRITE(prog->insts, JMP);
-    offset_idx     = stc_vec_len_unsafe(prog->insts);
+    BCWRITE(pc, JMP);
+    offset_idx     = pc - prog->insts;
     jmp_target_idx = IS_FINAL_STATE(dst)
                          ? compiled_states[smir_get_nstates(sm) + 1].entry
                          : compiled_states[dst].entry;
-    MEMWRITE(prog->insts, offset_t,
-             jmp_target_idx - (offset_idx + sizeof(offset_t)));
+    MEMWRITE(pc, offset_t, jmp_target_idx - (offset_idx + sizeof(offset_t)));
+
+    return pc;
 }
 
 static void compile_state(StateMachine  *sm,
@@ -593,13 +688,19 @@ static void compile_state(StateMachine  *sm,
                           compile_f      post,
                           CompiledState *compiled_states)
 {
-    trans_id *out;
-    size_t    n;
+    trans_id     *out;
+    const Action *pred;
+    size_t        i, n, size;
 
     compiled_states[sid].entry = stc_vec_len_unsafe(prog->insts);
 
     if (pre) pre(smir_get_pre_meta(sm, sid), prog);
-    compile_predicate(prog, smir_get_predicate(sm, sid));
+    if ((pred = smir_get_predicate(sm, sid))) {
+        size = count_bytes_predicate(pred);
+        RESERVE(prog->insts, size);
+        compile_predicate(prog->insts + stc_vec_len_unsafe(prog->insts) - size,
+                          prog, pred);
+    }
     if (post) post(smir_get_post_meta(sm, sid), prog);
 
     out = smir_get_out_transitions(sm, sid, &n);
@@ -607,18 +708,25 @@ static void compile_state(StateMachine  *sm,
     switch (n) {
         case 0: compiled_states[sid].exit = 0; goto done;
 
-        case 1: BCWRITE(prog->insts, JMP); break;
+        case 1: BCPUSH(prog->insts, JMP); break;
 
-        case 2: BCWRITE(prog->insts, SPLIT); break;
+        case 2: BCPUSH(prog->insts, SPLIT); break;
 
         default:
-            BCWRITE(prog->insts, TSWITCH);
-            MEMWRITE(prog->insts, len_t, n);
+            BCPUSH(prog->insts, TSWITCH);
+            MEMPUSH(prog->insts, len_t, n);
             break;
     }
 
     compiled_states[sid].exit = stc_vec_len_unsafe(prog->insts);
     RESERVE(prog->insts, n * sizeof(offset_t));
+
+    for (i = 0, size = 0; i < n; i++)
+        if (smir_get_num_actions(sm, out[i]))
+            size += count_bytes_transition(sm, out[i]);
+
+    compiled_states[sid].transitions = stc_vec_len_unsafe(prog->insts);
+    RESERVE(prog->insts, size);
 
 done:
     if (out) free(out);
@@ -631,6 +739,7 @@ static void compile_transitions(StateMachine  *sm,
                                 CompiledState *compiled_states)
 {
     trans_id *out;
+    byte     *pc;
     size_t    n, i;
     offset_t  offset_idx;
 
@@ -638,11 +747,16 @@ static void compile_transitions(StateMachine  *sm,
     if (!offset_idx) return;
 
     out = smir_get_out_transitions(sm, sid, &n);
-
+    pc  = prog->insts + compiled_states[sid].transitions;
     for (i = 0; i < n; offset_idx += sizeof(offset_t), i++) {
-        // TODO: optimise for blank transitions
-        SET_OFFSET(prog->insts, offset_idx);
-        compile_transition(sm, prog, out[i], compiled_states);
+        if (smir_get_num_actions(sm, out[i])) {
+            SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
+            pc = compile_transition(sm, pc, prog, out[i], compiled_states);
+        } else {
+            sid = smir_get_dst(sm, out[i]);
+            if (!sid) sid = smir_get_nstates(sm) + 1;
+            SET_OFFSET(prog->insts, offset_idx, compiled_states[sid].entry);
+        }
     }
 
     if (out) free(out);
@@ -672,7 +786,7 @@ Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
         compile_state(sm, prog, sid, pre, post, compiled_states);
     compiled_states[sid].entry = stc_vec_len_unsafe(prog->insts);
     compiled_states[sid].exit  = 0;
-    BCWRITE(prog->insts, MATCH);
+    BCPUSH(prog->insts, MATCH);
 
     stc_vec_len_unsafe(compiled_states) = n + 2;
 
