@@ -150,6 +150,7 @@ static const byte *inst_to_str(char         **s,
     if (pc == NULL) return NULL;
 
     switch (*pc++) {
+        case NOOP: STR_PUSH(*s, *len, *alloc, "noop"); break;
         case MATCH: STR_PUSH(*s, *len, *alloc, "match"); break;
         case BEGIN: STR_PUSH(*s, *len, *alloc, "begin"); break;
         case MEMO: STR_PUSH(*s, *len, *alloc, "memoise"); break;

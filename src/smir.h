@@ -87,12 +87,15 @@ void smir_free(StateMachine *self);
 
 /**
  * Compile a state machine.
+ * The order of compilation of the states in the VM is determined by the
+ * ordering parameter, in which NULL means default ordering by sid.
  *
- * @param[in] self the state machine
+ * @param[in] self         the state machine
+ * @param[in] sid_ordering the array of sids to order compilation
  *
  * @return the compiled program
  */
-Program *smir_compile(StateMachine *self);
+Program *smir_compile(StateMachine *self, state_id *sid_ordering);
 
 /**
  * Create a new state in the state machine.
@@ -429,14 +432,18 @@ void *smir_get_post_meta(StateMachine *self, state_id sid);
 
 /**
  * Compile the state machine to VM instructions, including the meta data.
+ * The order of compilation of the states in the VM is determined by the
+ * ordering parameter, in which NULL means default ordering by sid.
  *
- * @param[in] self      the state machine
- * @param[in] pre_meta  the compiler for pre-predicate meta data at states
- * @param[in] post_meta the compiler for post-predicate meta data at states
+ * @param[in] self         the state machine
+ * @param[in] sid_ordering the array of sids to order compilation
+ * @param[in] pre_meta     the compiler for pre-predicate meta data at states
+ * @param[in] post_meta    the compiler for post-predicate meta data at states
  *
  * @return the compiled program
  */
 Program *smir_compile_with_meta(StateMachine *self,
+                                state_id     *sid_ordering,
                                 compile_f     pre_meta,
                                 compile_f     post_meta);
 
