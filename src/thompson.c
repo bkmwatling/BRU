@@ -104,7 +104,7 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
 
             child_state_ids = emit(sm, re->right, opts, k);
             leave           = smir_add_transition(sm, state_ids.initial);
-            smir_set_dst(sm, out, child_state_ids.initial);
+            smir_set_dst(sm, leave, child_state_ids.initial);
             leave = smir_add_transition(sm, child_state_ids.final);
 
             state_ids.final = smir_add_state(sm);
