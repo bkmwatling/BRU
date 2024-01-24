@@ -114,6 +114,31 @@ static void action_free(const Action *self)
     free((Action *) self);
 }
 
+static const Action *action_clone(const Action *self)
+{
+    const Action *clone;
+
+    if (!self) return NULL;
+
+    switch (self->type) {
+        case ACT_BEGIN:
+        case ACT_END: clone = smir_action_zwa(self->type); break;
+
+        case ACT_CHAR: clone = smir_action_char(self->ch);
+        case ACT_PRED:
+            clone = smir_action_predicate(
+                intervals_clone(self->pred, self->pred_len), self->pred_len);
+            break;
+
+        case ACT_MEMO:
+        case ACT_SAVE:
+        case ACT_EPSCHK:
+        case ACT_EPSSET: clone = smir_action_num(self->type, self->k); break;
+    }
+
+    return clone;
+}
+
 static void action_list_free(ActionList *self)
 {
     if (!self) return;
@@ -204,6 +229,8 @@ size_t smir_get_num_states(StateMachine *self)
 {
     return stc_vec_len_unsafe(self->states);
 }
+
+const char *smir_get_regex(StateMachine *self) { return self->regex; }
 
 trans_id smir_set_initial(StateMachine *self, state_id sid)
 {
@@ -299,14 +326,37 @@ void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts)
     ActionList *al = malloc(sizeof(*al));
     State      *state;
 
-    if (!sid) return;
+    if (!sid || !acts) return;
 
     state = &self->states[sid - 1];
     smir_action_list_free(state->actions_sentinel);
     state->actions_sentinel = acts;
+
+    // recalculate the number of actions
     for (state->nactions = 0, acts                                = acts->next;
          acts != state->actions_sentinel; state->nactions++, acts = acts->next)
         ;
+}
+
+ActionList *smir_state_clone_actions(StateMachine *self, state_id sid)
+{
+    ActionList       *clone;
+    ActionList       *al;
+    const ActionList *original;
+    size_t            nactions, i;
+
+    original = smir_state_get_actions(self, sid);
+    nactions = smir_state_get_num_actions(self, sid);
+    dll_init(clone);
+
+    for (i = 0; i < nactions; i++) {
+        original = original->next;
+        al       = malloc(sizeof(*al));
+        al->act  = action_clone(original->act);
+        dll_push_back(clone, al);
+    }
+
+    return clone;
 }
 
 state_id smir_get_src(StateMachine *self, trans_id tid)
@@ -443,20 +493,40 @@ void smir_trans_prepend_action(StateMachine *self,
 
 void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts)
 {
-    Trans      *transition, *transitions;
-    ActionList *al  = malloc(sizeof(*al));
-    uint32_t    idx = trans_id_idx(tid);
-    state_id    sid = trans_id_sid(tid);
+    Trans   *transition, *transitions;
+    uint32_t idx = trans_id_idx(tid);
+    state_id sid = trans_id_sid(tid);
+
+    if (!acts) return;
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
     dll_get(transitions, idx, transition);
     smir_action_list_free(transition->actions_sentinel);
     transition->actions_sentinel = acts;
+
+    // recalculate the number of actions
     for (transition->nactions = 0, acts = acts->next;
          acts != transition->actions_sentinel;
          transition->nactions++, acts = acts->next)
         ;
+}
+
+ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid)
+{
+    ActionList       *clone, *al;
+    const ActionList *original, *tmp;
+
+    original = smir_trans_get_actions(self, tid);
+    dll_init(clone);
+
+    for (tmp = original->next; tmp != original; tmp = tmp->next) {
+        al      = malloc(sizeof(*al));
+        al->act = action_clone(tmp->act);
+        dll_push_back(clone, al);
+    }
+
+    return clone;
 }
 
 ActionList *smir_action_list_new(void)

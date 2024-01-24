@@ -116,6 +116,15 @@ state_id smir_add_state(StateMachine *self);
 size_t smir_get_num_states(StateMachine *self);
 
 /**
+ * Get the underlying reguler expression of a state machine.
+ *
+ * @param[in] self the state machine
+ *
+ * @return the underlying regular expression
+ */
+const char *smir_get_regex(StateMachine *self);
+
+/**
  * Mark a state as initial by inserting a blank initial transition to the state.
  *
  * Note: The order of calls to this function determines the priorities by which
@@ -228,11 +237,25 @@ void smir_state_prepend_action(StateMachine *self,
 /**
  * Set the actions of a state.
  *
+ * Frees any memory in use by the existing list of actions.
+ * Nothing changes if the provided list is NULL.
+ *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
  * @param[in] acts the list of actions
  */
 void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts);
+
+/**
+ * Clone the list of actions of a state.
+ *
+ * @param[in] self the state machine
+ * @param[in] sid  the state identifier of the state whose actions should be
+ *                 cloned
+ *
+ * @return the cloned list of actions
+ */
+ActionList *smir_state_clone_actions(StateMachine *self, state_id sid);
 
 /**
  * Get the source state of a transition.
@@ -350,11 +373,25 @@ void smir_trans_prepend_action(StateMachine *self,
 /**
  * Set the actions of a transition.
  *
+ * Frees any memory in use by the existing list of actions.
+ * Nothing changes if the provided list is NULL.
+ *
  * @param[in] self the state machine
  * @param[in] tid  the unique transition identifier
  * @param[in] acts the list of actions
  */
 void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
+
+/**
+ * Clone the list of actions of a transition.
+ *
+ * @param[in] self the state machine
+ * @param[in] tid  the transition identifier of the transition whose actions
+ *                 should be cloned
+ *
+ * @return the cloned list of actions
+ */
+ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid);
 
 /**
  * Create an empty list of actions.
