@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "stc/fatp/vec.h"
@@ -841,10 +840,10 @@ count_bytes_transitions(StateMachine *sm, trans_id *out, size_t n, state_id sid)
     nstates = smir_get_num_states(sm);
     for (i = 0; i < n - 1; i++)
         if (smir_trans_get_num_actions(sm, out[i]))
-            size += count_bytes_transition(sm, out[i], 0);
+            size += count_bytes_transition(sm, out[i], TRUE);
 
     // count bytes of last transition
-    count_jmp = smir_get_dst(sm, out[i]) != (sid + 1) % (nstates + 1);
+    count_jmp = smir_get_dst(sm, out[i]) != ((sid + 1) % (nstates + 1));
     if (n == 1 || smir_trans_get_num_actions(sm, out[i]))
         size += count_bytes_transition(sm, out[i], count_jmp);
 
@@ -871,7 +870,7 @@ static void compile_transitions(StateMachine *sm,
     for (i = 0; i < n - 1; offset_idx += sizeof(offset_t), i++) {
         if (smir_trans_get_num_actions(sm, out[i])) {
             SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
-            pc = compile_transition(sm, pc, prog, out[i], 0, state_blocks);
+            pc = compile_transition(sm, pc, prog, out[i], TRUE, state_blocks);
         } else {
             sid = smir_get_dst(sm, out[i]);
             if (!sid) sid = nstates + 1;
@@ -880,7 +879,7 @@ static void compile_transitions(StateMachine *sm,
     }
 
     // compile last transition
-    compile_jmp = smir_get_dst(sm, out[i]) != (sid + 1) % (nstates + 1);
+    compile_jmp = smir_get_dst(sm, out[i]) != ((sid + 1) % (nstates + 1));
     if (n > 1) {
         if (smir_trans_get_num_actions(sm, out[i])) {
             SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);

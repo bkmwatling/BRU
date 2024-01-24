@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <string.h>
 
+#include "stc/fatp/slice.h"
 #include "stc/fatp/vec.h"
 
 #include "lockstep.h"
@@ -10,12 +12,9 @@
 struct thompson_thread {
     const byte        *pc;
     const char *const *sp;
-    const char       **captures;
-    len_t              ncaptures;
-    cntr_t            *counters;
-    len_t              ncounters;
-    byte              *memory;
-    len_t              memory_len;
+    const char **captures; /*<< stc_slice                                     */
+    cntr_t      *counters; /*<< stc_slice                                     */
+    byte        *memory;   /*<< stc_slice                                     */
 };
 
 struct thompson_scheduler {
@@ -24,9 +23,9 @@ struct thompson_scheduler {
     const char    *sp;
     int            in_sync;
 
-    ThompsonThread **curr;
-    ThompsonThread **next;
-    ThompsonThread **sync;
+    ThompsonThread **curr; /*<< stc_vec                                       */
+    ThompsonThread **next; /*<< stc_vec                                       */
+    ThompsonThread **sync; /*<< stc_vec                                       */
 };
 
 /* --- ThompsonThread function definitions ---------------------------------- */
@@ -39,22 +38,15 @@ ThompsonThread *thompson_thread_new(const byte        *pc,
                                     const byte        *memory,
                                     len_t              memory_len)
 {
-    ThompsonThread *thread = malloc(sizeof(ThompsonThread));
+    ThompsonThread *thread = malloc(sizeof(*thread));
 
     thread->pc = pc;
     thread->sp = sp;
 
-    thread->captures = malloc(2 * ncaptures * sizeof(char *));
-    memset(thread->captures, 0, 2 * ncaptures * sizeof(char *));
-    thread->ncaptures = ncaptures;
-
-    thread->counters = malloc(ncounters * sizeof(cntr_t));
-    memcpy(thread->counters, counters, ncounters * sizeof(cntr_t));
-    thread->ncounters = ncounters;
-
-    thread->memory = malloc(memory_len * sizeof(byte));
-    memcpy(thread->memory, memory, memory_len * sizeof(byte));
-    thread->memory_len = memory_len;
+    stc_slice_init(thread->captures, 2 * ncaptures);
+    memset(thread->captures, 0, 2 * ncaptures * sizeof(*thread->captures));
+    thread->counters = stc_slice_from_parts(counters, ncounters);
+    thread->memory   = stc_slice_from_parts(memory, memory_len);
 
     return thread;
 }
@@ -73,7 +65,7 @@ void thompson_thread_try_inc_sp(ThompsonThread *self) { (void) self; }
 const char *const *thompson_thread_captures(const ThompsonThread *self,
                                             len_t                *ncaptures)
 {
-    *ncaptures = self->ncaptures;
+    if (ncaptures) *ncaptures = stc_slice_len(self->captures) / 2;
     return self->captures;
 }
 
@@ -112,24 +104,21 @@ void thompson_thread_set_memory(ThompsonThread *self,
 
 ThompsonThread *thompson_thread_clone(const ThompsonThread *self)
 {
-    ThompsonThread *t = malloc(sizeof(ThompsonThread));
-    memcpy(t, self, sizeof(ThompsonThread));
+    ThompsonThread *t = malloc(sizeof(*t));
+    memcpy(t, self, sizeof(*t));
 
-    t->captures = malloc(2 * t->ncaptures * sizeof(char **));
-    memcpy(t->captures, self->captures, 2 * t->ncaptures * sizeof(char **));
-    t->counters = malloc(t->ncounters * sizeof(cntr_t));
-    memcpy(t->counters, self->counters, t->ncounters * sizeof(cntr_t));
-    t->memory = malloc(t->memory_len * sizeof(byte));
-    memcpy(t->memory, self->memory, t->memory_len * sizeof(byte));
+    t->captures = stc_slice_clone(self->captures);
+    t->counters = stc_slice_clone(self->counters);
+    t->memory   = stc_slice_clone(self->memory);
 
     return t;
 }
 
 void thompson_thread_free(ThompsonThread *self)
 {
-    free(self->captures);
-    free(self->counters);
-    free(self->memory);
+    stc_slice_free(self->captures);
+    stc_slice_free(self->counters);
+    stc_slice_free(self->memory);
     free(self);
 }
 
@@ -139,17 +128,16 @@ THREAD_MANAGER_DEFINE_CONSTRUCTOR_FUNCTION(thompson_thread_manager_new,
 
 static int thompson_thread_eq(ThompsonThread *t1, ThompsonThread *t2)
 {
-    len_t i, len;
-    int   eq = t1->pc == t2->pc && t1->ncounters == t2->ncounters;
+    len_t i, len = stc_slice_len(t1->counters);
+    int   eq = t1->pc == t2->pc && len == stc_slice_len(t2->counters);
 
-    len = t1->ncounters;
     for (i = 0; i < len && eq; i++) eq = t1->counters[i] == t2->counters[i];
 
     return eq;
 }
 
-static int thompson_threads_contains(ThompsonThread **threads,
-                                     ThompsonThread  *thread)
+static int thompson_threads_contain(ThompsonThread **threads,
+                                    ThompsonThread  *thread)
 {
     size_t i, len;
 
@@ -165,14 +153,13 @@ static int thompson_threads_contains(ThompsonThread **threads,
 ThompsonScheduler *thompson_scheduler_new(const Program *program,
                                           const char    *text)
 {
-    ThompsonScheduler *s = malloc(sizeof(ThompsonScheduler));
+    ThompsonScheduler *s = malloc(sizeof(*s));
 
     s->prog = program;
     s->text = s->sp = text;
-    s->curr = s->next = s->sync = NULL;
-    stc_vec_default_init(s->curr);
-    stc_vec_default_init(s->next);
-    stc_vec_default_init(s->sync);
+    stc_vec_default_init(s->curr); // NOLINT(bugprone-sizeof-expression)
+    stc_vec_default_init(s->next); // NOLINT(bugprone-sizeof-expression)
+    stc_vec_default_init(s->sync); // NOLINT(bugprone-sizeof-expression)
 
     return s;
 }
@@ -181,28 +168,33 @@ void thompson_scheduler_init(ThompsonScheduler *self, const char *text)
 {
     const Program *prog = self->prog;
 
-    thompson_scheduler_schedule(
-        self,
-        thompson_thread_new(prog->insts, &self->sp, prog->ncaptures,
-                            prog->counters, stc_vec_len_unsafe(prog->counters),
-                            prog->memory, stc_vec_len_unsafe(prog->memory)));
     (void) text;
+    thompson_scheduler_schedule(
+        self, thompson_thread_new(prog->insts, &self->sp, prog->ncaptures,
+                                  prog->counters, stc_vec_len(prog->counters),
+                                  prog->memory, stc_vec_len(prog->memory)));
 }
 
 void thompson_scheduler_schedule(ThompsonScheduler *self,
                                  ThompsonThread    *thread)
 {
-    if (!thompson_threads_contains(self->next, thread) &&
-        !thompson_threads_contains(self->sync, thread)) {
+    if (!thompson_threads_contain(self->next, thread) &&
+        !thompson_threads_contain(self->sync, thread)) {
         switch (*thread->pc) {
             case CHAR:
             case PRED:
                 if (stc_vec_is_empty(self->next))
+                    // NOLINTNEXTLINE(bugprone-sizeof-expression)
                     stc_vec_push_back(self->sync, thread);
-                else stc_vec_push_back(self->next, thread);
+                else
+                    // NOLINTNEXTLINE(bugprone-sizeof-expression)
+                    stc_vec_push_back(self->next, thread);
                 break;
 
-            default: stc_vec_push_back(self->next, thread); break;
+            default:
+                // NOLINTNEXTLINE(bugprone-sizeof-expression)
+                stc_vec_push_back(self->next, thread);
+                break;
         }
     } else {
         thompson_thread_free(thread);
@@ -247,6 +239,7 @@ ThompsonThread *thompson_scheduler_next(ThompsonScheduler *self)
 
     if (!stc_vec_is_empty(self->curr)) {
         thread = self->curr[0];
+        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_remove(self->curr, 0);
         switch (*thread->pc) {
             case CHAR:

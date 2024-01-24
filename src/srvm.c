@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "srvm.h"
 #include "stc/fatp/vec.h"
+
+#include "program.h"
+#include "srvm.h"
 
 /* --- Type definitions ----------------------------------------------------- */
 
@@ -111,7 +113,7 @@ static void destroy_memoised(byte **m, len_t insts_len)
 {
     len_t i;
 
-    for (i = 0; i < insts_len; i++) { free(m[i]); }
+    for (i = 0; i < insts_len; i++) free(m[i]);
     free(m);
 }
 
@@ -336,15 +338,14 @@ static int srvm_run(const char    *text,
                 s = malloc(sizeof(Scheduler));
                 scheduler_copy_with(s, scheduler, t);
 
-                if (srvm_run(text, thread_manager, s, NULL) == *pc) {
+                if (srvm_run(text, thread_manager, s, NULL) == *pc)
                     scheduler_schedule(scheduler, thread);
-                } else {
+                else
                     scheduler_kill(scheduler, thread);
-                }
                 scheduler_free(s);
                 break;
 
-            default: assert(0 && "unreachable");
+            case NBYTECODES: assert(0 && "unreachable");
         }
     }
 

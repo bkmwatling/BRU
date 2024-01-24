@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <string.h>
 
+#include "stc/fatp/slice.h"
 #include "stc/fatp/vec.h"
 
 #include "scheduler.h"
@@ -10,19 +12,16 @@
 struct spencer_thread {
     const byte  *pc;
     const char  *sp;
-    const char **captures;
-    len_t        ncaptures;
-    cntr_t      *counters;
-    len_t        ncounters;
-    byte        *memory;
-    len_t        memory_len;
+    const char **captures; /*<< stc_slice                                     */
+    cntr_t      *counters; /*<< stc_slice                                     */
+    byte        *memory;   /*<< stc_slice                                     */
 };
 
 struct spencer_scheduler {
     const Program  *prog;
     size_t          in_order_idx;
     SpencerThread  *active;
-    SpencerThread **stack;
+    SpencerThread **stack; /*<< stc_vec                                       */
 };
 
 /* --- SpencerThread function definitions ----------------------------------- */
@@ -35,22 +34,15 @@ SpencerThread *spencer_thread_new(const byte   *pc,
                                   const byte   *memory,
                                   len_t         memory_len)
 {
-    SpencerThread *thread = malloc(sizeof(SpencerThread));
+    SpencerThread *thread = malloc(sizeof(*thread));
 
     thread->pc = pc;
     thread->sp = sp;
 
-    thread->captures = malloc(2 * ncaptures * sizeof(char *));
-    memset(thread->captures, 0, 2 * ncaptures * sizeof(char *));
-    thread->ncaptures = ncaptures;
-
-    thread->counters = malloc(ncounters * sizeof(cntr_t));
-    memcpy(thread->counters, counters, ncounters * sizeof(cntr_t));
-    thread->ncounters = ncounters;
-
-    thread->memory = malloc(memory_len * sizeof(byte));
-    memcpy(thread->memory, memory, memory_len * sizeof(byte));
-    thread->memory_len = memory_len;
+    stc_slice_init(thread->captures, 2 * ncaptures);
+    memset(thread->captures, 0, 2 * ncaptures * sizeof(*thread->captures));
+    thread->counters = stc_slice_from_parts(counters, ncounters);
+    thread->memory   = stc_slice_from_parts(memory, memory_len);
 
     return thread;
 }
@@ -69,7 +61,7 @@ void spencer_thread_try_inc_sp(SpencerThread *self) { self->sp++; }
 const char *const *spencer_thread_captures(const SpencerThread *self,
                                            len_t               *ncaptures)
 {
-    *ncaptures = self->ncaptures;
+    if (ncaptures) *ncaptures = stc_slice_len(self->captures) / 2;
     return self->captures;
 }
 
@@ -108,24 +100,21 @@ void spencer_thread_set_memory(SpencerThread *self,
 
 SpencerThread *spencer_thread_clone(const SpencerThread *self)
 {
-    SpencerThread *t = malloc(sizeof(SpencerThread));
-    memcpy(t, self, sizeof(SpencerThread));
+    SpencerThread *t = malloc(sizeof(*t));
+    memcpy(t, self, sizeof(*t));
 
-    t->captures = malloc(2 * t->ncaptures * sizeof(char **));
-    memcpy(t->captures, self->captures, 2 * t->ncaptures * sizeof(char **));
-    t->counters = malloc(t->ncounters * sizeof(cntr_t));
-    memcpy(t->counters, self->counters, t->ncounters * sizeof(cntr_t));
-    t->memory = malloc(t->memory_len * sizeof(byte));
-    memcpy(t->memory, self->memory, t->memory_len * sizeof(byte));
+    t->captures = stc_slice_clone(self->captures);
+    t->counters = stc_slice_clone(self->counters);
+    t->memory   = stc_slice_clone(self->memory);
 
     return t;
 }
 
 void spencer_thread_free(SpencerThread *self)
 {
-    free(self->captures);
-    free(self->counters);
-    free(self->memory);
+    stc_slice_free(self->captures);
+    stc_slice_free(self->counters);
+    stc_slice_free(self->memory);
     free(self);
 }
 
@@ -137,41 +126,43 @@ THREAD_MANAGER_DEFINE_CONSTRUCTOR_FUNCTION(spencer_thread_manager_new,
 
 SpencerScheduler *spencer_scheduler_new(const Program *program)
 {
-    SpencerScheduler *s = malloc(sizeof(SpencerScheduler));
+    SpencerScheduler *s = malloc(sizeof(*s));
 
     s->prog         = program;
     s->in_order_idx = 0;
     s->active       = NULL;
-    stc_vec_default_init(s->stack);
+    stc_vec_default_init(s->stack); // NOLINT(bugprone-sizeof-expression)
 
     return s;
 }
 
 void spencer_scheduler_init(SpencerScheduler *self, const char *text)
 {
-    unsigned long  text_len = strlen(text);
-    const Program *prog     = self->prog;
+    const Program *prog = self->prog;
+    size_t         text_len;
 
     spencer_scheduler_schedule(
-        self,
-        spencer_thread_new(prog->insts, text, prog->ncaptures, prog->counters,
-                           stc_vec_len_unsafe(prog->counters), prog->memory,
-                           stc_vec_len_unsafe(prog->memory)));
+        self, spencer_thread_new(prog->insts, text, prog->ncaptures,
+                                 prog->counters, stc_vec_len(prog->counters),
+                                 prog->memory, stc_vec_len(prog->memory)));
 
-    for (; text_len > 0; text_len--) {
+    for (text_len = strlen(text); text_len > 0; text_len--) {
         spencer_scheduler_schedule(
-            self, spencer_thread_new(
-                      prog->insts, text + text_len, prog->ncaptures,
-                      prog->counters, stc_vec_len_unsafe(prog->counters),
-                      prog->memory, stc_vec_len_unsafe(prog->memory)));
+            self,
+            spencer_thread_new(prog->insts, text + text_len, prog->ncaptures,
+                               prog->counters, stc_vec_len(prog->counters),
+                               prog->memory, stc_vec_len(prog->memory)));
     }
 }
 
 void spencer_scheduler_schedule(SpencerScheduler *self, SpencerThread *thread)
 {
     self->in_order_idx = stc_vec_len_unsafe(self->stack) + 1;
-    if (self->active) stc_vec_push_back(self->stack, thread);
-    else self->active = thread;
+    if (self->active)
+        // NOLINTNEXTLINE(bugprone-sizeof-expression)
+        stc_vec_push_back(self->stack, thread);
+    else
+        self->active = thread;
 }
 
 void spencer_scheduler_schedule_in_order(SpencerScheduler *self,
@@ -183,15 +174,17 @@ void spencer_scheduler_schedule_in_order(SpencerScheduler *self,
         spencer_scheduler_schedule(self, thread);
         self->in_order_idx = len;
     } else if (self->in_order_idx == len) {
+        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_push_back(self->stack, thread);
     } else {
+        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_insert(self->stack, self->in_order_idx, thread);
     }
 }
 
 int spencer_scheduler_has_next(const SpencerScheduler *self)
 {
-    return self->active != NULL || !stc_vec_is_empty(self->stack);
+    return self->active || !stc_vec_is_empty(self->stack);
 }
 
 SpencerThread *spencer_scheduler_next(SpencerScheduler *self)
