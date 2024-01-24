@@ -71,7 +71,7 @@ StateMachine *smir_default(const char *regex);
  *
  * Each state is assigned a unique state identifier in [1...nstates].
  *
- * @param[in] regex the underlying regular expression
+ * @param[in] regex   the underlying regular expression
  * @param[in] nstates the number of states
  *
  * @return the new state machine
@@ -87,15 +87,12 @@ void smir_free(StateMachine *self);
 
 /**
  * Compile a state machine.
- * The order of compilation of the states in the VM is determined by the
- * ordering parameter, in which NULL means default ordering by sid.
  *
- * @param[in] self         the state machine
- * @param[in] sid_ordering the array of sids to order compilation
+ * @param[in] self the state machine
  *
  * @return the compiled program
  */
-Program *smir_compile(StateMachine *self, state_id *sid_ordering);
+Program *smir_compile(StateMachine *self);
 
 /**
  * Create a new state in the state machine.
@@ -183,9 +180,9 @@ trans_id smir_add_transition(StateMachine *self, state_id sid);
  * The returned array is created with a call to `malloc`, and the memory
  * should be released using a single call to `free`.
  *
- * @param[in] self the state machine
- * @param[in] sid  the unique state identifier
- * @param[out] n   the length of the returned array
+ * @param[in]  self the state machine
+ * @param[in]  sid  the unique state identifier
+ * @param[out] n    the length of the returned array
  *
  * @return an array of transition identifiers representing the outgoing
  *         transitions
@@ -469,20 +466,31 @@ void *smir_get_post_meta(StateMachine *self, state_id sid);
 
 /**
  * Compile the state machine to VM instructions, including the meta data.
- * The order of compilation of the states in the VM is determined by the
- * ordering parameter, in which NULL means default ordering by sid.
  *
- * @param[in] self         the state machine
- * @param[in] sid_ordering the array of sids to order compilation
- * @param[in] pre_meta     the compiler for pre-predicate meta data at states
- * @param[in] post_meta    the compiler for post-predicate meta data at states
+ * @param[in] self      the state machine
+ * @param[in] pre_meta  the compiler for pre-predicate meta data at states
+ * @param[in] post_meta the compiler for post-predicate meta data at states
  *
  * @return the compiled program
  */
 Program *smir_compile_with_meta(StateMachine *self,
-                                state_id     *sid_ordering,
                                 compile_f     pre_meta,
                                 compile_f     post_meta);
+
+/**
+ * Reorder the states of the state machine with the given ordering.
+ *
+ * The order of compilation of the states in the VM will be determined by the
+ * ordering parameter. Once this function is called, the state transitions
+ * identifiers will be invalidated as they are changed to match the new
+ * ordering. Passing in NULL will not change the state machine. This function
+ * assumes that the ordering contains unique values from 1 to the number of
+ * states in the state machine, and contains every state identifier.
+ *
+ * @param[in] self         the state machine
+ * @param[in] sid_ordering the new order of the states
+ */
+void smir_reorder_states(StateMachine *self, state_id *sid_ordering);
 
 /**
  * Transform the state machine (in-place) with the provided transformer.

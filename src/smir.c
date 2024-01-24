@@ -209,9 +209,9 @@ void smir_free(StateMachine *self)
     free(self);
 }
 
-Program *smir_compile(StateMachine *self, state_id *sid_ordering)
+Program *smir_compile(StateMachine *self)
 {
-    return smir_compile_with_meta(self, sid_ordering, NULL, NULL);
+    return smir_compile_with_meta(self, NULL, NULL);
 }
 
 state_id smir_add_state(StateMachine *self)
@@ -596,6 +596,35 @@ void *smir_get_post_meta(StateMachine *self, state_id sid)
     return sid ? self->states[sid - 1].post_meta : NULL;
 }
 
+void smir_reorder_states(StateMachine *self, state_id *sid_ordering)
+{
+    State    *states;
+    trans_id *out;
+    state_id  sid, dst;
+    size_t    i, n, nstates;
+
+    if (!sid_ordering) return;
+
+    // update destinations of transitions
+    nstates = smir_get_num_states(self);
+    for (sid = 0; sid <= nstates; sid++) {
+        out = smir_get_out_transitions(self, sid, &n);
+        for (i = 0; i < n; i++) {
+            dst = smir_get_dst(self, out[i]);
+            smir_set_dst(self, out[i], dst ? sid_ordering[dst - 1] : 0);
+        }
+    }
+
+    // reorder the states in the states array
+    stc_vec_init(states, nstates);
+    stc_vec_len_unsafe(states) = nstates;
+    for (sid = 1; sid <= nstates; sid++)
+        states[sid_ordering[sid - 1] - 1] = self->states[sid - 1];
+
+    stc_vec_free(self->states);
+    self->states = states;
+}
+
 void smir_transform(StateMachine *self, transform_f transformer)
 {
     (void) self;
@@ -623,7 +652,7 @@ typedef struct {
     offset_t entry;     /*<< where the state is compiled in the program       */
     offset_t exit;      /*<< the to-be-filled outgoing transition offsets     */
     size_t transitions; /*<< where the transitions start                      */
-} CompiledState;
+} StateBlock;
 
 /* --- Helper Routines ------------------------------------------------------ */
 
@@ -760,12 +789,12 @@ static byte *compile_actions(byte *pc, Program *prog, const ActionList *acts)
 }
 
 static size_t
-count_bytes_transition(StateMachine *sm, trans_id tid, state_id next_sid)
+count_bytes_transition(StateMachine *sm, trans_id tid, int count_jmp)
 {
     size_t size;
 
     size = count_bytes_actions(smir_trans_get_actions(sm, tid));
-    if (smir_get_dst(sm, tid) != next_sid) {
+    if (count_jmp) {
         size++;
         size += sizeof(offset_t);
     }
@@ -773,12 +802,12 @@ count_bytes_transition(StateMachine *sm, trans_id tid, state_id next_sid)
     return size;
 }
 
-static byte *compile_transition(StateMachine  *sm,
-                                byte          *pc,
-                                Program       *prog,
-                                trans_id       tid,
-                                state_id       next_sid,
-                                CompiledState *compiled_states)
+static byte *compile_transition(StateMachine *sm,
+                                byte         *pc,
+                                Program      *prog,
+                                trans_id      tid,
+                                int           compile_jmp,
+                                StateBlock   *state_blocks)
 {
     const ActionList *acts;
     state_id          dst;
@@ -790,13 +819,12 @@ static byte *compile_transition(StateMachine  *sm,
 
     pc = compile_actions(pc, prog, acts);
 
-    if (dst != next_sid) {
+    if (compile_jmp) {
         BCWRITE(pc, JMP);
-        offset_idx = pc - prog->insts;
-        jmp_target_idx =
-            IS_FINAL_STATE(dst)
-                ? compiled_states[smir_get_num_states(sm) + 1].entry
-                : compiled_states[dst].entry;
+        offset_idx     = pc - prog->insts;
+        jmp_target_idx = IS_FINAL_STATE(dst)
+                             ? state_blocks[smir_get_num_states(sm) + 1].entry
+                             : state_blocks[dst].entry;
         MEMWRITE(pc, offset_t,
                  jmp_target_idx - (offset_idx + sizeof(offset_t)));
     }
@@ -804,95 +832,84 @@ static byte *compile_transition(StateMachine  *sm,
     return pc;
 }
 
-static size_t count_bytes_transitions(StateMachine *sm,
-                                      trans_id     *out,
-                                      size_t        n,
-                                      state_id      idx,
-                                      state_id     *sid_ordering)
+static size_t
+count_bytes_transitions(StateMachine *sm, trans_id *out, size_t n, state_id sid)
 {
-    state_id next_sid;
-    size_t   i, nstates, size = 0;
+    size_t i, nstates, size = 0;
+    int    count_jmp;
 
-    nstates  = smir_get_num_states(sm);
-    next_sid = (idx + 1) % (nstates + 1);
-    if (sid_ordering && idx < nstates) next_sid = sid_ordering[idx];
-
+    nstates = smir_get_num_states(sm);
     for (i = 0; i < n - 1; i++)
         if (smir_trans_get_num_actions(sm, out[i]))
-            size += count_bytes_transition(sm, out[i], nstates + 1);
+            size += count_bytes_transition(sm, out[i], 0);
 
     // count bytes of last transition
+    count_jmp = smir_get_dst(sm, out[i]) != (sid + 1) % (nstates + 1);
     if (n == 1 || smir_trans_get_num_actions(sm, out[i]))
-        size += count_bytes_transition(sm, out[i], next_sid);
+        size += count_bytes_transition(sm, out[i], count_jmp);
 
     return size;
 }
 
-static void compile_transitions(StateMachine  *sm,
-                                Program       *prog,
-                                state_id       idx,
-                                state_id      *sid_ordering,
-                                CompiledState *compiled_states)
+static void compile_transitions(StateMachine *sm,
+                                Program      *prog,
+                                state_id      sid,
+                                StateBlock   *state_blocks)
 {
     trans_id *out;
     byte     *pc;
     size_t    n, i, nstates;
     offset_t  offset_idx;
-    state_id  sid, next_sid;
+    int       compile_jmp;
 
     nstates = smir_get_num_states(sm);
-    sid     = (sid_ordering && idx) ? sid_ordering[idx - 1] : idx;
     out     = smir_get_out_transitions(sm, sid, &n);
-    if (!n) return;
+    if (!n) goto cleanup;
 
-    next_sid = (idx + 1) % (nstates + 1);
-    if (sid_ordering && idx < nstates) next_sid = sid_ordering[idx];
-
-    offset_idx = compiled_states[sid].exit;
-    pc         = prog->insts + compiled_states[sid].transitions;
+    offset_idx = state_blocks[sid].exit;
+    pc         = prog->insts + state_blocks[sid].transitions;
     for (i = 0; i < n - 1; offset_idx += sizeof(offset_t), i++) {
         if (smir_trans_get_num_actions(sm, out[i])) {
             SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
-            pc = compile_transition(sm, pc, prog, out[i], nstates + 1,
-                                    compiled_states);
+            pc = compile_transition(sm, pc, prog, out[i], 0, state_blocks);
         } else {
             sid = smir_get_dst(sm, out[i]);
             if (!sid) sid = nstates + 1;
-            SET_OFFSET(prog->insts, offset_idx, compiled_states[sid].entry);
+            SET_OFFSET(prog->insts, offset_idx, state_blocks[sid].entry);
         }
     }
 
     // compile last transition
+    compile_jmp = smir_get_dst(sm, out[i]) != (sid + 1) % (nstates + 1);
     if (n > 1) {
         if (smir_trans_get_num_actions(sm, out[i])) {
             SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
-            compile_transition(sm, pc, prog, out[i], next_sid, compiled_states);
+            compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks);
         } else {
             sid = smir_get_dst(sm, out[i]);
             if (!sid) sid = nstates + 1;
-            SET_OFFSET(prog->insts, offset_idx, compiled_states[sid].entry);
+            SET_OFFSET(prog->insts, offset_idx, state_blocks[sid].entry);
         }
     } else if (n == 1) {
-        compile_transition(sm, pc, prog, out[i], next_sid, compiled_states);
+        compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks);
     }
 
+cleanup:
     if (out) free(out);
 }
 
-static void compile_state(StateMachine  *sm,
-                          Program       *prog,
-                          state_id       idx,
-                          state_id      *sid_ordering,
-                          compile_f      pre,
-                          compile_f      post,
-                          CompiledState *compiled_states)
+static void compile_state(StateMachine *sm,
+                          Program      *prog,
+                          state_id      sid,
+                          compile_f     pre,
+                          compile_f     post,
+                          StateBlock   *state_blocks)
 {
     trans_id         *out;
     const ActionList *acts;
-    size_t            n, size, sid;
+    size_t            n, size;
 
-    sid = (sid_ordering && idx) ? sid_ordering[idx - 1] : idx;
-    compiled_states[sid].entry = stc_vec_len_unsafe(prog->insts);
+    state_blocks[sid].entry = stc_vec_len_unsafe(prog->insts);
 
     if (pre) pre(smir_get_pre_meta(sm, sid), prog);
     if (smir_state_get_num_actions(sm, sid)) {
@@ -905,76 +922,69 @@ static void compile_state(StateMachine  *sm,
     if (post) post(smir_get_post_meta(sm, sid), prog);
 
     out = smir_get_out_transitions(sm, sid, &n);
-
     switch (n) {
         case 0:
-            compiled_states[sid].exit        = 0;
-            compiled_states[sid].transitions = stc_vec_len_unsafe(prog->insts);
-            goto done;
+            state_blocks[sid].exit        = 0;
+            state_blocks[sid].transitions = stc_vec_len_unsafe(prog->insts);
+            goto cleanup;
 
         case 1:
-            compiled_states[sid].exit = compiled_states[sid].transitions =
-                stc_vec_len_unsafe(prog->insts);
+            state_blocks[sid].exit        = stc_vec_len_unsafe(prog->insts);
+            state_blocks[sid].transitions = state_blocks[sid].exit;
             break;
 
-        case 2: BCPUSH(prog->insts, SPLIT); goto reserve_splits;
-
         default:
-            BCPUSH(prog->insts, TSWITCH);
-            MEMPUSH(prog->insts, len_t, n);
-        reserve_splits:
-            compiled_states[sid].exit = stc_vec_len_unsafe(prog->insts);
+            if (n == 2) {
+                BCPUSH(prog->insts, SPLIT);
+            } else {
+                BCPUSH(prog->insts, TSWITCH);
+                MEMPUSH(prog->insts, len_t, n);
+            }
+            state_blocks[sid].exit = stc_vec_len_unsafe(prog->insts);
             RESERVE(prog->insts, n * sizeof(offset_t));
-            compiled_states[sid].transitions = stc_vec_len_unsafe(prog->insts);
+            state_blocks[sid].transitions = stc_vec_len_unsafe(prog->insts);
             break;
     }
 
-    size = count_bytes_transitions(sm, out, n, idx, sid_ordering);
+    size = count_bytes_transitions(sm, out, n, sid);
     if (size) RESERVE(prog->insts, size);
 
-done:
+cleanup:
     if (out) free(out);
-    return;
 }
 
-static void compile_initial(StateMachine  *sm,
-                            state_id      *sid_ordering,
-                            Program       *prog,
-                            CompiledState *compiled_states)
+static void
+compile_initial(StateMachine *sm, Program *prog, StateBlock *state_blocks)
 {
-    compile_state(sm, prog, INITIAL_STATE_ID, sid_ordering, NULL, NULL,
-                  compiled_states);
+    compile_state(sm, prog, INITIAL_STATE_ID, NULL, NULL, state_blocks);
 }
 
 /* --- Main Routine --------------------------------------------------------- */
 
-Program *smir_compile_with_meta(StateMachine *sm,
-                                state_id     *sid_ordering,
-                                compile_f     pre,
-                                compile_f     post)
+Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
 {
-    Program       *prog = program_default(sm->regex);
-    CompiledState *compiled_states;
-    size_t         n, i;
+    Program    *prog = program_default(sm->regex);
+    StateBlock *state_blocks;
+    size_t      n, sid;
 
-    n               = smir_get_num_states(sm);
-    compiled_states = malloc((n + 2) * sizeof(*compiled_states));
+    n            = smir_get_num_states(sm);
+    state_blocks = malloc((n + 2) * sizeof(*state_blocks));
 
     // compile `initial .. states .. final` states
     // and store entry, exit, and transitions offsets
-    compile_initial(sm, sid_ordering, prog, compiled_states);
-    for (i = 1; i <= n; i++)
-        compile_state(sm, prog, i, sid_ordering, pre, post, compiled_states);
-    compiled_states[i].entry = stc_vec_len_unsafe(prog->insts);
-    compiled_states[i].exit  = 0;
+    compile_initial(sm, prog, state_blocks);
+    for (sid = 1; sid <= n; sid++)
+        compile_state(sm, prog, sid, pre, post, state_blocks);
+    state_blocks[sid].entry = stc_vec_len_unsafe(prog->insts);
+    state_blocks[sid].exit  = 0;
     BCPUSH(prog->insts, MATCH);
 
     // compile out transitions for each state
-    for (i = 0; i <= n; i++)
-        compile_transitions(sm, prog, i, sid_ordering, compiled_states);
+    for (sid = 0; sid <= n; sid++)
+        compile_transitions(sm, prog, sid, state_blocks);
 
     // cleanup
-    free(compiled_states);
+    free(state_blocks);
 
     return prog;
 }

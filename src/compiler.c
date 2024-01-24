@@ -41,7 +41,7 @@ const Program *compiler_compile(const Compiler *self)
         case GLUSHKOV: sm = glushkov_construct(re, &self->opts); break;
     }
     regex_node_free(re.root);
-    prog = smir_compile(sm, NULL);
+    prog = smir_compile(sm);
     smir_free(sm);
 
     return prog;
