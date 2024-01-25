@@ -12,13 +12,15 @@
 struct spencer_thread {
     const byte  *pc;
     const char  *sp;
-    const char **captures; /*<< stc_slice                                     */
+    byte        *memoisation_memory;
     cntr_t      *counters; /*<< stc_slice                                     */
     byte        *memory;   /*<< stc_slice                                     */
+    const char **captures; /*<< stc_slice                                     */
 };
 
 struct spencer_scheduler {
     const Program  *prog;
+    byte           *memoisation_memory;
     size_t          in_order_idx;
     SpencerThread  *active;
     SpencerThread **stack; /*<< stc_vec                                       */
@@ -28,21 +30,23 @@ struct spencer_scheduler {
 
 SpencerThread *spencer_thread_new(const byte   *pc,
                                   const char   *sp,
-                                  len_t         ncaptures,
+                                  byte         *memoisation_memory,
                                   const cntr_t *counters,
                                   len_t         ncounters,
-                                  const byte   *memory,
-                                  len_t         memory_len)
+                                  len_t         memory_len,
+                                  len_t         ncaptures)
 {
     SpencerThread *thread = malloc(sizeof(*thread));
 
-    thread->pc = pc;
-    thread->sp = sp;
+    thread->pc                 = pc;
+    thread->sp                 = sp;
+    thread->memoisation_memory = memoisation_memory;
 
+    thread->counters = stc_slice_from_parts(counters, ncounters);
+    stc_slice_init(thread->memory, memory_len);
+    memset(thread->memory, 0, memory_len * sizeof(*thread->memory));
     stc_slice_init(thread->captures, 2 * ncaptures);
     memset(thread->captures, 0, 2 * ncaptures * sizeof(*thread->captures));
-    thread->counters = stc_slice_from_parts(counters, ncounters);
-    thread->memory   = stc_slice_from_parts(memory, memory_len);
 
     return thread;
 }
@@ -58,16 +62,16 @@ const char *spencer_thread_sp(const SpencerThread *self) { return self->sp; }
 
 void spencer_thread_try_inc_sp(SpencerThread *self) { self->sp++; }
 
-const char *const *spencer_thread_captures(const SpencerThread *self,
-                                           len_t               *ncaptures)
+int spencer_thread_memoise(SpencerThread *self,
+                           const char    *text,
+                           size_t         text_len,
+                           len_t          idx)
 {
-    if (ncaptures) *ncaptures = stc_slice_len(self->captures) / 2;
-    return self->captures;
-}
+    size_t i = idx * text_len + self->sp - text;
+    if (self->memoisation_memory[i]) return FALSE;
 
-void spencer_thread_set_capture(SpencerThread *self, len_t idx)
-{
-    self->captures[idx] = self->sp;
+    self->memoisation_memory[i] = TRUE;
+    return TRUE;
 }
 
 cntr_t spencer_thread_counter(const SpencerThread *self, len_t idx)
@@ -96,6 +100,18 @@ void spencer_thread_set_memory(SpencerThread *self,
                                size_t         size)
 {
     memcpy(self->memory + idx, val, size);
+}
+
+const char *const *spencer_thread_captures(const SpencerThread *self,
+                                           len_t               *ncaptures)
+{
+    if (ncaptures) *ncaptures = stc_slice_len(self->captures) / 2;
+    return self->captures;
+}
+
+void spencer_thread_set_capture(SpencerThread *self, len_t idx)
+{
+    self->captures[idx] = self->sp;
 }
 
 SpencerThread *spencer_thread_clone(const SpencerThread *self)
@@ -128,9 +144,10 @@ SpencerScheduler *spencer_scheduler_new(const Program *program)
 {
     SpencerScheduler *s = malloc(sizeof(*s));
 
-    s->prog         = program;
-    s->in_order_idx = 0;
-    s->active       = NULL;
+    s->prog               = program;
+    s->memoisation_memory = NULL;
+    s->in_order_idx       = 0;
+    s->active             = NULL;
     stc_vec_default_init(s->stack); // NOLINT(bugprone-sizeof-expression)
 
     return s;
@@ -138,21 +155,26 @@ SpencerScheduler *spencer_scheduler_new(const Program *program)
 
 void spencer_scheduler_init(SpencerScheduler *self, const char *text)
 {
-    const Program *prog = self->prog;
-    size_t         text_len;
+    const Program *prog     = self->prog;
+    size_t         text_len = strlen(text);
+
+    stc_slice_free(self->memoisation_memory);
+    stc_slice_init(self->memoisation_memory,
+                   self->prog->nmemo_insts * text_len * sizeof(byte));
+    memset(self->memoisation_memory, 0,
+           self->prog->nmemo_insts * text_len * sizeof(byte));
 
     spencer_scheduler_schedule(
-        self, spencer_thread_new(prog->insts, text, prog->ncaptures,
+        self, spencer_thread_new(prog->insts, text, self->memoisation_memory,
                                  prog->counters, stc_vec_len(prog->counters),
-                                 prog->memory, stc_vec_len(prog->memory)));
+                                 prog->thread_mem_len, prog->ncaptures));
 
-    for (text_len = strlen(text); text_len > 0; text_len--) {
+    while (text_len > 0)
         spencer_scheduler_schedule(
-            self,
-            spencer_thread_new(prog->insts, text + text_len, prog->ncaptures,
-                               prog->counters, stc_vec_len(prog->counters),
-                               prog->memory, stc_vec_len(prog->memory)));
-    }
+            self, spencer_thread_new(prog->insts, text + text_len--,
+                                     self->memoisation_memory, prog->counters,
+                                     stc_vec_len(prog->counters),
+                                     prog->thread_mem_len, prog->ncaptures));
 }
 
 void spencer_scheduler_schedule(SpencerScheduler *self, SpencerThread *thread)
@@ -203,6 +225,9 @@ void spencer_scheduler_reset(SpencerScheduler *self)
 {
     size_t i, len = stc_vec_len(self->stack);
 
+    if (self->memoisation_memory)
+        memset(self->memoisation_memory, 0,
+               stc_slice_len(self->memoisation_memory));
     self->in_order_idx = 0;
     if (self->active) {
         spencer_thread_free(self->active);
@@ -233,7 +258,8 @@ SpencerScheduler *spencer_scheduler_clone(const SpencerScheduler *self)
 SpencerScheduler *spencer_scheduler_clone_with(const SpencerScheduler *self,
                                                SpencerThread          *thread)
 {
-    SpencerScheduler *s = spencer_scheduler_clone(self);
+    SpencerScheduler *s   = spencer_scheduler_clone(self);
+    s->memoisation_memory = stc_slice_clone(self->memoisation_memory);
     spencer_scheduler_schedule(s, thread);
     return s;
 }
@@ -245,6 +271,8 @@ const Program *spencer_scheduler_program(const SpencerScheduler *self)
 
 void spencer_scheduler_free(SpencerScheduler *self)
 {
+    stc_slice_free(self->memoisation_memory);
+    self->memoisation_memory = NULL;
     spencer_scheduler_reset(self);
     stc_vec_free(self->stack);
     free(self);

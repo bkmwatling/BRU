@@ -91,32 +91,6 @@ int srvm_matches(ThreadManager *thread_manager,
 
 /* --- Private function definitions ----------------------------------------- */
 
-// XXX: does not check for failed mallocs
-static byte **init_memoised(const Program *prog, const char *text)
-{
-    len_t  i;
-    size_t len = strlen(text) + 1;
-    byte **m   = malloc(sizeof(byte *) * stc_vec_len_unsafe(prog->insts));
-    m[0]       = malloc(sizeof(byte) * len);
-    memset((void *) m[0], 0, sizeof(byte) * len);
-
-    for (i = 1; i < stc_vec_len_unsafe(prog->insts); i++) {
-        m[i] = malloc(sizeof(byte) * len);
-        memset((void *) m[i], 0, sizeof(byte) * len);
-    }
-
-    return m;
-}
-
-// XXX: assumes m, m[i] nonnull
-static void destroy_memoised(byte **m, len_t insts_len)
-{
-    len_t i;
-
-    for (i = 0; i < insts_len; i++) free(m[i]);
-    free(m);
-}
-
 static int srvm_run(const char    *text,
                     ThreadManager *thread_manager,
                     Scheduler     *scheduler,
@@ -127,13 +101,13 @@ static int srvm_run(const char    *text,
     const Program *prog    = scheduler_program(scheduler);
     void          *thread, *t;
     const byte    *pc;
-    byte         **memoised = init_memoised(prog, text);
     const char    *sp, *codepoint;
     len_t          ncaptures, intervals_len, k;
     offset_t       x, y;
     cntr_t         cval, n;
     Interval      *intervals;
     Scheduler     *s;
+    size_t         text_len = strlen(text);
 
 #define CURR_INSTR (uint) * (pc - 1)
     size_t instr_counts[NBYTECODES] = { 0 };
@@ -146,7 +120,7 @@ static int srvm_run(const char    *text,
 
         pc = thread_manager->pc(thread);
         switch (*pc++) {
-            case NOOP: /* fallthrough */
+            case NOOP:
                 instr_counts[CURR_INSTR]++;
                 thread_manager->set_pc(thread, pc);
                 scheduler_schedule(scheduler, thread);
@@ -183,17 +157,17 @@ static int srvm_run(const char    *text,
                 break;
 
             case MEMO:
-                if (memoised[pc - prog->insts][sp - text]) {
-                    scheduler_kill(scheduler, thread); // TODO
-                } else {
+                MEMREAD(k, pc, len_t);
+                if (thread_manager->memoise(thread, text, text_len, k)) {
                     instr_counts[CURR_INSTR]++;
-                    memoised[pc - prog->insts][sp - text] = (byte) 1;
                     thread_manager->set_pc(thread, pc);
                     scheduler_schedule(scheduler, thread);
+                } else {
+                    scheduler_kill(scheduler, thread);
                 }
                 break;
 
-            case CHAR: /* fallthrough */
+            case CHAR:
                 instr_counts[CURR_INSTR]++;
                 MEMREAD(codepoint, pc, const char *);
                 if (*sp && stc_utf8_cmp(codepoint, sp) == 0) {
@@ -205,7 +179,7 @@ static int srvm_run(const char    *text,
                 }
                 break;
 
-            case PRED: /* fallthrough */
+            case PRED:
                 instr_counts[CURR_INSTR]++;
                 MEMREAD(intervals_len, pc, len_t);
                 MEMREAD(k, pc, len_t);
@@ -349,12 +323,12 @@ static int srvm_run(const char    *text,
         }
     }
 
-    destroy_memoised(memoised, stc_vec_len_unsafe(prog->insts));
-
 #define LOG_INSTRS(i) printf(#i ": %lu\n", instr_counts[(uint) i])
 
-    LOG_INSTRS(CHAR);
+    LOG_INSTRS(MATCH);
     LOG_INSTRS(MEMO);
+    LOG_INSTRS(CHAR);
+    LOG_INSTRS(PRED);
 
 #undef LOG_INSTRS
 

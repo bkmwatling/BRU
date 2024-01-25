@@ -14,30 +14,33 @@ typedef struct thompson_scheduler ThompsonScheduler;
 
 /* --- ThompsonThread function prototypes ----------------------------------- */
 
-ThompsonThread    *thompson_thread_new(const byte        *pc,
-                                       const char *const *sp,
-                                       len_t              ncaptures,
-                                       const cntr_t      *counters,
-                                       len_t              ncounters,
-                                       const byte        *memory,
-                                       len_t              memory_len);
-const byte        *thompson_thread_pc(const ThompsonThread *self);
-void               thompson_thread_set_pc(ThompsonThread *self, const byte *pc);
-const char        *thompson_thread_sp(const ThompsonThread *self);
-void               thompson_thread_try_inc_sp(ThompsonThread *self);
+ThompsonThread *thompson_thread_new(const byte        *pc,
+                                    const char *const *sp,
+                                    const cntr_t      *counters,
+                                    len_t              ncounters,
+                                    len_t              memory_len,
+                                    len_t              ncaptures);
+const byte     *thompson_thread_pc(const ThompsonThread *self);
+void            thompson_thread_set_pc(ThompsonThread *self, const byte *pc);
+const char     *thompson_thread_sp(const ThompsonThread *self);
+void            thompson_thread_try_inc_sp(ThompsonThread *self);
+int             thompson_thread_memoise(ThompsonThread *self,
+                                        const char     *text,
+                                        size_t          text_len,
+                                        len_t           idx);
+cntr_t          thompson_thread_counter(const ThompsonThread *self, len_t idx);
+void  thompson_thread_set_counter(ThompsonThread *self, len_t idx, cntr_t val);
+void  thompson_thread_inc_counter(ThompsonThread *self, len_t idx);
+void *thompson_thread_memory(const ThompsonThread *self, len_t idx);
+void  thompson_thread_set_memory(ThompsonThread *self,
+                                 len_t           idx,
+                                 const void     *val,
+                                 size_t          size);
 const char *const *thompson_thread_captures(const ThompsonThread *self,
                                             len_t                *ncaptures);
 void               thompson_thread_set_capture(ThompsonThread *self, len_t idx);
-cntr_t thompson_thread_counter(const ThompsonThread *self, len_t idx);
-void   thompson_thread_set_counter(ThompsonThread *self, len_t idx, cntr_t val);
-void   thompson_thread_inc_counter(ThompsonThread *self, len_t idx);
-void  *thompson_thread_memory(const ThompsonThread *self, len_t idx);
-void   thompson_thread_set_memory(ThompsonThread *self,
-                                  len_t           idx,
-                                  const void     *val,
-                                  size_t          size);
-ThompsonThread *thompson_thread_clone(const ThompsonThread *self);
-void            thompson_thread_free(ThompsonThread *self);
+ThompsonThread    *thompson_thread_clone(const ThompsonThread *self);
+void               thompson_thread_free(ThompsonThread *self);
 
 ThreadManager *thompson_thread_manager_new(void);
 

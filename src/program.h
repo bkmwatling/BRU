@@ -70,12 +70,19 @@
 #define GT 6
 
 typedef struct {
-    const char *regex;    /*<< the original regular expression                */
-    byte       *insts;    /*<< stc_vec                                        */
-    byte       *aux;      /*<< stc_vec                                        */
-    cntr_t     *counters; /*<< stc_vec                                        */
-    byte       *memory;   /*<< stc_vec                                        */
-    size_t      ncaptures;
+    const char *regex; /*<< the original regular expression                   */
+
+    // VM execution
+    byte *insts; /*<< stc_vec                                                 */
+    byte *aux;   /*<< stc_vec                                                 */
+
+    // shared thread memory
+    size_t nmemo_insts;
+
+    // thread memory
+    cntr_t *counters; /*<< stc_vec                                            */
+    size_t  thread_mem_len;
+    size_t  ncaptures;
 } Program;
 
 /* --- Program function prototypes ------------------------------------------ */
@@ -84,8 +91,9 @@ typedef struct {
 Program *program_new(const char *regex,
                      size_t      insts_len,
                      size_t      aux_len,
+                     size_t      nmemo_insts,
                      size_t      ncounters,
-                     size_t      mem_len,
+                     size_t      thread_mem_len,
                      size_t      ncaptures);
 Program *program_default(const char *regex);
 void     program_free(Program *self);

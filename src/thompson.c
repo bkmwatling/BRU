@@ -35,7 +35,7 @@ typedef struct {
 /* --- Helper Prototypes ---------------------------------------------------- */
 
 static state_id_pair
-emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k);
+emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts);
 
 /* --- Main Routine --------------------------------------------------------- */
 
@@ -43,10 +43,9 @@ StateMachine *thompson_construct(Regex re, const CompilerOpts *opts)
 {
     StateMachine *sm;
     state_id_pair child;
-    len_t         k = 0;
 
     sm    = smir_default(re.regex);
-    child = emit(sm, re.root, opts, &k);
+    child = emit(sm, re.root, opts);
     smir_set_initial(sm, child.initial);
     smir_set_final(sm, child.final);
 
@@ -56,7 +55,7 @@ StateMachine *thompson_construct(Regex re, const CompilerOpts *opts)
 /* --- Helper Routines ------------------------------------------------------ */
 
 static state_id_pair
-emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
+emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
 {
     state_id_pair state_ids, child_state_ids;
     trans_id      out, enter, leave;
@@ -78,8 +77,7 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
         case MEMOISE:
             state_ids.initial = state_ids.final = smir_add_state(sm);
             smir_state_append_action(sm, state_ids.final,
-                                     smir_action_num(ACT_MEMO, *k));
-            k += sizeof(byte *);
+                                     smir_action_num(ACT_MEMO, re->rid));
             break;
 
         case LITERAL:
@@ -99,12 +97,12 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
         case ALT:
             state_ids.initial = smir_add_state(sm);
 
-            child_state_ids = emit(sm, re->left, opts, k);
+            child_state_ids = emit(sm, re->left, opts);
             out             = smir_add_transition(sm, state_ids.initial);
             smir_set_dst(sm, out, child_state_ids.initial);
             out = smir_add_transition(sm, child_state_ids.final);
 
-            child_state_ids = emit(sm, re->right, opts, k);
+            child_state_ids = emit(sm, re->right, opts);
             leave           = smir_add_transition(sm, state_ids.initial);
             smir_set_dst(sm, leave, child_state_ids.initial);
             leave = smir_add_transition(sm, child_state_ids.final);
@@ -115,8 +113,8 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
             break;
 
         case CONCAT:
-            state_ids       = emit(sm, re->left, opts, k);
-            child_state_ids = emit(sm, re->right, opts, k);
+            state_ids       = emit(sm, re->left, opts);
+            child_state_ids = emit(sm, re->right, opts);
 
             out = smir_add_transition(sm, state_ids.final);
             smir_set_dst(sm, out, child_state_ids.initial);
@@ -126,24 +124,24 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
 
         case CAPTURE:
             state_ids.initial = smir_add_state(sm);
-            child_state_ids   = emit(sm, re->left, opts, k);
+            child_state_ids   = emit(sm, re->left, opts);
             state_ids.final   = smir_add_state(sm);
 
             out = smir_add_transition(sm, state_ids.initial);
             smir_set_dst(sm, out, child_state_ids.initial);
             smir_trans_append_action(
-                sm, out, smir_action_num(ACT_SAVE, re->capture_idx));
+                sm, out, smir_action_num(ACT_SAVE, 2 * re->capture_idx));
 
             out = smir_add_transition(sm, child_state_ids.final);
             smir_set_dst(sm, out, state_ids.final);
             smir_trans_append_action(
-                sm, out, smir_action_num(ACT_SAVE, re->capture_idx + 1));
+                sm, out, smir_action_num(ACT_SAVE, 2 * re->capture_idx + 1));
             break;
 
         case STAR:
             state_ids.initial = smir_add_state(sm);
             if (opts->capture_semantics == CS_PCRE) sid = smir_add_state(sm);
-            child_state_ids = emit(sm, re->left, opts, k);
+            child_state_ids = emit(sm, re->left, opts);
             if (opts->capture_semantics == CS_RE2)
                 sid = child_state_ids.initial;
             state_ids.final = smir_add_state(sm);
@@ -155,32 +153,31 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
                 enter = smir_add_transition(sm, sid);
                 smir_set_dst(sm, enter, child_state_ids.initial);
                 smir_trans_append_action(sm, enter,
-                                         smir_action_num(ACT_EPSSET, *k));
+                                         smir_action_num(ACT_EPSSET, re->rid));
             }
 
             SET_TRANS_PRIORITY(sm, re, child_state_ids.final, enter, leave);
             smir_set_dst(sm, enter, sid);
             smir_set_dst(sm, leave, state_ids.final);
             smir_trans_append_action(sm, enter,
-                                     smir_action_num(ACT_EPSCHK, *k));
+                                     smir_action_num(ACT_EPSCHK, re->rid));
             if (opts->capture_semantics == CS_RE2)
                 smir_trans_append_action(sm, enter,
-                                         smir_action_num(ACT_EPSSET, *k));
+                                         smir_action_num(ACT_EPSSET, re->rid));
 
-            *k += sizeof(const char *);
             break;
 
         case PLUS:
             if (opts->capture_semantics == CS_PCRE) {
                 state_ids.initial = smir_add_state(sm);
-                child_state_ids   = emit(sm, re->left, opts, k);
+                child_state_ids   = emit(sm, re->left, opts);
 
                 out = smir_add_transition(sm, state_ids.initial);
                 smir_set_dst(sm, out, child_state_ids.initial);
                 smir_trans_append_action(sm, out,
-                                         smir_action_num(ACT_EPSSET, *k));
+                                         smir_action_num(ACT_EPSSET, re->rid));
             } else {
-                state_ids = child_state_ids = emit(sm, re->left, opts, k);
+                state_ids = child_state_ids = emit(sm, re->left, opts);
             }
             state_ids.final = smir_add_state(sm);
 
@@ -188,17 +185,16 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts, len_t *k)
             smir_set_dst(sm, enter, child_state_ids.initial);
             smir_set_dst(sm, leave, state_ids.final);
             smir_trans_append_action(sm, enter,
-                                     smir_action_num(ACT_EPSCHK, *k));
+                                     smir_action_num(ACT_EPSCHK, re->rid));
             if (opts->capture_semantics == CS_RE2)
                 smir_trans_append_action(sm, enter,
-                                         smir_action_num(ACT_EPSSET, *k));
+                                         smir_action_num(ACT_EPSSET, re->rid));
 
-            *k += sizeof(const char *);
             break;
 
         case QUES:
             state_ids.initial = smir_add_state(sm);
-            child_state_ids   = emit(sm, re->left, opts, k);
+            child_state_ids   = emit(sm, re->left, opts);
             state_ids.final   = smir_add_state(sm);
 
             SET_TRANS_PRIORITY(sm, re, state_ids.initial, enter, leave);

@@ -12,9 +12,9 @@
 struct thompson_thread {
     const byte        *pc;
     const char *const *sp;
-    const char **captures; /*<< stc_slice                                     */
     cntr_t      *counters; /*<< stc_slice                                     */
     byte        *memory;   /*<< stc_slice                                     */
+    const char **captures; /*<< stc_slice                                     */
 };
 
 struct thompson_scheduler {
@@ -32,21 +32,21 @@ struct thompson_scheduler {
 
 ThompsonThread *thompson_thread_new(const byte        *pc,
                                     const char *const *sp,
-                                    len_t              ncaptures,
                                     const cntr_t      *counters,
                                     len_t              ncounters,
-                                    const byte        *memory,
-                                    len_t              memory_len)
+                                    len_t              memory_len,
+                                    len_t              ncaptures)
 {
     ThompsonThread *thread = malloc(sizeof(*thread));
 
     thread->pc = pc;
     thread->sp = sp;
 
+    thread->counters = stc_slice_from_parts(counters, ncounters);
+    stc_slice_init(thread->memory, memory_len);
+    memset(thread->memory, 0, memory_len * sizeof(*thread->memory));
     stc_slice_init(thread->captures, 2 * ncaptures);
     memset(thread->captures, 0, 2 * ncaptures * sizeof(*thread->captures));
-    thread->counters = stc_slice_from_parts(counters, ncounters);
-    thread->memory   = stc_slice_from_parts(memory, memory_len);
 
     return thread;
 }
@@ -62,16 +62,16 @@ const char *thompson_thread_sp(const ThompsonThread *self) { return *self->sp; }
 
 void thompson_thread_try_inc_sp(ThompsonThread *self) { (void) self; }
 
-const char *const *thompson_thread_captures(const ThompsonThread *self,
-                                            len_t                *ncaptures)
+int thompson_thread_memoise(ThompsonThread *self,
+                            const char     *text,
+                            size_t          text_len,
+                            len_t           idx)
 {
-    if (ncaptures) *ncaptures = stc_slice_len(self->captures) / 2;
-    return self->captures;
-}
-
-void thompson_thread_set_capture(ThompsonThread *self, len_t idx)
-{
-    self->captures[idx] = *self->sp;
+    (void) self;
+    (void) text;
+    (void) text_len;
+    (void) idx;
+    return TRUE;
 }
 
 cntr_t thompson_thread_counter(const ThompsonThread *self, len_t idx)
@@ -100,6 +100,18 @@ void thompson_thread_set_memory(ThompsonThread *self,
                                 size_t          size)
 {
     memcpy(self->memory + idx, val, size);
+}
+
+const char *const *thompson_thread_captures(const ThompsonThread *self,
+                                            len_t                *ncaptures)
+{
+    if (ncaptures) *ncaptures = stc_slice_len(self->captures) / 2;
+    return self->captures;
+}
+
+void thompson_thread_set_capture(ThompsonThread *self, len_t idx)
+{
+    self->captures[idx] = *self->sp;
 }
 
 ThompsonThread *thompson_thread_clone(const ThompsonThread *self)
@@ -170,9 +182,9 @@ void thompson_scheduler_init(ThompsonScheduler *self, const char *text)
 
     (void) text;
     thompson_scheduler_schedule(
-        self, thompson_thread_new(prog->insts, &self->sp, prog->ncaptures,
-                                  prog->counters, stc_vec_len(prog->counters),
-                                  prog->memory, stc_vec_len(prog->memory)));
+        self, thompson_thread_new(prog->insts, &self->sp, prog->counters,
+                                  stc_vec_len(prog->counters),
+                                  prog->thread_mem_len, prog->ncaptures));
 }
 
 void thompson_scheduler_schedule(ThompsonScheduler *self,

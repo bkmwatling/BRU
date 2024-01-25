@@ -11,13 +11,14 @@ typedef struct {
     void (*set_pc)(void *thread, const byte *pc);
     const char *(*sp)(const void *thread);
     void (*try_inc_sp)(void *thread);
-    const char *const *(*captures)(const void *thread, len_t *ncaptures);
-    void (*set_capture)(void *thread, len_t idx);
+    int (*memoise)(void *thread, const char *text, size_t text_len, len_t idx);
     cntr_t (*counter)(const void *thread, len_t idx);
     void (*set_counter)(void *thread, len_t idx, cntr_t val);
     void (*inc_counter)(void *thread, len_t idx);
     void *(*memory)(const void *thread, len_t idx);
     void (*set_memory)(void *thread, len_t idx, const void *val, size_t size);
+    const char *const *(*captures)(const void *thread, len_t *ncaptures);
+    void (*set_capture)(void *thread, len_t idx);
     void *(*clone)(const void *thread);
     void (*free)(void *thread);
 } ThreadManager;
@@ -85,15 +86,10 @@ typedef struct {
         prefix##_try_inc_sp((thread_type *) thread);                           \
     }                                                                          \
                                                                                \
-    static const char *const *prefix##_captures_wrapper(const void *thread,    \
-                                                        len_t      *ncaptures) \
+    static int prefix##_memoise_wrapper(void *thread, const char *text,        \
+                                        size_t text_len, len_t idx)            \
     {                                                                          \
-        return prefix##_captures((const thread_type *) thread, ncaptures);     \
-    }                                                                          \
-                                                                               \
-    static void prefix##_set_capture_wrapper(void *thread, len_t idx)          \
-    {                                                                          \
-        prefix##_set_capture((thread_type *) thread, idx);                     \
+        return prefix##_memoise((thread_type *) thread, text, text_len, idx);  \
     }                                                                          \
                                                                                \
     static cntr_t prefix##_counter_wrapper(const void *thread, len_t idx)      \
@@ -123,6 +119,17 @@ typedef struct {
         prefix##_set_memory((thread_type *) thread, idx, val, size);           \
     }                                                                          \
                                                                                \
+    static const char *const *prefix##_captures_wrapper(const void *thread,    \
+                                                        len_t      *ncaptures) \
+    {                                                                          \
+        return prefix##_captures((const thread_type *) thread, ncaptures);     \
+    }                                                                          \
+                                                                               \
+    static void prefix##_set_capture_wrapper(void *thread, len_t idx)          \
+    {                                                                          \
+        prefix##_set_capture((thread_type *) thread, idx);                     \
+    }                                                                          \
+                                                                               \
     static void *prefix##_clone_wrapper(const void *thread)                    \
     {                                                                          \
         return prefix##_clone((const thread_type *) thread);                   \
@@ -142,13 +149,14 @@ typedef struct {
         manager->set_pc      = prefix##_set_pc_wrapper;               \
         manager->sp          = prefix##_sp_wrapper;                   \
         manager->try_inc_sp  = prefix##_try_inc_sp_wrapper;           \
-        manager->captures    = prefix##_captures_wrapper;             \
-        manager->set_capture = prefix##_set_capture_wrapper;          \
+        manager->memoise     = prefix##_memoise_wrapper;              \
         manager->counter     = prefix##_counter_wrapper;              \
         manager->set_counter = prefix##_set_counter_wrapper;          \
         manager->inc_counter = prefix##_inc_counter_wrapper;          \
         manager->memory      = prefix##_memory_wrapper;               \
         manager->set_memory  = prefix##_set_memory_wrapper;           \
+        manager->captures    = prefix##_captures_wrapper;             \
+        manager->set_capture = prefix##_set_capture_wrapper;          \
         manager->clone       = prefix##_clone_wrapper;                \
         manager->free        = prefix##_free_wrapper;                 \
                                                                       \

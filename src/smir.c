@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "stc/fatp/vec.h"
@@ -68,7 +69,7 @@ struct action {
 
     union {
         len_t pred_len; /*<< type = ACT_PRED                                  */
-        len_t k; /*<< type = ACT_SAVE | ACT_EPSSET | ACT_EPSCHK | ACT_MEMO    */
+        size_t k; /*<< type = ACT_SAVE | ACT_EPSSET | ACT_EPSCHK | ACT_MEMO   */
     };
 };
 
@@ -420,7 +421,7 @@ const Action *smir_action_predicate(Interval *pred, len_t pred_len)
     return act;
 }
 
-const Action *smir_action_num(ActionType type, len_t k)
+const Action *smir_action_num(ActionType type, size_t k)
 {
     Action *act = malloc(sizeof(*act));
 
@@ -653,78 +654,21 @@ typedef struct {
     size_t transitions; /*<< where the transitions start                      */
 } StateBlock;
 
+typedef struct {
+    regex_id rid;
+    len_t    idx;
+} RidToIdx;
+
+typedef struct {
+    RidToIdx *thread_map;      /*<< stc_vec                                   */
+    RidToIdx *memoisation_map; /*<< stc_vec                                   */
+    len_t     next_thread_idx;
+    len_t     next_memoisation_idx;
+
+    // TODO: counter memory
+} MemoryMaps; // map RIDs to memory indices
+
 /* --- Helper Routines ------------------------------------------------------ */
-
-static size_t count_bytes_predicate(const Predicate *pred)
-{
-    size_t size = 0;
-
-    switch (pred->type) {
-        case ACT_BEGIN: size++; break;
-        case ACT_END: size++; break;
-
-        case ACT_CHAR:
-            size++;
-            size += sizeof(const char *);
-            break;
-
-        case ACT_PRED:
-            size++;
-            size += sizeof(len_t);
-            size += sizeof(len_t);
-            break;
-
-        case ACT_MEMO:
-            size++;
-            size += sizeof(len_t);
-            break;
-
-        case ACT_EPSCHK:
-            size++;
-            size += sizeof(len_t);
-            break;
-
-        case ACT_SAVE:
-        case ACT_EPSSET: assert(0 && "Invalid predicate node!"); break;
-    }
-
-    return size;
-}
-
-static byte *compile_predicate(byte *pc, Program *prog, const Predicate *pred)
-{
-    switch (pred->type) {
-        case ACT_BEGIN: BCWRITE(pc, BEGIN); break;
-        case ACT_END: BCWRITE(pc, END); break;
-
-        case ACT_CHAR:
-            BCWRITE(pc, CHAR);
-            MEMWRITE(pc, const char *, pred->ch);
-            break;
-
-        case ACT_PRED:
-            BCWRITE(pc, PRED);
-            MEMWRITE(pc, len_t, pred->pred_len);
-            MEMWRITE(pc, len_t, stc_vec_len_unsafe(prog->aux));
-            MEMCPY(prog->aux, pred->pred, pred->pred_len * sizeof(Interval));
-            break;
-
-        case ACT_MEMO:
-            BCWRITE(pc, MEMO);
-            MEMWRITE(pc, len_t, pred->k);
-            break;
-
-        case ACT_EPSCHK:
-            BCWRITE(pc, EPSCHK);
-            MEMWRITE(pc, len_t, pred->k);
-            break;
-
-        case ACT_SAVE:
-        case ACT_EPSSET: assert(0 && "Invalid predicate node!"); break;
-    }
-
-    return pc;
-}
 
 static size_t count_bytes_actions(const ActionList *acts)
 {
@@ -735,12 +679,29 @@ static size_t count_bytes_actions(const ActionList *acts)
 
     for (n = acts->next, size = 0; n != acts; n = n->next) {
         switch (n->act->type) {
-            case ACT_BEGIN:
-            case ACT_END:
+            case ACT_BEGIN: size++; break;
+            case ACT_END: size++; break;
+
             case ACT_CHAR:
+                size++;
+                size += sizeof(const char *);
+                break;
+
             case ACT_PRED:
+                size++;
+                size += sizeof(len_t);
+                size += sizeof(len_t);
+                break;
+
+            case ACT_MEMO:
+                size++;
+                size += sizeof(len_t);
+                break;
+
             case ACT_EPSCHK:
-            case ACT_MEMO: size = count_bytes_predicate(n->act); break;
+                size++;
+                size += sizeof(len_t);
+                break;
 
             case ACT_SAVE:
                 size++;
@@ -757,34 +718,81 @@ static size_t count_bytes_actions(const ActionList *acts)
     return size;
 }
 
-static byte *compile_actions(byte *pc, Program *prog, const ActionList *acts)
+static byte *compile_actions(byte             *pc,
+                             Program          *prog,
+                             const ActionList *acts,
+                             MemoryMaps       *mmaps)
 {
+#define GET_IDX(mmap, next_idx, type, uid)                         \
+    do {                                                           \
+        for (idx = 0, len = stc_vec_len_unsafe(mmap);              \
+             idx < len && (mmap)[idx].rid != (uid); idx++)         \
+            ;                                                      \
+        if (idx == len) {                                          \
+            idx         = (next_idx);                              \
+            (next_idx) += sizeof(type);                            \
+            stc_vec_push_back(mmap, ((RidToIdx){ (uid), (idx) })); \
+        } else {                                                   \
+            idx = (mmap)[idx].idx;                                 \
+        }                                                          \
+    } while (0)
+
     ActionList *n;
+    size_t      idx, len;
 
     if (!acts) return pc;
 
     for (n = acts->next; n != acts; n = n->next) {
         switch (n->act->type) {
-            case ACT_BEGIN:
-            case ACT_END:
+            case ACT_BEGIN: BCWRITE(pc, BEGIN); break;
+            case ACT_END: BCWRITE(pc, END); break;
+
             case ACT_CHAR:
+                BCWRITE(pc, CHAR);
+                MEMWRITE(pc, const char *, n->act->ch);
+                break;
+
             case ACT_PRED:
+                BCWRITE(pc, PRED);
+                MEMWRITE(pc, len_t, n->act->pred_len);
+                MEMWRITE(pc, len_t, stc_vec_len_unsafe(prog->aux));
+                MEMCPY(prog->aux, n->act->pred,
+                       n->act->pred_len * sizeof(Interval));
+                break;
+
+            case ACT_MEMO:
+                BCWRITE(pc, MEMO);
+                GET_IDX(mmaps->memoisation_map, mmaps->next_memoisation_idx,
+                        len_t, n->act->k);
+                MEMWRITE(pc, len_t, idx);
+                break;
+
             case ACT_EPSCHK:
-            case ACT_MEMO: pc = compile_predicate(pc, prog, n->act); break;
+                BCWRITE(pc, EPSCHK);
+                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx, const char *,
+                        n->act->k);
+                MEMWRITE(pc, len_t, idx);
+                break;
 
             case ACT_SAVE:
                 BCWRITE(pc, SAVE);
                 MEMWRITE(pc, len_t, n->act->k);
+                if ((n->act->k / 2) + 1 > prog->ncaptures)
+                    prog->ncaptures = (n->act->k / 2) + 1;
                 break;
 
             case ACT_EPSSET:
                 BCWRITE(pc, EPSSET);
-                MEMWRITE(pc, len_t, n->act->k);
+                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx, const char *,
+                        n->act->k);
+                MEMWRITE(pc, len_t, idx);
                 break;
         }
     }
 
     return pc;
+
+#undef GET_IDX
 }
 
 static size_t
@@ -806,7 +814,8 @@ static byte *compile_transition(StateMachine *sm,
                                 Program      *prog,
                                 trans_id      tid,
                                 int           compile_jmp,
-                                StateBlock   *state_blocks)
+                                StateBlock   *state_blocks,
+                                MemoryMaps   *mmaps)
 {
     const ActionList *acts;
     state_id          dst;
@@ -816,7 +825,7 @@ static byte *compile_transition(StateMachine *sm,
     acts = smir_trans_get_actions(sm, tid);
     dst  = smir_get_dst(sm, tid);
 
-    pc = compile_actions(pc, prog, acts);
+    pc = compile_actions(pc, prog, acts, mmaps);
 
     if (compile_jmp) {
         BCWRITE(pc, JMP);
@@ -853,7 +862,8 @@ count_bytes_transitions(StateMachine *sm, trans_id *out, size_t n, state_id sid)
 static void compile_transitions(StateMachine *sm,
                                 Program      *prog,
                                 state_id      sid,
-                                StateBlock   *state_blocks)
+                                StateBlock   *state_blocks,
+                                MemoryMaps   *mmaps)
 {
     trans_id *out;
     byte     *pc;
@@ -870,7 +880,8 @@ static void compile_transitions(StateMachine *sm,
     for (i = 0; i < n - 1; offset_idx += sizeof(offset_t), i++) {
         if (smir_trans_get_num_actions(sm, out[i])) {
             SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
-            pc = compile_transition(sm, pc, prog, out[i], TRUE, state_blocks);
+            pc = compile_transition(sm, pc, prog, out[i], TRUE, state_blocks,
+                                    mmaps);
         } else {
             sid = smir_get_dst(sm, out[i]);
             if (!sid) sid = nstates + 1;
@@ -883,14 +894,16 @@ static void compile_transitions(StateMachine *sm,
     if (n > 1) {
         if (smir_trans_get_num_actions(sm, out[i])) {
             SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
-            compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks);
+            compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks,
+                               mmaps);
         } else {
             sid = smir_get_dst(sm, out[i]);
             if (!sid) sid = nstates + 1;
             SET_OFFSET(prog->insts, offset_idx, state_blocks[sid].entry);
         }
     } else if (n == 1) {
-        compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks);
+        compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks,
+                           mmaps);
     }
 
 cleanup:
@@ -902,7 +915,8 @@ static void compile_state(StateMachine *sm,
                           state_id      sid,
                           compile_f     pre,
                           compile_f     post,
-                          StateBlock   *state_blocks)
+                          StateBlock   *state_blocks,
+                          MemoryMaps   *mmaps)
 {
     trans_id         *out;
     const ActionList *acts;
@@ -916,7 +930,7 @@ static void compile_state(StateMachine *sm,
         size = count_bytes_actions(acts);
         RESERVE(prog->insts, size);
         compile_actions(prog->insts + stc_vec_len_unsafe(prog->insts) - size,
-                        prog, acts);
+                        prog, acts, mmaps);
     }
     if (post) post(smir_get_post_meta(sm, sid), prog);
 
@@ -952,37 +966,48 @@ cleanup:
     if (out) free(out);
 }
 
-static void
-compile_initial(StateMachine *sm, Program *prog, StateBlock *state_blocks)
+static void compile_initial(StateMachine *sm,
+                            Program      *prog,
+                            StateBlock   *state_blocks,
+                            MemoryMaps   *mmaps)
 {
-    compile_state(sm, prog, INITIAL_STATE_ID, NULL, NULL, state_blocks);
+    compile_state(sm, prog, INITIAL_STATE_ID, NULL, NULL, state_blocks, mmaps);
 }
 
 /* --- Main Routine --------------------------------------------------------- */
 
 Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
 {
-    Program    *prog = program_default(sm->regex);
+    Program    *prog  = program_default(sm->regex);
+    MemoryMaps  mmaps = { 0 };
     StateBlock *state_blocks;
     size_t      n, sid;
+
+    stc_vec_default_init(mmaps.thread_map);
+    stc_vec_default_init(mmaps.memoisation_map);
 
     n            = smir_get_num_states(sm);
     state_blocks = malloc((n + 2) * sizeof(*state_blocks));
 
     // compile `initial .. states .. final` states
     // and store entry, exit, and transitions offsets
-    compile_initial(sm, prog, state_blocks);
+    compile_initial(sm, prog, state_blocks, &mmaps);
     for (sid = 1; sid <= n; sid++)
-        compile_state(sm, prog, sid, pre, post, state_blocks);
+        compile_state(sm, prog, sid, pre, post, state_blocks, &mmaps);
     state_blocks[sid].entry = stc_vec_len_unsafe(prog->insts);
     state_blocks[sid].exit  = 0;
     BCPUSH(prog->insts, MATCH);
 
     // compile out transitions for each state
     for (sid = 0; sid <= n; sid++)
-        compile_transitions(sm, prog, sid, state_blocks);
+        compile_transitions(sm, prog, sid, state_blocks, &mmaps);
+
+    prog->thread_mem_len = mmaps.next_thread_idx;
+    prog->nmemo_insts    = stc_vec_len_unsafe(mmaps.memoisation_map);
 
     // cleanup
+    stc_vec_free(mmaps.thread_map);
+    stc_vec_free(mmaps.memoisation_map);
     free(state_blocks);
 
     return prog;

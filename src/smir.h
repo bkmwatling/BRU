@@ -318,12 +318,15 @@ const Action *smir_action_predicate(Interval *pred, len_t pred_len);
  *
  * Valid types are ACT_SAVE, ACT_EPSCHK, ACT_EPSSET, ACT_MEMO.
  *
+ * If it is ACT_SAVE, the identifier is the index into capture memory.
+ * Otherwise, it is the unique regex identifier.
+ *
  * @param[in] type the type of the action
- * @param[in] k    the index into memory
+ * @param[in] k    the identifer for this action
  *
  * @return the action
  */
-const Action *smir_action_num(ActionType type, len_t k);
+const Action *smir_action_num(ActionType type, size_t k);
 
 /**
  * Get the number of actions on a transition.

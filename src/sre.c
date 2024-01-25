@@ -52,9 +52,8 @@ int intervals_predicate(Interval *intervals, size_t len, const char *codepoint)
     size_t i;
     int    pred = 0;
 
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
         if ((pred = interval_predicate(intervals[i], codepoint))) break;
-    }
 
     return pred;
 }
@@ -68,11 +67,10 @@ char *intervals_to_str(Interval *intervals, size_t len)
     for (i = 0; i < len; ++i) {
         p = interval_to_str(intervals + i);
         ENSURE_SPACE(s, slen + INTERVAL_MAX_BUF + 3, alloc, sizeof(char));
-        if (i < len - 1) {
+        if (i < len - 1)
             slen += snprintf(s + slen, alloc - slen, "%s, ", p);
-        } else {
+        else
             slen += snprintf(s + slen, alloc - slen, "%s", p);
-        }
         free(p);
     }
     ENSURE_SPACE(s, slen + 2, alloc, sizeof(char));
@@ -250,6 +248,9 @@ static void regex_to_tree_str_indent(char           **s,
 
     ENSURE_SPACE(*s, *len + indent + 1, *alloc, sizeof(char));
     *len += snprintf(*s + *len, *alloc - *len, "%*s", indent, "");
+
+    ENSURE_SPACE(*s, *len + 9, *alloc, sizeof(char));
+    *len += snprintf(*s + *len, *alloc - *len, "%06lu: ", re->rid);
 
     switch (re->type) {
         case CARET: STR_PUSH(*s, *len, *alloc, "Caret"); break;

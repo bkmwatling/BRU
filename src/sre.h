@@ -33,6 +33,7 @@ typedef enum {
 } RegexType;
 
 typedef struct regex_node RegexNode;
+typedef size_t            regex_id;
 
 typedef struct {
     const char *regex;
@@ -40,6 +41,7 @@ typedef struct {
 } Regex;
 
 struct regex_node {
+    regex_id  rid;
     RegexType type;
 
     union {

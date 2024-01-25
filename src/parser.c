@@ -12,13 +12,14 @@
 
 #define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 0, 0, 1 })
 
-#define CONCAT(tree, node) \
-    ((tree) ? regex_branch(CONCAT, (tree), (node)) : (node))
+#define SET_RID(node, ps) \
+    if (node) (node)->rid = (ps)->next_rid++
 
 typedef struct {
-    int   in_group;
-    int   in_lookahead;
-    len_t ncaptures;
+    int      in_group;
+    int      in_lookahead;
+    len_t    ncaptures;
+    regex_id next_rid;
 } ParseState;
 
 static RegexNode *
@@ -38,11 +39,12 @@ static Interval  *parse_predefined_cc(const char **const regex,
 static RegexNode *
 parse_parens(const Parser *self, const char **const regex, ParseState *ps);
 static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max);
-static RegexNode *parser_regex_counter(RegexNode *child,
-                                       byte       greedy,
-                                       cntr_t     min,
-                                       cntr_t     max,
-                                       int        expand_counters);
+static RegexNode *parser_regex_counter(RegexNode  *child,
+                                       byte        greedy,
+                                       cntr_t      min,
+                                       cntr_t      max,
+                                       int         expand_counters,
+                                       ParseState *ps);
 
 static Interval *dot(void)
 {
@@ -65,10 +67,13 @@ void parser_free(Parser *self) { free(self); }
 Regex parser_parse(const Parser *self)
 {
     const char *r  = self->regex;
-    ParseState  ps = { 0, 0, self->opts.whole_match_capture ? 1 : 0 };
+    ParseState  ps = { 0, 0, self->opts.whole_match_capture ? 1 : 0, 0 };
     RegexNode  *re = parse_alt(self, &r, &ps);
 
-    if (self->opts.whole_match_capture && re) re = regex_capture(re, 0);
+    if (self->opts.whole_match_capture && re) {
+        re      = regex_capture(re, 0);
+        re->rid = ps.next_rid++;
+    }
 
     return (Regex){ self->regex, re };
 }
@@ -79,11 +84,12 @@ parse_alt(const Parser *self, const char **const regex, ParseState *ps)
     RegexNode *tree = NULL;
 
     while (**regex) {
-        if (**regex == '|') {
+        if (**regex == ')' && ps->in_group) {
+            break;
+        } else if (**regex == '|') {
             ++*regex;
             tree = regex_branch(ALT, tree, parse_concat(self, regex, ps));
-        } else if (**regex == ')' && ps->in_group) {
-            return tree;
+            SET_RID(tree, ps);
         } else {
             tree = parse_concat(self, regex, ps);
         }
@@ -95,7 +101,7 @@ parse_alt(const Parser *self, const char **const regex, ParseState *ps)
 static RegexNode *
 parse_concat(const Parser *self, const char **const regex, ParseState *ps)
 {
-    RegexNode  *tree = NULL, *subtree = NULL;
+    RegexNode  *tree = NULL, *subtree = NULL, *tmp;
     const char *ch;
     cntr_t      min, max;
     int         greedy;
@@ -170,25 +176,41 @@ parse_concat(const Parser *self, const char **const regex, ParseState *ps)
 
                 if (self->opts.only_counters) {
                     subtree = regex_counter(subtree, greedy, min, max);
+                    SET_RID(subtree, ps);
                 } else if (min == 0 && max == CNTR_MAX) {
                     subtree = regex_single_child(STAR, subtree, greedy);
+                    SET_RID(subtree, ps);
                 } else if (min == 1 && max == CNTR_MAX) {
                     subtree = regex_single_child(PLUS, subtree, greedy);
+                    SET_RID(subtree, ps);
                 } else if (min == 0 && max == 1) {
                     subtree = regex_single_child(QUES, subtree, greedy);
+                    SET_RID(subtree, ps);
                 } else if (self->opts.unbounded_counters || max < CNTR_MAX) {
-                    subtree = parser_regex_counter(subtree, greedy, min, max,
-                                                   self->opts.expand_counters);
+                    subtree =
+                        parser_regex_counter(subtree, greedy, min, max,
+                                             self->opts.expand_counters, ps);
                 } else {
-                    subtree = regex_branch(
-                        CONCAT,
-                        parser_regex_counter(regex_clone(subtree), greedy, min,
-                                             min, self->opts.expand_counters),
-                        regex_single_child(STAR, subtree, greedy));
+                    tmp = regex_single_child(STAR, subtree, greedy);
+                    subtree =
+                        regex_branch(CONCAT,
+                                     parser_regex_counter(
+                                         regex_clone(subtree), greedy, min, min,
+                                         self->opts.expand_counters, ps),
+                                     tmp);
+                    SET_RID(tmp, ps);
+                    SET_RID(subtree, ps);
                 }
             }
 
-            if (min != 0 || max != 0) tree = CONCAT(tree, subtree);
+            if (min != 0 || max != 0) {
+                if (tree) {
+                    tree = regex_branch(CONCAT, tree, subtree);
+                    SET_RID(tree, ps);
+                } else {
+                    tree = subtree;
+                }
+            }
         }
     }
 
@@ -200,34 +222,42 @@ static RegexNode *parse_terminal(const Parser      *self,
                                  const char **const regex,
                                  ParseState        *ps)
 {
-    len_t cc_len;
+    len_t      cc_len;
+    RegexNode *terminal;
 
     switch (*ch) {
-        case '[': return parse_cc(regex);
+        case '[': terminal = parse_cc(regex); break;
 
         case '\\':
-            return regex_cc(
+            terminal = regex_cc(
                 parse_predefined_cc(regex, FALSE, NULL, &cc_len, NULL), cc_len);
+            break;
 
         case '(': return parse_parens(self, regex, ps);
 
         case '^':
             while (**regex == '^') ++*regex;
-            return regex_anchor(CARET);
+            terminal = regex_anchor(CARET);
+            break;
 
         case '$':
             while (**regex == '$') ++*regex;
-            return regex_anchor(DOLLAR);
+            terminal = regex_anchor(DOLLAR);
+            break;
 
         // NOTE: not really an anchor, but works in much the same way
         case '#':
             while (**regex == '#') ++*regex;
-            return regex_anchor(MEMOISE);
+            terminal = regex_anchor(MEMOISE);
+            break;
 
-        case '.': return regex_cc(dot(), 2);
+        case '.': terminal = regex_cc(dot(), 2); break;
 
-        default: return regex_literal(ch);
+        default: terminal = regex_literal(ch); break;
     }
+
+    SET_RID(terminal, ps);
+    return terminal;
 }
 
 static RegexNode *parse_cc(const char **const regex)
@@ -389,17 +419,22 @@ parse_parens(const Parser *self, const char **const regex, ParseState *ps)
         switch (*(ch = (*regex)++)) {
             case ':':
             case '|':
-                ps_tmp = (ParseState){ TRUE, ps->in_lookahead, ps->ncaptures };
+                ps_tmp = (ParseState){ TRUE, ps->in_lookahead, ps->ncaptures,
+                                       ps->next_rid };
                 tree   = parse_alt(self, regex, &ps_tmp);
                 ps->ncaptures = ps_tmp.ncaptures;
+                ps->next_rid  = ps_tmp.next_rid;
                 break;
 
             case '=':
             case '!':
-                ps_tmp = (ParseState){ TRUE, TRUE, ps->ncaptures };
-                if ((tree = parse_alt(self, regex, &ps_tmp)))
+                // captures aren't recorded in lookaheads
+                ps_tmp = (ParseState){ TRUE, TRUE, 0, ps->next_rid };
+                if ((tree = parse_alt(self, regex, &ps_tmp))) {
+                    ps->next_rid = ps_tmp.next_rid;
                     tree = regex_single_child(LOOKAHEAD, tree, *ch == '=');
-                ps->ncaptures = ps_tmp.ncaptures;
+                    SET_RID(tree, ps);
+                }
                 break;
 
             default:
@@ -408,9 +443,13 @@ parse_parens(const Parser *self, const char **const regex, ParseState *ps)
         }
     } else {
         if (!ps->in_lookahead) ncaptures = ps->ncaptures++;
-        ps_tmp = (ParseState){ TRUE, ps->in_lookahead, ps->ncaptures };
-        if ((tree = parse_alt(self, regex, &ps_tmp)) && !ps->in_lookahead)
-            tree = regex_capture(tree, ncaptures);
+        ps_tmp =
+            (ParseState){ TRUE, ps->in_lookahead, ps->ncaptures, ps->next_rid };
+        if ((tree = parse_alt(self, regex, &ps_tmp)) && !ps->in_lookahead) {
+            ps->next_rid = ps_tmp.next_rid;
+            tree         = regex_capture(tree, ncaptures);
+            SET_RID(tree, ps);
+        }
         ps->ncaptures = ps_tmp.ncaptures;
     }
 
@@ -460,31 +499,43 @@ static void parse_curly(const char **const regex, cntr_t *min, cntr_t *max)
     }
 }
 
-static RegexNode *parser_regex_counter(RegexNode *child,
-                                       byte       greedy,
-                                       cntr_t     min,
-                                       cntr_t     max,
-                                       int        expand_counters)
+static RegexNode *parser_regex_counter(RegexNode  *child,
+                                       byte        greedy,
+                                       cntr_t      min,
+                                       cntr_t      max,
+                                       int         expand_counters,
+                                       ParseState *ps)
 {
-    RegexNode *counter, *left, *right;
+    RegexNode *counter, *left, *right, *tmp;
     cntr_t     i;
 
     if (!expand_counters) {
         counter = regex_counter(child, greedy, min, max);
+        SET_RID(counter, ps);
     } else {
         left = min > 0 ? child : NULL;
-        for (i = 1; i < min; i++)
+        for (i = 1; i < min; i++) {
             left = regex_branch(CONCAT, left, regex_clone(child));
+            SET_RID(left, ps);
+        }
 
         right = max > min ? regex_single_child(
                                 QUES, left ? regex_clone(child) : child, greedy)
                           : NULL;
-        for (i = min + 1; i < max; i++)
-            right = regex_single_child(
-                QUES, regex_branch(CONCAT, regex_clone(child), right), greedy);
+        SET_RID(right, ps);
+        for (i = min + 1; i < max; i++) {
+            tmp = regex_branch(CONCAT, regex_clone(child), right);
+            SET_RID(tmp, ps);
+            right = regex_single_child(QUES, tmp, greedy);
+            SET_RID(right, ps);
+        }
 
-        counter = left && right ? regex_branch(CONCAT, left, right)
-                                : (left ? left : right);
+        if (left && right) {
+            counter = regex_branch(CONCAT, left, right);
+            SET_RID(counter, ps);
+        } else {
+            counter = left ? left : right;
+        }
     }
 
     return counter;

@@ -27,8 +27,9 @@ static const byte *inst_to_str(char         **s,
 Program *program_new(const char *regex,
                      size_t      insts_len,
                      size_t      aux_len,
+                     size_t      nmemo_insts,
                      size_t      ncounters,
-                     size_t      mem_len,
+                     size_t      thread_mem_len,
                      size_t      ncaptures)
 {
     Program *prog = calloc(1, sizeof(Program));
@@ -36,14 +37,14 @@ Program *program_new(const char *regex,
     prog->regex = regex;
     stc_vec_init(prog->insts, insts_len);
     stc_vec_init(prog->aux, aux_len);
+    prog->nmemo_insts = nmemo_insts;
     stc_vec_init(prog->counters, ncounters);
-    stc_vec_init(prog->memory, mem_len);
-    prog->ncaptures = ncaptures;
+    prog->thread_mem_len = thread_mem_len;
+    prog->ncaptures      = ncaptures;
 
     memset(prog->insts, 0, insts_len * sizeof(byte));
     memset(prog->aux, 0, aux_len * sizeof(byte));
     memset(prog->counters, 0, ncounters * sizeof(cntr_t));
-    memset(prog->memory, 0, mem_len * sizeof(byte));
 
     return prog;
 }
@@ -56,12 +57,10 @@ Program *program_default(const char *regex)
     stc_vec_default_init(prog->insts);
     stc_vec_default_init(prog->aux);
     stc_vec_default_init(prog->counters);
-    stc_vec_default_init(prog->memory);
 
     memset(prog->insts, 0, STC_VEC_DEFAULT_CAP * sizeof(byte));
     memset(prog->aux, 0, STC_VEC_DEFAULT_CAP * sizeof(byte));
     memset(prog->counters, 0, STC_VEC_DEFAULT_CAP * sizeof(cntr_t));
-    memset(prog->memory, 0, STC_VEC_DEFAULT_CAP * sizeof(byte));
 
     return prog;
 }
@@ -72,7 +71,6 @@ void program_free(Program *self)
     stc_vec_free(self->insts);
     stc_vec_free(self->aux);
     stc_vec_free(self->counters);
-    stc_vec_free(self->memory);
     free(self);
 }
 

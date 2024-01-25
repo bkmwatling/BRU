@@ -14,21 +14,22 @@ typedef struct spencer_scheduler SpencerScheduler;
 
 /* --- SpencerThread function prototypes ------------------------------------ */
 
-SpencerThread     *spencer_thread_new(const byte   *pc,
-                                      const char   *sp,
-                                      len_t         ncaptures,
-                                      const cntr_t *counters,
-                                      len_t         ncounters,
-                                      const byte   *memory,
-                                      len_t         memory_len);
-const byte        *spencer_thread_pc(const SpencerThread *self);
-void               spencer_thread_set_pc(SpencerThread *self, const byte *pc);
-const char        *spencer_thread_sp(const SpencerThread *self);
-void               spencer_thread_try_inc_sp(SpencerThread *self);
-const char *const *spencer_thread_captures(const SpencerThread *self,
-                                           len_t               *ncaptures);
-void               spencer_thread_set_capture(SpencerThread *self, len_t idx);
-cntr_t             spencer_thread_counter(const SpencerThread *self, len_t idx);
+SpencerThread *spencer_thread_new(const byte   *pc,
+                                  const char   *sp,
+                                  byte         *memoisation_memory,
+                                  const cntr_t *counters,
+                                  len_t         ncounters,
+                                  len_t         memory_len,
+                                  len_t         ncaptures);
+const byte    *spencer_thread_pc(const SpencerThread *self);
+void           spencer_thread_set_pc(SpencerThread *self, const byte *pc);
+const char    *spencer_thread_sp(const SpencerThread *self);
+void           spencer_thread_try_inc_sp(SpencerThread *self);
+int            spencer_thread_memoise(SpencerThread *self,
+                                      const char    *text,
+                                      size_t         text_len,
+                                      len_t          idx);
+cntr_t         spencer_thread_counter(const SpencerThread *self, len_t idx);
 void  spencer_thread_set_counter(SpencerThread *self, len_t idx, cntr_t val);
 void  spencer_thread_inc_counter(SpencerThread *self, len_t idx);
 void *spencer_thread_memory(const SpencerThread *self, len_t idx);
@@ -36,8 +37,11 @@ void  spencer_thread_set_memory(SpencerThread *self,
                                 len_t          idx,
                                 const void    *val,
                                 size_t         size);
-SpencerThread *spencer_thread_clone(const SpencerThread *self);
-void           spencer_thread_free(SpencerThread *self);
+const char *const *spencer_thread_captures(const SpencerThread *self,
+                                           len_t               *ncaptures);
+void               spencer_thread_set_capture(SpencerThread *self, len_t idx);
+SpencerThread     *spencer_thread_clone(const SpencerThread *self);
+void               spencer_thread_free(SpencerThread *self);
 
 ThreadManager *spencer_thread_manager_new(void);
 
