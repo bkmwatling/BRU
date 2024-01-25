@@ -2,16 +2,17 @@
 # Symbolic Regular Expression with counters Virtual Machine
 #
 # @author Brendan Watling
-# @file match.c
+# @file bru.c
 # @version 0.1
 
 # compiler flags
 DEBUG       := -ggdb -gdwarf-4
 OPTIMISE    := -O0
-WARNINGS    := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings \
+WARNING     := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings \
                -pedantic
-STC_OPT     := -DSTC_UTF_DISABLE_SV
-CFLAGS      := $(DEBUG) $(OPTIMISE) $(WARNINGS) $(STC_OPT)
+EXTRA       := -std=c11
+STC_FLAGS   := -DSTC_UTF_DISABLE_SV
+CFLAGS      := $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(STC_FLAGS)
 DFLAGS      := # -DDEBUG
 
 # commands

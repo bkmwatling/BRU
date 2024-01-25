@@ -23,15 +23,14 @@ static StcArgConvertResult convert_subcommand(const char *arg, void *out)
 {
     Subcommand *cmd = out;
 
-    if (strcmp(arg, "parse") == 0) {
+    if (strcmp(arg, "parse") == 0)
         *cmd = CMD_PARSE;
-    } else if (strcmp(arg, "compile") == 0) {
+    else if (strcmp(arg, "compile") == 0)
         *cmd = CMD_COMPILE;
-    } else if (strcmp(arg, "match") == 0) {
+    else if (strcmp(arg, "match") == 0)
         *cmd = CMD_MATCH;
-    } else {
+    else
         return STC_ARG_CR_FAILURE;
-    }
 
     return STC_ARG_CR_SUCCESS;
 }
@@ -40,13 +39,12 @@ static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
 {
     SchedulerType *type = out;
 
-    if (strcmp(arg, "spencer") == 0) {
+    if (strcmp(arg, "spencer") == 0)
         *type = SCH_SPENSER;
-    } else if (strcmp(arg, "lockstep") == 0 || strcmp(arg, "thompson") == 0) {
+    else if (strcmp(arg, "lockstep") == 0 || strcmp(arg, "thompson") == 0)
         *type = SCH_LOCKSTEP;
-    } else {
+    else
         return STC_ARG_CR_FAILURE;
-    }
 
     return STC_ARG_CR_SUCCESS;
 }
@@ -103,13 +101,16 @@ static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
 {
     MemoScheme *ms = out;
 
-    if (strcmp(arg, "IN") == 0) *ms = MS_IN;
-    else if (strcmp(arg, "CN") == 0) *ms = MS_CN;
-    else if (strcmp(arg, "IAR") == 0) *ms = MS_IAR;
-    else if (strcmp(arg, "none") == 0) *ms = MS_NONE;
-    else {
+    if (strcmp(arg, "IN") == 0)
+        *ms = MS_IN;
+    else if (strcmp(arg, "CN") == 0)
+        *ms = MS_CN;
+    else if (strcmp(arg, "IAR") == 0)
+        *ms = MS_IAR;
+    else if (strcmp(arg, "none") == 0)
+        *ms = MS_NONE;
+    else
         return STC_ARG_CR_FAILURE;
-    }
 
     return STC_ARG_CR_SUCCESS;
 }
@@ -131,12 +132,12 @@ int main(int argc, const char **argv)
     SRVM          *srvm;
     StcStringView  capture, *captures;
     len_t          i, ncaptures;
-    size_t         ncodepoints;
+    size_t         ncodepoints, regex_len;
     StcArg         args[] = {
         { STC_ARG_CUSTOM, "<subcommand>", NULL, &cmd, NULL,
                   "the subcommand to run (parse, compile, or match)", NULL,
                   convert_subcommand },
-        { STC_ARG_STR, "<regex>", NULL, &regex, NULL, "the regex to work with",
+        { STC_ARG_STR, "<regex>", NULL, &s, NULL, "the regex to work with",
                   NULL, NULL },
         { STC_ARG_BOOL, "-o", "--only-counters", &parser_opts.only_counters,
                   NULL,
@@ -183,10 +184,13 @@ int main(int argc, const char **argv)
     argc    -= arg_idx - 1;
     argv    += arg_idx - 1;
 
+    regex_len = strlen(s);
+    regex     = malloc((regex_len + 1) * sizeof(char));
+    memcpy(regex, s, regex_len + 1);
     if (cmd == CMD_PARSE) {
         stc_args_parse_exact(argc, argv, args + 1, 5, NULL);
 
-        p  = parser_new(strdup(regex), &parser_opts);
+        p  = parser_new(regex, &parser_opts);
         re = parser_parse(p);
         s  = regex_to_tree_str(re.root);
 
@@ -198,8 +202,7 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_COMPILE) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 3, NULL);
 
-        c    = compiler_new(parser_new(strdup(regex), &parser_opts),
-                            &compiler_opts);
+        c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
         prog = compiler_compile(c);
         s    = program_to_str(prog);
 
@@ -211,8 +214,7 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_MATCH) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
 
-        c    = compiler_new(parser_new(strdup(regex), &parser_opts),
-                            &compiler_opts);
+        c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
         prog = compiler_compile(c);
         if (scheduler_type == SCH_SPENSER) {
             thread_manager = spencer_thread_manager_new();
