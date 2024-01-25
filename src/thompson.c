@@ -159,12 +159,15 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
             SET_TRANS_PRIORITY(sm, re, child_state_ids.final, enter, leave);
             smir_set_dst(sm, enter, sid);
             smir_set_dst(sm, leave, state_ids.final);
-            smir_trans_append_action(sm, enter,
-                                     smir_action_num(ACT_EPSCHK, re->rid));
-            if (opts->capture_semantics == CS_RE2)
+            if (opts->capture_semantics == CS_PCRE) {
+                smir_trans_append_action(sm, enter,
+                                         smir_action_num(ACT_EPSCHK, re->rid));
+            } else if (opts->capture_semantics == CS_RE2) {
+                smir_state_append_action(sm, child_state_ids.final,
+                                         smir_action_num(ACT_EPSCHK, re->rid));
                 smir_trans_append_action(sm, enter,
                                          smir_action_num(ACT_EPSSET, re->rid));
-
+            }
             break;
 
         case PLUS:
@@ -176,20 +179,23 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
                 smir_set_dst(sm, out, child_state_ids.initial);
                 smir_trans_append_action(sm, out,
                                          smir_action_num(ACT_EPSSET, re->rid));
-            } else {
+            } else if (opts->capture_semantics == CS_RE2) {
                 state_ids = child_state_ids = emit(sm, re->left, opts);
             }
             state_ids.final = smir_add_state(sm);
 
             SET_TRANS_PRIORITY(sm, re, child_state_ids.final, enter, leave);
-            smir_set_dst(sm, enter, child_state_ids.initial);
+            smir_set_dst(sm, enter, state_ids.initial);
             smir_set_dst(sm, leave, state_ids.final);
-            smir_trans_append_action(sm, enter,
-                                     smir_action_num(ACT_EPSCHK, re->rid));
-            if (opts->capture_semantics == CS_RE2)
+            if (opts->capture_semantics == CS_PCRE) {
+                smir_trans_append_action(sm, enter,
+                                         smir_action_num(ACT_EPSCHK, re->rid));
+            } else if (opts->capture_semantics == CS_RE2) {
+                smir_state_append_action(sm, child_state_ids.final,
+                                         smir_action_num(ACT_EPSCHK, re->rid));
                 smir_trans_append_action(sm, enter,
                                          smir_action_num(ACT_EPSSET, re->rid));
-
+            }
             break;
 
         case QUES:
