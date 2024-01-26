@@ -72,7 +72,7 @@ struct regex_node {
 
 #define interval_predicate(interval, codepoint)            \
     ((stc_utf8_cmp((interval).lbound, (codepoint)) <= 0 && \
-      stc_utf8_cmp((codepoint), (interval).ubound) >= 0) != (interval).neg)
+      stc_utf8_cmp((codepoint), (interval).ubound) <= 0) != (interval).neg)
 
 Interval interval(int neg, const char *lbound, const char *ubound);
 char    *interval_to_str(Interval *self);

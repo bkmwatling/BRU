@@ -49,7 +49,7 @@ static RegexNode *parser_regex_counter(RegexNode  *child,
 static Interval *dot(void)
 {
     Interval *dot = malloc(2 * sizeof(Interval));
-    dot[0]        = interval(1, "\0", "\0"); /* XXX: untested */
+    dot[0]        = interval(1, "\0", "\0");
     dot[1]        = interval(1, "\n", "\n");
     return dot;
 }
@@ -357,8 +357,10 @@ static Interval *parse_predefined_cc(const char **const regex,
                  interval((*ch == 'D') != neg, "0", "9"));
             break;
 
+        case 'n':
         case 'N':
-            PUSH(intervals, *cc_len, *cc_alloc, interval(!neg, "\n", "\n"));
+            PUSH(intervals, *cc_len, *cc_alloc,
+                 interval((*ch == 'N') != neg, "\n", "\n"));
             break;
 
         case 'h':
