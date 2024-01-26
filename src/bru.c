@@ -19,6 +19,17 @@ typedef enum { CMD_PARSE, CMD_COMPILE, CMD_MATCH } Subcommand;
 
 typedef enum { SCH_SPENSER, SCH_LOCKSTEP } SchedulerType;
 
+static char *sdup(const char *s)
+{
+    char  *str;
+    size_t len = strlen(s) + 1;
+
+    str = malloc(len * sizeof(char));
+    memcpy(str, s, len * sizeof(char));
+
+    return str;
+}
+
 static StcArgConvertResult convert_subcommand(const char *arg, void *out)
 {
     Subcommand *cmd = out;
@@ -132,12 +143,12 @@ int main(int argc, const char **argv)
     SRVM          *srvm;
     StcStringView  capture, *captures;
     len_t          i, ncaptures;
-    size_t         ncodepoints, regex_len;
+    size_t         ncodepoints;
     StcArg         args[] = {
         { STC_ARG_CUSTOM, "<subcommand>", NULL, &cmd, NULL,
                   "the subcommand to run (parse, compile, or match)", NULL,
                   convert_subcommand },
-        { STC_ARG_STR, "<regex>", NULL, &s, NULL, "the regex to work with",
+        { STC_ARG_STR, "<regex>", NULL, &regex, NULL, "the regex to work with",
                   NULL, NULL },
         { STC_ARG_BOOL, "-o", "--only-counters", &parser_opts.only_counters,
                   NULL,
@@ -184,13 +195,10 @@ int main(int argc, const char **argv)
     argc    -= arg_idx - 1;
     argv    += arg_idx - 1;
 
-    regex_len = strlen(s);
-    regex     = malloc((regex_len + 1) * sizeof(char));
-    memcpy(regex, s, regex_len + 1);
     if (cmd == CMD_PARSE) {
         stc_args_parse_exact(argc, argv, args + 1, 5, NULL);
 
-        p  = parser_new(regex, &parser_opts);
+        p  = parser_new(sdup(regex), &parser_opts);
         re = parser_parse(p);
         s  = regex_to_tree_str(re.root);
 
@@ -202,7 +210,7 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_COMPILE) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 3, NULL);
 
-        c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
+        c = compiler_new(parser_new(sdup(regex), &parser_opts), &compiler_opts);
         prog = compiler_compile(c);
         s    = program_to_str(prog);
 
@@ -214,7 +222,7 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_MATCH) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
 
-        c    = compiler_new(parser_new(regex, &parser_opts), &compiler_opts);
+        c = compiler_new(parser_new(sdup(regex), &parser_opts), &compiler_opts);
         prog = compiler_compile(c);
         if (scheduler_type == SCH_SPENSER) {
             thread_manager = spencer_thread_manager_new();
