@@ -91,7 +91,6 @@ rfa_absorb(Rfa *self, size_t pos, len_t *visited, const CompilerOpts *opts);
 static size_t count(const RegexNode *re);
 static void   emit(StateMachine *sm, const Rfa *rfa);
 
-#define DEBUG_GLUSHKOV
 #if defined(DEBUG) || defined(DEBUG_GLUSHKOV)
 static void ppl_print(PosPairList *self, FILE *stream);
 static void rfa_print(Rfa *self, FILE *stream);
@@ -130,22 +129,28 @@ StateMachine *glushkov_construct(Regex re, const CompilerOpts *opts)
     rfa_absorb(rfa, START_POS, visited, opts);
     rfa_print(rfa, stderr);
 
-    // TODO: get correct number of positions after absorb
-    sm = smir_new(re.regex, rfa->npositions - 1); // don't want initial state
+    for (i = 1, npositions = 0; i < rfa->npositions; i++)
+        if (smir_action_type(rfa->positions[i]) != ACT_SAVE) npositions++;
+    sm = smir_new(re.regex, npositions);
     emit(sm, rfa);
 
-    rfa_free(rfa);
-    for (i = 0; i < npositions; i++) {
-        // manually free just ppl and pp containers not actions
-        while (follow[i]->sentinel->next != follow[i]->sentinel) {
-            pp                        = follow[i]->sentinel->next;
-            follow[i]->sentinel->next = pp->next;
-            free(pp);
-        }
+    for (i = 0; i < rfa->npositions; i++) {
+        if (i && smir_action_type(rfa->positions[i]) == ACT_SAVE) {
+            ppl_free(follow[i]);
+            smir_action_free(rfa->positions[i]);
+        } else {
+            // manually free just ppl and pp containers not actions
+            while (follow[i]->sentinel->next != follow[i]->sentinel) {
+                pp                        = follow[i]->sentinel->next;
+                follow[i]->sentinel->next = pp->next;
+                free(pp);
+            }
 
-        pp_free(follow[i]->sentinel);
-        free(follow[i]);
+            pp_free(follow[i]->sentinel);
+            free(follow[i]);
+        }
     }
+    rfa_free(rfa);
     free(follow);
     free(positions);
     free(visited);
@@ -684,25 +689,33 @@ static size_t count(const RegexNode *re)
 
 static void emit(StateMachine *sm, const Rfa *rfa)
 {
-    PosPair *pp;
-    trans_id tid;
-    size_t   i;
+    PosPair  *pp;
+    trans_id  tid;
+    size_t    i;
+    state_id *pos_map  = calloc(rfa->npositions, sizeof(*pos_map));
+    state_id  next_sid = 1;
 
+    fprintf(stderr, "nstates = %lu\n", smir_get_num_states(sm));
     FOREACH(pp, FIRST(rfa)->sentinel) {
-        tid = smir_set_initial(sm, pp->pos);
+        if (!pos_map[pp->pos]) pos_map[pp->pos] = next_sid++;
+        tid = smir_set_initial(sm, pos_map[pp->pos]);
         smir_trans_set_actions(sm, tid, pp->actions);
     }
 
     for (i = 1; i < rfa->npositions; i++) {
-        fprintf(stderr, "i = %lu, npos = %lu, nstates = %lu\n", i,
-                rfa->npositions, smir_get_num_states(sm));
-        smir_state_append_action(sm, i, rfa->positions[i]);
+        if (smir_action_type(rfa->positions[i]) == ACT_SAVE) continue;
+
+        if (!pos_map[i]) pos_map[i] = next_sid++;
+        smir_state_append_action(sm, pos_map[i], rfa->positions[i]);
         FOREACH(pp, rfa->follow[i]->sentinel) {
-            tid = smir_add_transition(sm, i);
-            smir_set_dst(sm, tid, pp->pos);
+            tid = smir_add_transition(sm, pos_map[i]);
+            if (!pos_map[pp->pos]) pos_map[pp->pos] = next_sid++;
+            smir_set_dst(sm, tid, pos_map[pp->pos]);
             smir_trans_set_actions(sm, tid, pp->actions);
         }
     }
+
+    free(pos_map);
 }
 
 /* --- Debug functions ------------------------------------------------------ */
