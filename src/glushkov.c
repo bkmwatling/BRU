@@ -66,7 +66,7 @@ typedef struct {
 
 static void     pp_free(PosPair *self);
 static PosPair *pp_clone(const PosPair *self);
-// static void     pp_action_prepend(PosPair *self, Action *action);
+static void     pp_action_push_front(PosPair *self, const Action *action);
 static void     pp_insert_after(PosPair *self, PosPair *pp);
 static PosPair *pp_insert_pos_after(PosPair *self, size_t pos);
 static PosPair *pp_remove(PosPair *self);
@@ -90,9 +90,8 @@ rfa_absorb(Rfa *self, size_t pos, len_t *visited, const CompilerOpts *opts);
 
 static size_t count(const RegexNode *re);
 static void   emit(StateMachine *sm, const Rfa *rfa);
-// static len_t
-// emit_transition(PosPair *pp, byte **pc, Program *prog, len_t *pc_map);
 
+#define DEBUG_GLUSHKOV
 #if defined(DEBUG) || defined(DEBUG_GLUSHKOV)
 static void ppl_print(PosPairList *self, FILE *stream);
 static void rfa_print(Rfa *self, FILE *stream);
@@ -183,55 +182,61 @@ static PosPair *pp_clone(const PosPair *self)
     return pp;
 }
 
-// TODO: bring back
-// static void pp_action_prepend(PosPair *self, Action *action)
-// {
-//     Action *act, *a;
-//
-//     FOREACH(act, self->action_sentinel) {
-//         if (action->re->type != act->re->type) continue;
-//         switch (action->re->type) {
-//             case CARET:   /* fallthrough */
-//             case MEMOISE: /* fallthrough */
-//             case DOLLAR: action_free(action); return;
-//             case CAPTURE:
-//                 if (action->re->capture_idx == act->re->capture_idx) {
-//                     action_free(action);
-//                     return;
-//                 } else if (action->re->capture_idx % 2 == 1 &&
-//                            act->re->capture_idx ==
-//                                action->re->capture_idx - 1) {
-//                     goto prepend;
-//                 } else if (action->re->capture_idx % 2 == 0 &&
-//                            act->re->capture_idx ==
-//                                action->re->capture_idx + 1) {
-//                     for (a = act->next;
-//                          a != self->action_sentinel &&
-//                          (a->re->type != CAPTURE ||
-//                           action->re->capture_idx != a->re->capture_idx);
-//                          a = a->next)
-//                         ;
-//                     if (a == self->action_sentinel) goto prepend;
-//                     act->prev->next = act->next;
-//                     act->next->prev = act->prev;
-//                     act->prev = act->next = NULL;
-//                     action_free(act);
-//                     action_free(action);
-//                     return;
-//                 } else {
-//                     break;
-//                 }
-//             default: assert(0 && "unreachable");
-//         }
-//     }
-//
-// prepend:
-//     action->prev                = self->action_sentinel;
-//     action->next                = self->action_sentinel->next;
-//     self->action_sentinel->next = action;
-//     action->next->prev          = action;
-//     self->nactions++;
-// }
+static void pp_action_push_front(PosPair *self, const Action *action)
+{
+    const Action       *act, *a;
+    ActionListIterator *iter = smir_action_list_iter(self->actions);
+    size_t              action_idx, act_idx;
+
+    while ((act = smir_action_list_iterator_next(iter))) {
+        if (smir_action_type(action) != smir_action_type(act)) continue;
+        switch (smir_action_type(action)) {
+            case ACT_BEGIN: /* fallthrough */
+            case ACT_END: smir_action_free(action); goto cleanup;
+
+            case ACT_MEMO:
+                if (smir_action_get_num(action) == smir_action_get_num(act)) {
+                    smir_action_free(action);
+                    goto cleanup;
+                }
+
+            case ACT_SAVE:
+                action_idx = smir_action_get_num(action);
+                act_idx    = smir_action_get_num(act);
+                if (action_idx == act_idx) {
+                    smir_action_free(action);
+                    goto cleanup;
+                } else if (action_idx % 2 == 1 && act_idx == action_idx - 1) {
+                    goto push_front;
+                } else if (action_idx % 2 == 0 && act_idx == action_idx + 1) {
+                    while ((a = smir_action_list_iterator_next(iter)) &&
+                           (smir_action_type(a) != ACT_SAVE ||
+                            action_idx != smir_action_get_num(a)))
+                        ;
+                    if (!a) goto push_front;
+                    // make iterator go back to act
+                    while ((a = smir_action_list_iterator_prev(iter)) &&
+                           a != act)
+                        ;
+                    smir_action_list_iterator_remove(iter);
+                    smir_action_free(action);
+                    goto cleanup;
+                }
+                break;
+
+            case ACT_CHAR:   /* fallthrough */
+            case ACT_PRED:   /* fallthrough */
+            case ACT_EPSCHK: /* fallthrough */
+            case ACT_EPSSET: assert(0 && "unreachable");
+        }
+    }
+
+push_front:
+    smir_action_list_push_front(self->actions, action);
+
+cleanup:
+    free(iter);
+}
 
 static void pp_insert_after(PosPair *self, PosPair *pp)
 {
@@ -555,9 +560,8 @@ static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited)
     PosPairList *follow = rfa->follow[pos];
 
     visited[pos] = TRUE;
-    FOREACH(t, follow->sentinel) {
+    FOREACH(t, follow->sentinel)
         if (!visited[t->pos]) rfa_merge_outgoing(rfa, t->pos, visited);
-    }
 
     e    = follow->sentinel->next;
     seen = calloc(rfa->npositions, sizeof(*seen));
@@ -577,9 +581,10 @@ static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited)
 static void
 rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
 {
-    PosPair     *t, *e, *tmp, *pp, *p = NULL;
-    PosPairList *follow, *follow_pos = rfa->follow[pos];
-    ActionList  *acts;
+    PosPair            *t, *e, *tmp, *pp, *p = NULL;
+    PosPairList        *follow, *follow_pos = rfa->follow[pos];
+    ActionListIterator *iter;
+    const Action       *act;
 
     visited[pos] = TRUE;
     FOREACH(t, follow_pos->sentinel)
@@ -616,11 +621,11 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
             if (pp_remove_from(t->pos, tmp, follow_pos->sentinel))
                 follow_pos->len--;
             pp = pp_clone(t);
-            smir_action_list_push_front(
-                pp->actions, smir_action_clone(rfa->positions[e->pos]));
-            acts = smir_action_list_clone(e->actions);
-            smir_action_list_prepend(pp->actions, acts);
-            smir_action_list_free(acts);
+            pp_action_push_front(pp, smir_action_clone(rfa->positions[e->pos]));
+            iter = smir_action_list_iter(e->actions);
+            while ((act = smir_action_list_iterator_prev(iter)))
+                pp_action_push_front(pp, smir_action_clone(act));
+            free(iter);
             pp_insert_after(tmp, pp);
             follow_pos->len++;
             tmp = pp;
@@ -633,11 +638,11 @@ rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
     if (p) {
         if (opts->capture_semantics == CS_PCRE) {
             for (t = p->next; t != follow_pos->sentinel; t = t->next) {
-                smir_action_list_push_front(
-                    t->actions, smir_action_clone(rfa->positions[pos]));
-                acts = smir_action_list_clone(p->actions);
-                smir_action_list_prepend(t->actions, acts);
-                smir_action_list_free(acts);
+                pp_action_push_front(t, smir_action_clone(rfa->positions[pos]));
+                iter = smir_action_list_iter(p->actions);
+                while ((act = smir_action_list_iterator_prev(iter)))
+                    pp_action_push_front(t, smir_action_clone(act));
+                free(iter);
             }
         }
         pp_remove(p);
@@ -700,64 +705,40 @@ static void emit(StateMachine *sm, const Rfa *rfa)
     }
 }
 
-// static len_t
-// emit_transition(PosPair *pos_pair, byte **pc, Program *prog, len_t *pc_map)
-// {
-//     Action *action;
-//     len_t   insts_len = 0;
-//
-//     /* XXX: may be more involved with counters later */
-//     FOREACH(action, pos_pair->action_sentinel) {
-//         switch (action->re->type) {
-//             case CAPTURE:
-//                 insts_len += sizeof(byte) + sizeof(len_t);
-//                 if (pc) {
-//                     *(*pc)++ = SAVE;
-//                     MEMWRITE(*pc, len_t, action->re->capture_idx);
-//                 }
-//                 break;
-//             default: assert(0 && "unreachable");
-//         }
-//     }
-//     /* TODO: optimise out jmp if possible */
-//     insts_len += sizeof(byte) + sizeof(offset_t);
-//     if (pc) {
-//         *(*pc)++ = JMP;
-//         MEMWRITE(*pc, offset_t,
-//                  pc_map[pos_pair->pos] -
-//                      (*pc + sizeof(offset_t) - prog->insts));
-//     }
-//
-//     return insts_len;
-// }
-
 /* --- Debug functions ------------------------------------------------------ */
 
 #if defined(DEBUG) || defined(DEBUG_GLUSHKOV)
 static void ppl_print(PosPairList *self, FILE *stream)
 {
-    PosPair *pp;
-    Action  *act;
+    PosPair            *pp;
+    const Action       *act;
+    ActionListIterator *iter;
+    size_t              act_idx;
 
     FOREACH(pp, self->sentinel) {
         fprintf(stream, "%lu (", pp->pos);
-        FOREACH(act, pp->action_sentinel) {
-            if (act != pp->action_sentinel->next) fprintf(stream, ", ");
-            switch (act->re->type) {
-                case CARET: fprintf(stream, "^"); break;
-                case MEMOISE: fprintf(stream, "#"); break;
-                case DOLLAR: fprintf(stream, "$"); break;
-                case CAPTURE:
-                    fprintf(stream, "%c_%d",
-                            act->re->capture_idx % 2 == 0 ? '[' : ']',
-                            act->re->capture_idx / 2);
+        iter = smir_action_list_iter(pp->actions);
+        while ((act = smir_action_list_iterator_next(iter))) {
+            act_idx = smir_action_get_num(act);
+            switch (smir_action_type(act)) {
+                case ACT_BEGIN: fprintf(stream, "^"); break;
+                case ACT_END: fprintf(stream, "$"); break;
+                case ACT_MEMO: fprintf(stream, "#"); break;
+
+                case ACT_SAVE:
+                    fprintf(stream, "%c_%lu", act_idx % 2 == 0 ? '[' : ']',
+                            act_idx / 2);
                     break;
+
                 default:
-                    fprintf(stream, "action type = %d\n", act->re->type);
+                    fprintf(stream, "action type = %d\n",
+                            smir_action_type(act));
                     assert(0 && "unreachable");
             }
+            fprintf(stream, ",");
         }
         fprintf(stream, ") ");
+        free(iter);
     }
 }
 

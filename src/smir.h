@@ -32,10 +32,11 @@ typedef enum {
 
 typedef ActionType PredicateType;
 
-typedef struct action        Action;
-typedef Action               Predicate;
-typedef struct action_list   ActionList;
-typedef struct state_machine StateMachine;
+typedef struct action               Action;
+typedef Action                      Predicate;
+typedef struct action_list          ActionList;
+typedef struct action_list_iterator ActionListIterator;
+typedef struct state_machine        StateMachine;
 
 typedef uint32_t state_id; // 0 => nonexistent
 typedef uint64_t trans_id; // (src state_id, idx into outgoing transitions)
@@ -405,6 +406,13 @@ const Action *smir_action_num(ActionType type, size_t k);
 const Action *smir_action_clone(const Action *self);
 
 /**
+ * Free the memory of the action.
+ *
+ * @param[in] self the action to free
+ */
+void smir_action_free(const Action *self);
+
+/**
  * Get the type of the action.
  *
  * @param[in] self the action
@@ -412,6 +420,18 @@ const Action *smir_action_clone(const Action *self);
  * @return the type of the action
  */
 ActionType smir_action_type(const Action *self);
+
+/**
+ * Get the number associated with an action if possible.
+ *
+ * Note: this function returns 0 if the type of the action is not ACT_MEMO,
+ * ACT_SAVE, ACT_EPSCHK, or ACT_EPSSET.
+ *
+ * @param[in] self the action
+ *
+ * @return the number associated with the action
+ */
+size_t smir_action_get_num(const Action *self);
 
 /**
  * Create an empty list of actions.
@@ -435,6 +455,8 @@ ActionList *smir_action_list_clone(const ActionList *self);
  * @param[in] self the list of actions
  */
 void smir_action_list_free(ActionList *self);
+
+ActionListIterator *smir_action_list_iter(const ActionList *self);
 
 /**
  * Push an action to the back of a list of actions.
@@ -471,6 +493,60 @@ void smir_action_list_append(ActionList *self, ActionList *acts);
  * @param[in] acts the list of actions to prepend
  */
 void smir_action_list_prepend(ActionList *self, ActionList *acts);
+
+/**
+ * Create an interator for a list of actions to be able to go over the actions
+ * of the list.
+ *
+ * Note: the iterator must be freed with a single call to free.
+ *
+ * @param[in] self the list of actions to iterator over
+ *
+ * @return the interator for the list of actions
+ */
+ActionListIterator *smir_action_list_iter(const ActionList *self);
+
+/**
+ * Get the next action in the action list iterator.
+ *
+ * Note: you can call this function interchangeably with
+ * \ref smir_action_list_iterator_prev, but note that if that function returns
+ * NULL, then this function will return NULL for the rest of the iterator's
+ * lifetime.
+ *
+ * @param[in] self the action list iterator
+ *
+ * @return the next action in the action list iterator if there is one;
+ *         else NULL
+ */
+const Action *smir_action_list_iterator_next(ActionListIterator *self);
+
+/**
+ * Get the previous action in the action list iterator.
+ *
+ * Note: you can call this function interchangeably with
+ * \ref smir_action_list_iterator_next, but note that if that function returns
+ * NULL, then this function will return NULL for the rest of the iterator's
+ * lifetime.
+ *
+ * @param[in] self the action list iterator
+ *
+ * @return the previous action in the action list iterator if there is one;
+ *         else NULL
+ */
+const Action *smir_action_list_iterator_prev(ActionListIterator *self);
+
+/**
+ * Remove and free the memory of the current iteration action for the iterator
+ * from the list of actions this iterator belongs to.
+ *
+ * The current iteration action is the last action returned from the next or
+ * prev iterator functions. If NULL was returned last or neither of these two
+ * functions have been called yet, then this function does nothing.
+ *
+ * @param[in] self the action list iterator
+ */
+void smir_action_list_iterator_remove(ActionListIterator *self);
 
 /* --- Extendable API ------------------------------------------------------- */
 

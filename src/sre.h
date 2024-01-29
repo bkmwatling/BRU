@@ -75,11 +75,13 @@ struct regex_node {
       stc_utf8_cmp((codepoint), (interval).ubound) <= 0) != (interval).neg)
 
 Interval interval(int neg, const char *lbound, const char *ubound);
-char    *interval_to_str(Interval *self);
+char    *interval_to_str(const Interval *self);
 
-Interval *intervals_clone(Interval *intervals, size_t len);
-int intervals_predicate(Interval *intervals, size_t len, const char *codepoint);
-char *intervals_to_str(Interval *intervals, size_t len);
+Interval *intervals_clone(const Interval *intervals, size_t len);
+int       intervals_predicate(const Interval *intervals,
+                              size_t          len,
+                              const char     *codepoint);
+char     *intervals_to_str(const Interval *intervals, size_t len);
 
 /* --- Regex function prototypes -------------------------------------------- */
 

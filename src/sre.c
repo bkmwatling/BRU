@@ -25,7 +25,7 @@ Interval interval(int neg, const char *lbound, const char *ubound)
     return interval;
 }
 
-char *interval_to_str(Interval *self)
+char *interval_to_str(const Interval *self)
 {
     char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s;
 
@@ -37,7 +37,7 @@ char *interval_to_str(Interval *self)
     return s;
 }
 
-Interval *intervals_clone(Interval *intervals, size_t len)
+Interval *intervals_clone(const Interval *intervals, size_t len)
 {
     Interval *clone;
 
@@ -47,7 +47,9 @@ Interval *intervals_clone(Interval *intervals, size_t len)
     return clone;
 }
 
-int intervals_predicate(Interval *intervals, size_t len, const char *codepoint)
+int intervals_predicate(const Interval *intervals,
+                        size_t          len,
+                        const char     *codepoint)
 {
     size_t i;
     int    pred = 0;
@@ -58,7 +60,7 @@ int intervals_predicate(Interval *intervals, size_t len, const char *codepoint)
     return pred;
 }
 
-char *intervals_to_str(Interval *intervals, size_t len)
+char *intervals_to_str(const Interval *intervals, size_t len)
 {
     size_t i, slen = 0, alloc = 3 + 2 * INTERVAL_MAX_BUF;
     char  *s = malloc(alloc * sizeof(char)), *p;

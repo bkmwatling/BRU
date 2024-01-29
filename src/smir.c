@@ -63,13 +63,13 @@ struct action {
     ActionType type;
 
     union {
-        const char *ch;   /*<< type = ACT_CHAR                                */
-        Interval   *pred; /*<< type = ACT_PRED                                */
+        const char     *ch;   /*<< type = ACT_CHAR                            */
+        const Interval *pred; /*<< type = ACT_PRED                            */
     };
 
     union {
         len_t pred_len; /*<< type = ACT_PRED                                  */
-        size_t k; /*<< type = ACT_SAVE | ACT_EPSSET | ACT_EPSCHK | ACT_MEMO   */
+        size_t k; /*<< type = ACT_MEMO | ACT_SAVE | ACT_EPSCHK | ACT_EPSSET   */
     };
 };
 
@@ -97,6 +97,11 @@ struct action_list {
     ActionList   *next;
 };
 
+struct action_list_iterator {
+    const ActionList *sentinel;
+    ActionList       *current;
+};
+
 struct state_machine {
     const char *regex;
     State      *states;
@@ -106,19 +111,11 @@ struct state_machine {
 
 /* --- Helper Functions ----------------------------------------------------- */
 
-static void action_free(const Action *self)
-{
-    if (!self) return;
-
-    if (self->type == ACT_PRED) free(self->pred);
-    free((Action *) self);
-}
-
 static void action_list_free(ActionList *self)
 {
     if (!self) return;
 
-    action_free(self->act);
+    smir_action_free(self->act);
     free(self);
 }
 
@@ -504,7 +501,20 @@ const Action *smir_action_clone(const Action *self)
     return clone;
 }
 
+void smir_action_free(const Action *self)
+{
+    if (!self) return;
+
+    if (self->type == ACT_PRED) free((Interval *) self->pred);
+    free((Action *) self);
+}
+
 ActionType smir_action_type(const Action *self) { return self->type; }
+
+size_t smir_action_get_num(const Action *self)
+{
+    return ACT_MEMO <= self->type && self->type <= ACT_EPSSET ? self->k : 0;
+}
 
 ActionList *smir_action_list_new(void)
 {
@@ -572,6 +582,50 @@ void smir_action_list_prepend(ActionList *self, ActionList *acts)
     acts->next->prev = self;
     self->next       = acts->next;
     acts->next = acts->prev = acts;
+}
+
+ActionListIterator *smir_action_list_iter(const ActionList *self)
+{
+    ActionListIterator *iter = malloc(sizeof(*iter));
+
+    iter->sentinel = self;
+    iter->current  = NULL;
+
+    return iter;
+}
+
+const Action *smir_action_list_iterator_next(ActionListIterator *self)
+{
+    if (self->current == self->sentinel) return NULL;
+    self->current = self->current ? self->current->next : self->sentinel->next;
+    if (self->current == self->sentinel) return NULL;
+
+    return self->current->act;
+}
+
+const Action *smir_action_list_iterator_prev(ActionListIterator *self)
+{
+    if (self->current == self->sentinel) return NULL;
+    self->current = self->current ? self->current->prev : self->sentinel->prev;
+    if (self->current == self->sentinel) return NULL;
+
+    return self->current->act;
+}
+
+void smir_action_list_iterator_remove(ActionListIterator *self)
+{
+    ActionList *al;
+
+    if (!self->current || self->current == self->sentinel) return;
+
+    al             = self->current;
+    al->prev->next = al->next;
+    al->next->prev = al->prev;
+    self->current  = al->prev == self->sentinel ? NULL : al->prev;
+
+    al->prev = al->next = NULL;
+    smir_action_free(al->act);
+    free(al);
 }
 
 /* --- Extendable API ------------------------------------------------------- */

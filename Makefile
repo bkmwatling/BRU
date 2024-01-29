@@ -6,19 +6,19 @@
 # @version 0.1
 
 # compiler flags
-DEBUG       	 := -ggdb -gdwarf-4
-OPTIMISE    	 := -O0
-WARNING     	 := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings \
+DEBUG            := -ggdb -gdwarf-4
+OPTIMISE         := -O0
+WARNING          := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings \
 					-pedantic
-EXTRA       	 := -std=c11
-STC_FLAGS   	 := -DSTC_UTF_DISABLE_SV
-CFLAGS      	 := $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(STC_FLAGS)
-DFLAGS      	 := # -DDEBUG
+EXTRA            := -std=c11
+STC_FLAGS        := -DSTC_UTF_DISABLE_SV
+CFLAGS           := $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(STC_FLAGS)
+DFLAGS           := # -DDEBUG
 
 # commands
-CC          	 := clang
-RM          	 := rm -f
-COMPILE     	 := $(CC) $(CFLAGS) $(DFLAGS)
+CC               := clang
+RM               := rm -f
+COMPILE          := $(CC) $(CFLAGS) $(DFLAGS)
 
 # directories
 SRCDIR           := src
@@ -38,9 +38,9 @@ WALKERS_SRC      := $(wildcard $(SRCDIR)/walkers/*.c) \
                     $(wildcard $(SRCDIR)/walkers/thompson/*.c) \
                     $(wildcard $(SRCDIR)/walkers/glushkov/*.c)
 TRANSFORMERS_SRC := $(wildcard $(SRCDIR)/transformers/*.c)
-SRC         	 := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
+SRC              := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
 					$(STC_SRC) $(WALKERS_SRC) $(TRANSFORMERS_SRC)
-OBJ         	 := $(SRC:.c=.o)
+OBJ              := $(SRC:.c=.o)
 
 ### RULES ######################################################################
 
