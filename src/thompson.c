@@ -5,15 +5,6 @@
 
 /* --- Macros --------------------------------------------------------------- */
 
-#define WRAP_CHILD(sm, child, init, child_ids, fin, trans)    \
-    do {                                                      \
-        child_ids = emit((sm), (child), opts);                \
-        trans     = smir_add_transition((sm), (init));        \
-        smir_set_dst((sm), (trans), (child_ids).initial);     \
-        trans = smir_add_transition((sm), (child_ids).final); \
-        smir_set_dst((sm), (trans), (fin));                   \
-    } while (0)
-
 #define SET_TRANS_PRIORITY(sm, re, sid, enter, leave)   \
     do {                                                \
         if ((re)->pos) {                                \
@@ -30,11 +21,11 @@
 typedef struct {
     state_id initial;
     state_id final;
-} state_id_pair;
+} StateIdPair;
 
 /* --- Helper Prototypes ---------------------------------------------------- */
 
-static state_id_pair
+static StateIdPair
 emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts);
 
 /* --- Main Routine --------------------------------------------------------- */
@@ -42,7 +33,7 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts);
 StateMachine *thompson_construct(Regex re, const CompilerOpts *opts)
 {
     StateMachine *sm;
-    state_id_pair child;
+    StateIdPair   child;
 
     sm    = smir_default(re.regex);
     child = emit(sm, re.root, opts);
@@ -54,12 +45,12 @@ StateMachine *thompson_construct(Regex re, const CompilerOpts *opts)
 
 /* --- Helper Routines ------------------------------------------------------ */
 
-static state_id_pair
+static StateIdPair
 emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
 {
-    state_id_pair state_ids, child_state_ids;
-    trans_id      out, enter, leave;
-    state_id      sid;
+    StateIdPair state_ids, child_state_ids;
+    trans_id    out, enter, leave;
+    state_id    sid;
 
     switch (re->type) {
         case CARET:
@@ -211,6 +202,7 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
             smir_set_dst(sm, out, state_ids.final);
             break;
 
+        /* TODO: */
         case COUNTER:
         case LOOKAHEAD: assert(0 && "TODO"); break;
         case NREGEXTYPES: assert(0 && "unreachable"); break;

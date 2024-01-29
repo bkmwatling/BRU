@@ -114,31 +114,6 @@ static void action_free(const Action *self)
     free((Action *) self);
 }
 
-static const Action *action_clone(const Action *self)
-{
-    const Action *clone;
-
-    if (!self) return NULL;
-
-    switch (self->type) {
-        case ACT_BEGIN:
-        case ACT_END: clone = smir_action_zwa(self->type); break;
-
-        case ACT_CHAR: clone = smir_action_char(self->ch);
-        case ACT_PRED:
-            clone = smir_action_predicate(
-                intervals_clone(self->pred, self->pred_len), self->pred_len);
-            break;
-
-        case ACT_MEMO:
-        case ACT_SAVE:
-        case ACT_EPSCHK:
-        case ACT_EPSSET: clone = smir_action_num(self->type, self->k); break;
-    }
-
-    return clone;
-}
-
 static void action_list_free(ActionList *self)
 {
     if (!self) return;
@@ -185,6 +160,7 @@ StateMachine *smir_new(const char *regex, uint32_t nstates)
     sm->regex  = regex;
     sm->ninits = 0;
     stc_vec_init(sm->states, nstates);
+    while (nstates--) smir_add_state(sm);
     dll_init(sm->initial_functions_sentinel);
 
     return sm;
@@ -340,23 +316,7 @@ void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts)
 
 ActionList *smir_state_clone_actions(StateMachine *self, state_id sid)
 {
-    ActionList       *clone;
-    ActionList       *al;
-    const ActionList *original;
-    size_t            nactions, i;
-
-    original = smir_state_get_actions(self, sid);
-    nactions = smir_state_get_num_actions(self, sid);
-    dll_init(clone);
-
-    for (i = 0; i < nactions; i++) {
-        original = original->next;
-        al       = malloc(sizeof(*al));
-        al->act  = action_clone(original->act);
-        dll_push_back(clone, al);
-    }
-
-    return clone;
+    return smir_action_list_clone(smir_state_get_actions(self, sid));
 }
 
 state_id smir_get_src(StateMachine *self, trans_id tid)
@@ -388,47 +348,6 @@ void smir_set_dst(StateMachine *self, trans_id tid, state_id dst)
                       : self->initial_functions_sentinel;
     dll_get(transitions, idx, transition);
     transition->dst = dst;
-}
-
-const Action *smir_action_zwa(ActionType type)
-{
-    Action *act = malloc(sizeof(*act));
-
-    assert(type == ACT_BEGIN || type == ACT_END);
-    act->type = type;
-
-    return act;
-}
-
-const Action *smir_action_char(const char *ch)
-{
-    Action *act = malloc(sizeof(*act));
-
-    act->type = ACT_CHAR;
-    act->ch   = ch;
-
-    return act;
-}
-
-const Action *smir_action_predicate(Interval *pred, len_t pred_len)
-{
-    Action *act = malloc(sizeof(*act));
-
-    act->type     = ACT_PRED;
-    act->pred     = pred;
-    act->pred_len = pred_len;
-
-    return act;
-}
-
-const Action *smir_action_num(ActionType type, size_t k)
-{
-    Action *act = malloc(sizeof(*act));
-
-    act->type = type;
-    act->k    = k;
-
-    return act;
 }
 
 size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid)
@@ -514,20 +433,78 @@ void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts)
 
 ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid)
 {
-    ActionList       *clone, *al;
-    const ActionList *original, *tmp;
+    return smir_action_list_clone(smir_trans_get_actions(self, tid));
+}
 
-    original = smir_trans_get_actions(self, tid);
-    dll_init(clone);
+/* --- Action and ActionList functions -------------------------------------- */
 
-    for (tmp = original->next; tmp != original; tmp = tmp->next) {
-        al      = malloc(sizeof(*al));
-        al->act = action_clone(tmp->act);
-        dll_push_back(clone, al);
+const Action *smir_action_zwa(ActionType type)
+{
+    Action *act = malloc(sizeof(*act));
+
+    assert(type == ACT_BEGIN || type == ACT_END);
+    act->type = type;
+
+    return act;
+}
+
+const Action *smir_action_char(const char *ch)
+{
+    Action *act = malloc(sizeof(*act));
+
+    act->type = ACT_CHAR;
+    act->ch   = ch;
+
+    return act;
+}
+
+const Action *smir_action_predicate(Interval *pred, len_t pred_len)
+{
+    Action *act = malloc(sizeof(*act));
+
+    act->type     = ACT_PRED;
+    act->pred     = pred;
+    act->pred_len = pred_len;
+
+    return act;
+}
+
+const Action *smir_action_num(ActionType type, size_t k)
+{
+    Action *act = malloc(sizeof(*act));
+
+    act->type = type;
+    act->k    = k;
+
+    return act;
+}
+
+const Action *smir_action_clone(const Action *self)
+{
+    const Action *clone;
+
+    if (!self) return NULL;
+
+    switch (self->type) {
+        case ACT_BEGIN:
+        case ACT_END: clone = smir_action_zwa(self->type); break;
+
+        case ACT_CHAR: clone = smir_action_char(self->ch);
+        case ACT_PRED:
+            clone = smir_action_predicate(
+                intervals_clone(self->pred, self->pred_len), self->pred_len);
+            break;
+
+        case ACT_MEMO:
+        case ACT_SAVE:
+        case ACT_EPSCHK:
+        case ACT_EPSSET: clone = smir_action_num(self->type, self->k); break;
     }
 
     return clone;
 }
+
+ActionType smir_action_type(const Action *self) { return self->type; }
 
 ActionList *smir_action_list_new(void)
 {
@@ -538,13 +515,28 @@ ActionList *smir_action_list_new(void)
     return action_list;
 }
 
+ActionList *smir_action_list_clone(const ActionList *self)
+{
+    ActionList       *clone, *al;
+    const ActionList *tmp;
+
+    dll_init(clone);
+    for (tmp = self->next; tmp != self; tmp = tmp->next) {
+        al      = malloc(sizeof(*al));
+        al->act = smir_action_clone(tmp->act);
+        dll_push_back(clone, al);
+    }
+
+    return clone;
+}
+
 void smir_action_list_free(ActionList *self)
 {
     ActionList *elem, *next;
     dll_free(self, action_list_free, elem, next);
 }
 
-void smir_action_list_append(ActionList *self, const Action *act)
+void smir_action_list_push_back(ActionList *self, const Action *act)
 {
     ActionList *al = malloc(sizeof(*al));
 
@@ -552,12 +544,34 @@ void smir_action_list_append(ActionList *self, const Action *act)
     dll_push_back(self, al);
 }
 
-void smir_action_list_prepend(ActionList *self, const Action *act)
+void smir_action_list_push_front(ActionList *self, const Action *act)
 {
     ActionList *al = malloc(sizeof(*al));
 
     al->act = act;
     dll_push_front(self, al);
+}
+
+void smir_action_list_append(ActionList *self, ActionList *acts)
+{
+    if (!acts || acts->next == acts) return;
+
+    self->prev->next = acts->next;
+    acts->next->prev = self->prev;
+    acts->prev->next = self;
+    self->prev       = acts->prev;
+    acts->prev = acts->next = acts;
+}
+
+void smir_action_list_prepend(ActionList *self, ActionList *acts)
+{
+    if (!acts || acts->next == acts) return;
+
+    self->next->prev = acts->prev;
+    acts->prev->next = self->next;
+    acts->next->prev = self;
+    self->next       = acts->next;
+    acts->next = acts->prev = acts;
 }
 
 /* --- Extendable API ------------------------------------------------------- */

@@ -284,51 +284,6 @@ state_id smir_get_dst(StateMachine *self, trans_id tid);
 void smir_set_dst(StateMachine *self, trans_id tid, state_id dst);
 
 /**
- * Create an action for zero-width assertions.
- *
- * Valid types are ACT_BEGIN and ACT_END.
- *
- * @param[in] type the type of zero-width assertion
- *
- * @return the action
- */
-const Action *smir_action_zwa(ActionType type);
-
-/**
- * Create an action for matching against a character.
- *
- * @param[in] ch the character
- *
- * @return the action
- */
-const Action *smir_action_char(const char *ch);
-
-/**
- * Create an action for matching against a predicate.
- *
- * @param[in] pred     the predicate
- * @param[in] pred_len the length of the predicate
- *
- * @return the action
- */
-const Action *smir_action_predicate(Interval *pred, len_t pred_len);
-
-/**
- * Create an action which require relative pointers into memory.
- *
- * Valid types are ACT_SAVE, ACT_EPSCHK, ACT_EPSSET, ACT_MEMO.
- *
- * If it is ACT_SAVE, the identifier is the index into capture memory.
- * Otherwise, it is the unique regex identifier.
- *
- * @param[in] type the type of the action
- * @param[in] k    the identifer for this action
- *
- * @return the action
- */
-const Action *smir_action_num(ActionType type, size_t k);
-
-/**
  * Get the number of actions on a transition.
  *
  * @param[in] self the state machine
@@ -393,12 +348,86 @@ void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
  */
 ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid);
 
+/* --- Action and ActionList functions -------------------------------------- */
+
+/**
+ * Create an action for zero-width assertions.
+ *
+ * Valid types are ACT_BEGIN and ACT_END.
+ *
+ * @param[in] type the type of zero-width assertion
+ *
+ * @return the action
+ */
+const Action *smir_action_zwa(ActionType type);
+
+/**
+ * Create an action for matching against a character.
+ *
+ * @param[in] ch the character
+ *
+ * @return the action
+ */
+const Action *smir_action_char(const char *ch);
+
+/**
+ * Create an action for matching against a predicate.
+ *
+ * @param[in] pred     the predicate
+ * @param[in] pred_len the length of the predicate
+ *
+ * @return the action
+ */
+const Action *smir_action_predicate(Interval *pred, len_t pred_len);
+
+/**
+ * Create an action which require relative pointers into memory.
+ *
+ * Valid types are ACT_SAVE, ACT_EPSCHK, ACT_EPSSET, ACT_MEMO.
+ *
+ * If it is ACT_SAVE, the identifier is the index into capture memory.
+ * Otherwise, it is the unique regex identifier.
+ *
+ * @param[in] type the type of the action
+ * @param[in] k    the identifer for this action
+ *
+ * @return the action
+ */
+const Action *smir_action_num(ActionType type, size_t k);
+
+/**
+ * Clone an action.
+ *
+ * @param[in] self the action to clone
+ *
+ * @return the cloned action
+ */
+const Action *smir_action_clone(const Action *self);
+
+/**
+ * Get the type of the action.
+ *
+ * @param[in] self the action
+ *
+ * @return the type of the action
+ */
+ActionType smir_action_type(const Action *self);
+
 /**
  * Create an empty list of actions.
  *
  * @return the empty list of actions
  */
 ActionList *smir_action_list_new(void);
+
+/**
+ * Clone the list of actions.
+ *
+ * @param[in] self the list of actions to clone
+ *
+ * @return the cloned list of actions
+ */
+ActionList *smir_action_list_clone(const ActionList *self);
 
 /**
  * Free the list of actions.
@@ -408,20 +437,40 @@ ActionList *smir_action_list_new(void);
 void smir_action_list_free(ActionList *self);
 
 /**
- * Append an action to the list of actions.
+ * Push an action to the back of a list of actions.
  *
  * @param[in] self the list of actions
- * @param[in] act  the action to append
+ * @param[in] act  the action to push to the back
  */
-void smir_action_list_append(ActionList *self, const Action *act);
+void smir_action_list_push_back(ActionList *self, const Action *act);
 
 /**
- * Prepend an action to the list of actions.
+ * Push an action to the front of a list of actions.
  *
  * @param[in] self the list of actions
- * @param[in] act  the action to prepend
+ * @param[in] act  the action to push to the front
  */
-void smir_action_list_prepend(ActionList *self, const Action *act);
+void smir_action_list_push_front(ActionList *self, const Action *act);
+
+/**
+ * Append a list of actions to another list of actions.
+ *
+ * Note: the appended list will be drained after the operation (becomes empty).
+ *
+ * @param[in] self the list of actions to append to
+ * @param[in] acts the list of actions to append
+ */
+void smir_action_list_append(ActionList *self, ActionList *acts);
+
+/**
+ * Prepend a list of actions to another list of actions.
+ *
+ * Note: the prepended list will be drained after the operation (becomes empty).
+ *
+ * @param[in] self the list of actions to prepend to
+ * @param[in] acts the list of actions to prepend
+ */
+void smir_action_list_prepend(ActionList *self, ActionList *acts);
 
 /* --- Extendable API ------------------------------------------------------- */
 
