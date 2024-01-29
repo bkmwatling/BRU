@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stc/fatp/vec.h"
-
 #include "program.h"
 #include "srvm.h"
 
@@ -159,7 +157,7 @@ static int srvm_run(const char    *text,
             case MEMO:
                 MEMREAD(k, pc, len_t);
                 if (thread_manager->memoise(thread, text, text_len, k)) {
-                    instr_counts[CURR_INSTR]++;
+                    instr_counts[MEMO]++;
                     thread_manager->set_pc(thread, pc);
                     scheduler_schedule(scheduler, thread);
                 } else {

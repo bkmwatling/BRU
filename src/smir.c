@@ -723,14 +723,14 @@ static byte *compile_actions(byte             *pc,
                              const ActionList *acts,
                              MemoryMaps       *mmaps)
 {
-#define GET_IDX(mmap, next_idx, type, uid)                         \
+#define GET_IDX(mmap, next_idx, idx_inc, uid)                      \
     do {                                                           \
         for (idx = 0, len = stc_vec_len_unsafe(mmap);              \
              idx < len && (mmap)[idx].rid != (uid); idx++)         \
             ;                                                      \
         if (idx == len) {                                          \
             idx         = (next_idx);                              \
-            (next_idx) += sizeof(type);                            \
+            (next_idx) += (idx_inc);                               \
             stc_vec_push_back(mmap, ((RidToIdx){ (uid), (idx) })); \
         } else {                                                   \
             idx = (mmap)[idx].idx;                                 \
@@ -762,15 +762,15 @@ static byte *compile_actions(byte             *pc,
 
             case ACT_MEMO:
                 BCWRITE(pc, MEMO);
-                GET_IDX(mmaps->memoisation_map, mmaps->next_memoisation_idx,
-                        len_t, n->act->k);
+                GET_IDX(mmaps->memoisation_map, mmaps->next_memoisation_idx, 1,
+                        n->act->k);
                 MEMWRITE(pc, len_t, idx);
                 break;
 
             case ACT_EPSCHK:
                 BCWRITE(pc, EPSCHK);
-                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx, const char *,
-                        n->act->k);
+                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx,
+                        sizeof(const char *), n->act->k);
                 MEMWRITE(pc, len_t, idx);
                 break;
 
@@ -783,8 +783,8 @@ static byte *compile_actions(byte             *pc,
 
             case ACT_EPSSET:
                 BCWRITE(pc, EPSSET);
-                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx, const char *,
-                        n->act->k);
+                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx,
+                        sizeof(const char *), n->act->k);
                 MEMWRITE(pc, len_t, idx);
                 break;
         }

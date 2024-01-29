@@ -151,8 +151,13 @@ static const byte *inst_to_str(char         **s,
         case NOOP: STR_PUSH(*s, *len, *alloc, "noop"); break;
         case MATCH: STR_PUSH(*s, *len, *alloc, "match"); break;
         case BEGIN: STR_PUSH(*s, *len, *alloc, "begin"); break;
-        case MEMO: STR_PUSH(*s, *len, *alloc, "memoise"); break;
         case END: STR_PUSH(*s, *len, *alloc, "end"); break;
+
+        case MEMO:
+            MEMREAD(n, pc, len_t);
+            ENSURE_SPACE(*s, *len + 13, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "memo " LEN_FMT, n);
+            break;
 
         case CHAR:
             MEMREAD(p, pc, char *);
