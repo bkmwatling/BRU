@@ -1,9 +1,8 @@
 #ifndef MEMOISATION_H
 #define MEMOISATION_H
 
+#include "../compiler.h"
 #include "../smir.h"
-
-typedef enum { MS_IN, MS_CN, MS_IAR } MemoScheme;
 
 /**
  * Prepend memoisation actions to states in the given state machine according to

@@ -4,6 +4,7 @@
 #include "glushkov.h"
 #include "sre.h"
 #include "thompson.h"
+#include "transformers/memoisation.h"
 
 #ifdef DEBUG
 #    include "walkers/regex_to_string.h"
@@ -41,6 +42,9 @@ const Program *compiler_compile(const Compiler *self)
         case GLUSHKOV: sm = glushkov_construct(re, &self->opts); break;
     }
     regex_node_free(re.root);
+
+    if (self->opts.memo_scheme != MS_NONE)
+        sm = transform_memoise(sm, self->opts.memo_scheme);
     prog = smir_compile(sm);
     smir_free(sm);
 
