@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "srvm.h"
 
@@ -349,6 +350,14 @@ void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
  */
 ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid);
 
+/**
+ * Print the state machine.
+ *
+ * @param[in] self   the state machine
+ * @param[in] stream the file stream to print to
+ */
+void smir_print(StateMachine *self, FILE *stream);
+
 /* --- Action and ActionList functions -------------------------------------- */
 
 /**
@@ -432,6 +441,14 @@ ActionType smir_action_type(const Action *self);
  * @return the number associated with the action
  */
 size_t smir_action_get_num(const Action *self);
+
+/**
+ * Print the action.
+ *
+ * @param[in] self   the action
+ * @param[in] stream the file stream to print to
+ */
+void smir_action_print(const Action *self, FILE *stream);
 
 /**
  * Create an empty list of actions.
@@ -547,6 +564,14 @@ const Action *smir_action_list_iterator_prev(ActionListIterator *self);
  * @param[in] self the action list iterator
  */
 void smir_action_list_iterator_remove(ActionListIterator *self);
+
+/**
+ * Print the list of actions.
+ *
+ * @param[in] self   the list of actions
+ * @param[in] stream the file stream to print to
+ */
+void smir_action_list_print(const ActionList *self, FILE *stream);
 
 /* --- Extendable API ------------------------------------------------------- */
 

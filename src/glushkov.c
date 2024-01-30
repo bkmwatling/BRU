@@ -695,10 +695,15 @@ static void emit(StateMachine *sm, const Rfa *rfa)
     state_id *pos_map  = calloc(rfa->npositions, sizeof(*pos_map));
     state_id  next_sid = 1;
 
-    fprintf(stderr, "nstates = %lu\n", smir_get_num_states(sm));
+    pos_map[START_POS] = INITIAL_STATE_ID;
     FOREACH(pp, FIRST(rfa)->sentinel) {
-        if (!pos_map[pp->pos]) pos_map[pp->pos] = next_sid++;
-        tid = smir_set_initial(sm, pos_map[pp->pos]);
+        if (pp->pos == GAMMA_POS) {
+            tid = smir_set_final(sm, pos_map[START_POS]);
+        } else {
+            if (!pos_map[pp->pos]) pos_map[pp->pos] = next_sid++;
+            tid = smir_set_initial(sm, pos_map[pp->pos]);
+            smir_set_dst(sm, tid, pos_map[pp->pos]);
+        }
         smir_trans_set_actions(sm, tid, pp->actions);
     }
 
@@ -708,9 +713,13 @@ static void emit(StateMachine *sm, const Rfa *rfa)
         if (!pos_map[i]) pos_map[i] = next_sid++;
         smir_state_append_action(sm, pos_map[i], rfa->positions[i]);
         FOREACH(pp, rfa->follow[i]->sentinel) {
-            tid = smir_add_transition(sm, pos_map[i]);
-            if (!pos_map[pp->pos]) pos_map[pp->pos] = next_sid++;
-            smir_set_dst(sm, tid, pos_map[pp->pos]);
+            if (pp->pos == GAMMA_POS) {
+                tid = smir_set_final(sm, pos_map[i]);
+            } else {
+                tid = smir_add_transition(sm, pos_map[i]);
+                if (!pos_map[pp->pos]) pos_map[pp->pos] = next_sid++;
+                smir_set_dst(sm, tid, pos_map[pp->pos]);
+            }
             smir_trans_set_actions(sm, tid, pp->actions);
         }
     }

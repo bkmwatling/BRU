@@ -433,6 +433,40 @@ ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid)
     return smir_action_list_clone(smir_trans_get_actions(self, tid));
 }
 
+void smir_print(StateMachine *self, FILE *stream)
+{
+    state_id  sid;
+    trans_id *out;
+    size_t    n, i;
+
+    if (self->ninits) {
+        fprintf(stream, "Initialisation:\n");
+        out = smir_get_out_transitions(self, INITIAL_STATE_ID, &n);
+        for (i = 0; i < n; i++) {
+            fprintf(stream, "  %u: ", smir_get_dst(self, out[i]));
+            smir_action_list_print(smir_trans_get_actions(self, out[i]),
+                                   stream);
+            fprintf(stream, "\n");
+        }
+        free(out);
+    }
+
+    for (sid = 1; sid <= smir_get_num_states(self); sid++) {
+        fprintf(stream, "State(%u): ", sid);
+        smir_action_list_print(smir_state_get_actions(self, sid), stream);
+        fprintf(stream, "\n");
+
+        out = smir_get_out_transitions(self, sid, &n);
+        for (i = 0; i < n; i++) {
+            fprintf(stream, "  %u: ", smir_get_dst(self, out[i]));
+            smir_action_list_print(smir_trans_get_actions(self, out[i]),
+                                   stream);
+            fprintf(stream, "\n");
+        }
+        free(out);
+    }
+}
+
 /* --- Action and ActionList functions -------------------------------------- */
 
 const Action *smir_action_zwa(ActionType type)
@@ -514,6 +548,28 @@ ActionType smir_action_type(const Action *self) { return self->type; }
 size_t smir_action_get_num(const Action *self)
 {
     return ACT_MEMO <= self->type && self->type <= ACT_EPSSET ? self->k : 0;
+}
+
+void smir_action_print(const Action *self, FILE *stream)
+{
+    char *s;
+
+    switch (self->type) {
+        case ACT_BEGIN: fprintf(stream, "begin"); break;
+        case ACT_END: fprintf(stream, "end"); break;
+        case ACT_CHAR:
+            fprintf(stream, "char %.*s", stc_utf8_nbytes(self->ch), self->ch);
+            break;
+        case ACT_PRED:
+            s = intervals_to_str(self->pred, self->pred_len);
+            fprintf(stream, "pred %s", s);
+            free(s);
+            break;
+        case ACT_MEMO: fprintf(stream, "memo %zu", self->k); break;
+        case ACT_SAVE: fprintf(stream, "save %zu", self->k); break;
+        case ACT_EPSCHK: fprintf(stream, "epschk %zu", self->k); break;
+        case ACT_EPSSET: fprintf(stream, "epsset %zu", self->k); break;
+    }
 }
 
 ActionList *smir_action_list_new(void)
@@ -626,6 +682,18 @@ void smir_action_list_iterator_remove(ActionListIterator *self)
     al->prev = al->next = NULL;
     smir_action_free(al->act);
     free(al);
+}
+
+void smir_action_list_print(const ActionList *self, FILE *stream)
+{
+    const ActionList *al;
+
+    for (al = self->next; al != self; al = al->next) {
+        smir_action_print(al->act, stream);
+        if (al->next != self) fprintf(stream, ", ");
+    }
+
+    if (self->next == self) fprintf(stream, "-|");
 }
 
 /* --- Extendable API ------------------------------------------------------- */
