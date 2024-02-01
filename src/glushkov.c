@@ -437,7 +437,8 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
             APPEND_POSITION(smir_action_num(ACT_MEMO, re->rid));
             break;
         case CC:
-            APPEND_POSITION(smir_action_predicate(re->intervals, re->cc_len));
+            APPEND_POSITION(smir_action_predicate(
+                intervals_clone(re->intervals, re->cc_len), re->cc_len));
             break;
 
         case ALT:
