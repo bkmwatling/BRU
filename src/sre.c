@@ -84,12 +84,13 @@ char *intervals_to_str(const Interval *intervals, size_t len)
 
 /* --- Regex ---------------------------------------------------------------- */
 
-RegexNode *regex_anchor(RegexType type)
+RegexNode *regex_new(RegexType type)
 {
     RegexNode *re = malloc(sizeof(RegexNode));
 
     /* check `type` to make sure correct node type */
-    assert(type == CARET || type == DOLLAR || type == MEMOISE);
+    assert(type == CARET || type == DOLLAR || type == MEMOISE ||
+           type == EPSILON);
     re->type = type;
 
     return re;
@@ -140,6 +141,16 @@ RegexNode *regex_capture(RegexNode *child, len_t idx)
     return re;
 }
 
+RegexNode *regex_backreference(len_t idx)
+{
+    RegexNode *re = malloc(sizeof(RegexNode));
+
+    re->type        = BACKREFERENCE;
+    re->capture_idx = idx;
+
+    return re;
+}
+
 RegexNode *regex_single_child(RegexType type, RegexNode *child, byte pos)
 {
     RegexNode *re = malloc(sizeof(RegexNode));
@@ -169,29 +180,31 @@ RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max)
 void regex_node_free(RegexNode *self)
 {
     switch (self->type) {
-        case CARET:
-        case DOLLAR:
-        case MEMOISE:
-        case LITERAL: break;
+        case EPSILON: /* fallthrough */
+        case CARET:   /* fallthrough */
+        case DOLLAR:  /* fallthrough */
+        case MEMOISE: /* fallthrough */
+        case LITERAL: /* fallthrough */
+        case BACKREFERENCE: break;
 
         case CC: free(self->intervals); break;
 
-        case ALT:
+        case ALT: /* fallthrough */
         case CONCAT:
             regex_node_free(self->left);
             regex_node_free(self->right);
             break;
 
-        case CAPTURE:
-        case STAR:
-        case PLUS:
-        case QUES:
-        case COUNTER:
+        case CAPTURE: /* fallthrough */
+        case STAR:    /* fallthrough */
+        case PLUS:    /* fallthrough */
+        case QUES:    /* fallthrough */
+        case COUNTER: /* fallthrough */
         case LOOKAHEAD: regex_node_free(self->left); break;
         case NREGEXTYPES: assert(0 && "unreachable");
     }
 
-    free((void *) self);
+    free(self);
 }
 
 RegexNode *regex_clone(RegexNode *self)
@@ -200,10 +213,12 @@ RegexNode *regex_clone(RegexNode *self)
 
     memcpy(re, self, sizeof(RegexNode));
     switch (re->type) {
-        case CARET:
-        case DOLLAR:
-        case MEMOISE:
-        case LITERAL: break;
+        case EPSILON: /* fallthrough */
+        case CARET:   /* fallthrough */
+        case DOLLAR:  /* fallthrough */
+        case MEMOISE: /* fallthrough */
+        case LITERAL: /* fallthrough */
+        case BACKREFERENCE: break;
 
         case CC:
             re->intervals = malloc(re->cc_len * sizeof(Interval));
@@ -211,17 +226,17 @@ RegexNode *regex_clone(RegexNode *self)
                    re->cc_len * sizeof(Interval));
             break;
 
-        case ALT:
+        case ALT: /* fallthrough */
         case CONCAT:
             re->left  = regex_clone(self->left);
             re->right = regex_clone(self->right);
             break;
 
-        case CAPTURE:
-        case STAR:
-        case PLUS:
-        case QUES:
-        case COUNTER:
+        case CAPTURE: /* fallthrough */
+        case STAR:    /* fallthrough */
+        case PLUS:    /* fallthrough */
+        case QUES:    /* fallthrough */
+        case COUNTER: /* fallthrough */
         case LOOKAHEAD: re->left = regex_clone(self->left); break;
         case NREGEXTYPES: assert(0 && "unreachable");
     }
@@ -235,6 +250,7 @@ char *regex_to_tree_str(const RegexNode *self)
 
     char *s = malloc(alloc * sizeof(char));
     regex_to_tree_str_indent(&s, &len, &alloc, self, 0);
+
     return s;
 }
 
@@ -255,6 +271,8 @@ static void regex_to_tree_str_indent(char           **s,
     *len += snprintf(*s + *len, *alloc - *len, "%06lu: ", re->rid);
 
     switch (re->type) {
+        case EPSILON: STR_PUSH(*s, *len, *alloc, "Epsilon"); break;
+
         case CARET: STR_PUSH(*s, *len, *alloc, "Caret"); break;
 
         case DOLLAR: STR_PUSH(*s, *len, *alloc, "Dollar"); break;
@@ -333,6 +351,13 @@ static void regex_to_tree_str_indent(char           **s,
                 regex_to_tree_str_indent(s, len, alloc, re->left, indent + 2);
             }
             break;
+
+        case BACKREFERENCE:
+            ENSURE_SPACE(*s, *len + 17, *alloc, sizeof(char));
+            *len += snprintf(*s + *len, *alloc - *len, "Backreference(%d)",
+                             re->capture_idx);
+            break;
+
         case NREGEXTYPES: assert(0 && "unreachable");
     }
 }

@@ -11,8 +11,8 @@ WALKER_F(STAR)
 
     // insert memoisation instruction behind child of star and after star
     // F* -> (#F)*#
-    SET_CHILD(regex_branch(CONCAT, regex_anchor(MEMOISE), CHILD));
-    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_anchor(MEMOISE)));
+    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
+    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_new(MEMOISE)));
 }
 
 WALKER_F(ALT)
@@ -25,7 +25,7 @@ WALKER_F(ALT)
 
     // insert memoisation instruction after alternation
     // (A|B) -> (A|B)#
-    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_anchor(MEMOISE)));
+    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_new(MEMOISE)));
 }
 
 WALKER_F(QUES)
@@ -37,7 +37,7 @@ WALKER_F(QUES)
 
     // insert memoisation instruction after optional expression
     // E? -> E?#
-    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_anchor(MEMOISE)));
+    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_new(MEMOISE)));
 }
 
 /* --- API routines -------------------------------------------------------- */

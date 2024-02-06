@@ -7,7 +7,7 @@ WALKER_F(STAR)
     WALK_LEFT();
     // insert memoisation instruction behind child of star
     // F* -> (#F)*
-    SET_CHILD(regex_branch(CONCAT, regex_anchor(MEMOISE), CHILD));
+    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
 }
 
 WALKER_F(PLUS)
@@ -15,7 +15,7 @@ WALKER_F(PLUS)
     WALK_LEFT();
     // insert memoisation instruction behind child of plus
     // F+ -> (#F)+
-    SET_CHILD(regex_branch(CONCAT, regex_anchor(MEMOISE), CHILD));
+    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
 }
 
 /* --- API routines -------------------------------------------------------- */

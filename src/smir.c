@@ -5,6 +5,7 @@
 #include "stc/fatp/vec.h"
 
 #include "smir.h"
+#include "utils.h"
 
 /* --- Macros --------------------------------------------------------------- */
 
@@ -16,44 +17,9 @@
 
 #define trans_init(trans)                    \
     do {                                     \
-        dll_init(trans);                     \
-        dll_init((trans)->actions_sentinel); \
+        DLL_INIT(trans);                     \
+        DLL_INIT((trans)->actions_sentinel); \
     } while (0)
-
-#define dll_init(dll)                            \
-    do {                                         \
-        (dll)       = calloc(1, sizeof(*(dll))); \
-        (dll)->prev = (dll)->next = (dll);       \
-    } while (0)
-
-#define dll_free(dll, elem_free, elem, next)                           \
-    do {                                                               \
-        for ((elem) = (dll)->next; (elem) != (dll); (elem) = (next)) { \
-            (next) = (elem)->next;                                     \
-            (elem_free)((elem));                                       \
-        }                                                              \
-        free((dll));                                                   \
-    } while (0)
-
-#define dll_push_front(dll, elem)         \
-    do {                                  \
-        (elem)->prev       = (dll);       \
-        (elem)->next       = (dll)->next; \
-        (elem)->next->prev = (elem);      \
-        (dll)->next        = (elem);      \
-    } while (0)
-
-#define dll_push_back(dll, elem)          \
-    do {                                  \
-        (elem)->prev       = (dll)->prev; \
-        (elem)->next       = (dll);       \
-        (dll)->prev        = (elem);      \
-        (elem)->prev->next = (elem);      \
-    } while (0)
-
-#define dll_get(dll, idx, elem)                              \
-    for ((elem) = (dll)->next; (idx) > 0 && (elem) != (dll); \
-         (idx)--, (elem) = (elem)->next)
 
 /* --- Type Definitions ----------------------------------------------------- */
 
@@ -133,7 +99,7 @@ static void state_free(State *self)
 
     if (self->actions_sentinel) smir_action_list_free(self->actions_sentinel);
     if (self->out_transitions_sentinel)
-        dll_free(self->out_transitions_sentinel, trans_free, elem, next);
+        DLL_FREE(self->out_transitions_sentinel, trans_free, elem, next);
 }
 
 /* --- API ------------------------------------------------------------------ */
@@ -145,7 +111,7 @@ StateMachine *smir_default(const char *regex)
     sm->regex  = regex;
     sm->ninits = 0;
     stc_vec_default_init(sm->states);
-    dll_init(sm->initial_functions_sentinel);
+    DLL_INIT(sm->initial_functions_sentinel);
 
     return sm;
 }
@@ -158,7 +124,7 @@ StateMachine *smir_new(const char *regex, uint32_t nstates)
     sm->ninits = 0;
     stc_vec_init(sm->states, nstates);
     while (nstates--) smir_add_state(sm);
-    dll_init(sm->initial_functions_sentinel);
+    DLL_INIT(sm->initial_functions_sentinel);
 
     return sm;
 }
@@ -177,7 +143,7 @@ void smir_free(StateMachine *self)
     }
 
     if (self->initial_functions_sentinel)
-        dll_free(self->initial_functions_sentinel, trans_free, elem, next);
+        DLL_FREE(self->initial_functions_sentinel, trans_free, elem, next);
 
     free(self);
 }
@@ -191,8 +157,8 @@ state_id smir_add_state(StateMachine *self)
 {
     State state = { 0 };
 
-    dll_init(state.actions_sentinel);
-    dll_init(state.out_transitions_sentinel);
+    DLL_INIT(state.actions_sentinel);
+    DLL_INIT(state.out_transitions_sentinel);
     stc_vec_push_back(self->states, state);
 
     return stc_vec_len_unsafe(self->states);
@@ -211,7 +177,7 @@ trans_id smir_set_initial(StateMachine *self, state_id sid)
 
     trans_init(transition);
     transition->dst = sid;
-    dll_push_back(self->initial_functions_sentinel, transition);
+    DLL_PUSH_BACK(self->initial_functions_sentinel, transition);
 
     return trans_id_from_parts(NULL_STATE, self->ninits++);
 }
@@ -240,7 +206,7 @@ trans_id smir_add_transition(StateMachine *self, state_id sid)
         transitions = self->initial_functions_sentinel;
         n           = &self->ninits;
     }
-    dll_push_back(transitions, transition);
+    DLL_PUSH_BACK(transitions, transition);
 
     return trans_id_from_parts(sid, (*n)++);
 }
@@ -276,7 +242,7 @@ void smir_state_append_action(StateMachine *self,
     if (sid) {
         al      = malloc(sizeof(*al));
         al->act = act;
-        dll_push_back(self->states[sid - 1].actions_sentinel, al);
+        DLL_PUSH_BACK(self->states[sid - 1].actions_sentinel, al);
         self->states[sid - 1].nactions++;
     }
 }
@@ -289,7 +255,7 @@ void smir_state_prepend_action(StateMachine *self,
     if (sid) {
         al      = malloc(sizeof(*al));
         al->act = act;
-        dll_push_front(self->states[sid - 1].actions_sentinel, al);
+        DLL_PUSH_FRONT(self->states[sid - 1].actions_sentinel, al);
         self->states[sid - 1].nactions++;
     }
 }
@@ -330,7 +296,7 @@ state_id smir_get_dst(StateMachine *self, trans_id tid)
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
-    dll_get(transitions, idx, transition);
+    DLL_GET(transitions, idx, transition);
 
     return transition->dst;
 }
@@ -343,7 +309,7 @@ void smir_set_dst(StateMachine *self, trans_id tid, state_id dst)
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
-    dll_get(transitions, idx, transition);
+    DLL_GET(transitions, idx, transition);
     transition->dst = dst;
 }
 
@@ -355,7 +321,7 @@ size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid)
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
-    dll_get(transitions, idx, transition);
+    DLL_GET(transitions, idx, transition);
 
     return transition->nactions;
 }
@@ -368,7 +334,7 @@ const ActionList *smir_trans_get_actions(StateMachine *self, trans_id tid)
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
-    dll_get(transitions, idx, transition);
+    DLL_GET(transitions, idx, transition);
 
     return transition->actions_sentinel;
 }
@@ -385,8 +351,8 @@ void smir_trans_append_action(StateMachine *self,
     al->act     = act;
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
-    dll_get(transitions, idx, transition);
-    dll_push_back(transition->actions_sentinel, al);
+    DLL_GET(transitions, idx, transition);
+    DLL_PUSH_BACK(transition->actions_sentinel, al);
     transition->nactions++;
 }
 
@@ -402,8 +368,8 @@ void smir_trans_prepend_action(StateMachine *self,
     al->act     = act;
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
-    dll_get(transitions, idx, transition);
-    dll_push_front(transition->actions_sentinel, al);
+    DLL_GET(transitions, idx, transition);
+    DLL_PUSH_FRONT(transition->actions_sentinel, al);
     transition->nactions++;
 }
 
@@ -417,7 +383,7 @@ void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts)
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
-    dll_get(transitions, idx, transition);
+    DLL_GET(transitions, idx, transition);
     smir_action_list_free(transition->actions_sentinel);
     transition->actions_sentinel = acts;
 
@@ -576,7 +542,7 @@ ActionList *smir_action_list_new(void)
 {
     ActionList *action_list;
 
-    dll_init(action_list);
+    DLL_INIT(action_list);
 
     return action_list;
 }
@@ -586,11 +552,11 @@ ActionList *smir_action_list_clone(const ActionList *self)
     ActionList       *clone, *al;
     const ActionList *tmp;
 
-    dll_init(clone);
+    DLL_INIT(clone);
     for (tmp = self->next; tmp != self; tmp = tmp->next) {
         al      = malloc(sizeof(*al));
         al->act = smir_action_clone(tmp->act);
-        dll_push_back(clone, al);
+        DLL_PUSH_BACK(clone, al);
     }
 
     return clone;
@@ -599,7 +565,7 @@ ActionList *smir_action_list_clone(const ActionList *self)
 void smir_action_list_free(ActionList *self)
 {
     ActionList *elem, *next;
-    dll_free(self, action_list_free, elem, next);
+    DLL_FREE(self, action_list_free, elem, next);
 }
 
 void smir_action_list_push_back(ActionList *self, const Action *act)
@@ -607,7 +573,7 @@ void smir_action_list_push_back(ActionList *self, const Action *act)
     ActionList *al = malloc(sizeof(*al));
 
     al->act = act;
-    dll_push_back(self, al);
+    DLL_PUSH_BACK(self, al);
 }
 
 void smir_action_list_push_front(ActionList *self, const Action *act)
@@ -615,7 +581,7 @@ void smir_action_list_push_front(ActionList *self, const Action *act)
     ActionList *al = malloc(sizeof(*al));
 
     al->act = act;
-    dll_push_front(self, al);
+    DLL_PUSH_FRONT(self, al);
 }
 
 void smir_action_list_append(ActionList *self, ActionList *acts)

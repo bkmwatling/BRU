@@ -16,6 +16,7 @@ typedef struct {
 } Interval;
 
 typedef enum {
+    EPSILON,
     CARET,
     DOLLAR,
     MEMOISE,
@@ -29,6 +30,7 @@ typedef enum {
     QUES,
     COUNTER,
     LOOKAHEAD,
+    BACKREFERENCE,
     NREGEXTYPES
 } RegexType;
 
@@ -85,11 +87,12 @@ char     *intervals_to_str(const Interval *intervals, size_t len);
 
 /* --- Regex function prototypes -------------------------------------------- */
 
-RegexNode *regex_anchor(RegexType type);
+RegexNode *regex_new(RegexType type);
 RegexNode *regex_literal(const char *ch);
 RegexNode *regex_cc(Interval *intervals, len_t len);
 RegexNode *regex_branch(RegexType kind, RegexNode *left, RegexNode *right);
 RegexNode *regex_capture(RegexNode *child, len_t idx);
+RegexNode *regex_backreference(len_t idx);
 RegexNode *regex_single_child(RegexType kind, RegexNode *child, byte pos);
 RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max);
 

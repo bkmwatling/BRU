@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "smir.h"
+#include "sre.h"
 #include "thompson.h"
 
 /* --- Macros --------------------------------------------------------------- */
@@ -53,6 +54,10 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
     state_id    sid;
 
     switch (re->type) {
+        case EPSILON:
+            state_ids.initial = state_ids.final = smir_add_state(sm);
+            break;
+
         case CARET:
             state_ids.initial = state_ids.final = smir_add_state(sm);
             smir_state_append_action(sm, state_ids.final,
@@ -204,7 +209,8 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
 
         /* TODO: */
         case COUNTER:
-        case LOOKAHEAD: assert(0 && "TODO"); break;
+        case LOOKAHEAD:
+        case BACKREFERENCE: assert(0 && "TODO"); break;
         case NREGEXTYPES: assert(0 && "unreachable"); break;
     }
 

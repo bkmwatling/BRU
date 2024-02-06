@@ -45,9 +45,8 @@ WALKER_F(CONCAT)
     // save left state
     left = *state;
 
-    if (left HAS LAST1) {
-        SET_LEFT(regex_branch(CONCAT, LEFT, regex_anchor(MEMOISE)));
-    }
+    if (left HAS LAST1)
+        SET_LEFT(regex_branch(CONCAT, LEFT, regex_new(MEMOISE)));
 
     TRIGGER(INORDER);
     WALK_RIGHT();
@@ -67,9 +66,8 @@ WALKER_F(CAPTURE)
     TRIGGER(INORDER);
     TRIGGER(POSTORDER);
 
-    if (*state HAS LAST1) {
-        SET_CHILD(regex_branch(CONCAT, CHILD, regex_anchor(MEMOISE)));
-    }
+    if (*state HAS LAST1)
+        SET_CHILD(regex_branch(CONCAT, CHILD, regex_new(MEMOISE)));
 
     CLEAR_FLAG(*state, NULLABLE OR LAST1);
 }
@@ -83,7 +81,7 @@ WALKER_F(STAR)
     TRIGGER(INORDER);
     TRIGGER(POSTORDER);
 
-    SET_CHILD(regex_branch(CONCAT, regex_anchor(MEMOISE), CHILD));
+    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
     SET_FLAG(*state, NULLABLE);
 }
 
@@ -96,7 +94,7 @@ WALKER_F(PLUS)
     TRIGGER(INORDER);
     TRIGGER(POSTORDER);
 
-    SET_CHILD(regex_branch(CONCAT, regex_anchor(MEMOISE), CHILD));
+    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
     // child no longer nullable thanks to memoisation
     CLEAR_FLAG(*state, NULLABLE);
 }
@@ -129,7 +127,7 @@ WALKER_F(COUNTER)
 
     if (CURRENT->max > 1) {
         // can match multiple times; requires memoisation
-        SET_CHILD(regex_branch(CONCAT, regex_anchor(MEMOISE), CHILD));
+        SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
 
         // child is no longer nullable
         CLEAR_FLAG(*state, NULLABLE);

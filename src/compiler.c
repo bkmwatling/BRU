@@ -2,6 +2,7 @@
 
 #include "compiler.h"
 #include "glushkov.h"
+#include "parser.h"
 #include "sre.h"
 #include "thompson.h"
 #include "transformers/memoisation.h"
@@ -33,10 +34,13 @@ void compiler_free(Compiler *self)
 const Program *compiler_compile(const Compiler *self)
 {
     Regex          re;
+    ParseResult    res;
     StateMachine  *sm = NULL;
     const Program *prog;
 
-    re = parser_parse(self->parser);
+    res = parser_parse(self->parser, &re);
+    if (res.code != PARSE_SUCCESS) return NULL;
+
     switch (self->opts.construction) {
         case THOMPSON: sm = thompson_construct(re, &self->opts); break;
         case GLUSHKOV: sm = glushkov_construct(re, &self->opts); break;

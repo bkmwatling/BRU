@@ -17,7 +17,7 @@
 
 typedef enum { CMD_PARSE, CMD_COMPILE, CMD_MATCH } Subcommand;
 
-typedef enum { SCH_SPENSER, SCH_LOCKSTEP } SchedulerType;
+typedef enum { SCH_SPENCER, SCH_LOCKSTEP } SchedulerType;
 
 static char *sdup(const char *s)
 {
@@ -51,7 +51,7 @@ static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
     SchedulerType *type = out;
 
     if (strcmp(arg, "spencer") == 0)
-        *type = SCH_SPENSER;
+        *type = SCH_SPENCER;
     else if (strcmp(arg, "lockstep") == 0 || strcmp(arg, "thompson") == 0)
         *type = SCH_LOCKSTEP;
     else
@@ -128,13 +128,14 @@ static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
 
 int main(int argc, const char **argv)
 {
-    int            arg_idx;
+    int            arg_idx, exit_code = EXIT_SUCCESS;
     char          *regex, *text, *s;
     Subcommand     cmd;
     SchedulerType  scheduler_type;
     Parser        *p;
     Compiler      *c;
     Regex          re;
+    ParseResult    res;
     const Program *prog;
     CompilerOpts   compiler_opts;
     ParserOpts     parser_opts;
@@ -198,19 +199,25 @@ int main(int argc, const char **argv)
     if (cmd == CMD_PARSE) {
         stc_args_parse_exact(argc, argv, args + 1, 5, NULL);
 
-        p  = parser_new(sdup(regex), &parser_opts);
-        re = parser_parse(p);
-        s  = regex_to_tree_str(re.root);
+        p   = parser_new(sdup(regex), parser_opts);
+        res = parser_parse(p, &re);
+        if (res.code == PARSE_SUCCESS) {
+            s = regex_to_tree_str(re.root);
+            printf("%s\n", s);
 
-        printf("%s\n", s);
-
+            regex_node_free(re.root);
+            free(s);
+        } else {
+            fprintf(stderr, "ERROR %d: Invalidation of regex from %s\n",
+                    res.code, res.ch);
+            exit_code = res.code;
+        }
+        free((char *) p->regex);
         parser_free(p);
-        regex_node_free(re.root);
-        free(s);
     } else if (cmd == CMD_COMPILE) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 3, NULL);
 
-        c = compiler_new(parser_new(sdup(regex), &parser_opts), &compiler_opts);
+        c = compiler_new(parser_new(sdup(regex), parser_opts), &compiler_opts);
         prog = compiler_compile(c);
         s    = program_to_str(prog);
 
@@ -222,9 +229,9 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_MATCH) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
 
-        c = compiler_new(parser_new(sdup(regex), &parser_opts), &compiler_opts);
+        c = compiler_new(parser_new(sdup(regex), parser_opts), &compiler_opts);
         prog = compiler_compile(c);
-        if (scheduler_type == SCH_SPENSER) {
+        if (scheduler_type == SCH_SPENCER) {
             thread_manager = spencer_thread_manager_new();
             scheduler =
                 spencer_scheduler_to_scheduler(spencer_scheduler_new(prog));
@@ -258,5 +265,5 @@ int main(int argc, const char **argv)
         free(captures);
     }
 
-    return EXIT_SUCCESS;
+    return exit_code;
 }

@@ -5,6 +5,7 @@
 
 #include "glushkov.h"
 #include "smir.h"
+#include "sre.h"
 
 #define IS_EMPTY(ppl) ((ppl)->sentinel->next == (ppl)->sentinel)
 
@@ -413,7 +414,6 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
 {
 #define APPEND_POSITION(action)                               \
     do {                                                      \
-                                                              \
         self->positions[pos = self->npositions++] = (action); \
         PREPEND_GAMMA(self->follow[pos]);                     \
         pp_insert_pos_after(first->sentinel, pos);            \
@@ -430,6 +430,7 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
 
     if (first == NULL) first = FIRST(self);
     switch (re->type) {
+        case EPSILON: APPEND_GAMMA(first); break;
         case CARET: APPEND_POSITION(smir_action_zwa(ACT_BEGIN)); break;
         case DOLLAR: APPEND_POSITION(smir_action_zwa(ACT_END)); break;
         case LITERAL: APPEND_POSITION(smir_action_char(re->ch)); break;
@@ -552,7 +553,8 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
 
         /* TODO: */
         case COUNTER:
-        case LOOKAHEAD: assert(0 && "TODO");
+        case LOOKAHEAD:
+        case BACKREFERENCE: assert(0 && "TODO");
         case NREGEXTYPES: assert(0 && "unreachable");
     }
 
@@ -663,11 +665,14 @@ static size_t count(const RegexNode *re)
     size_t npos = 0;
 
     switch (re->type) {
+        case EPSILON: break;
+
         case CARET:   /* fallthrough */
         case DOLLAR:  /* fallthrough */
         case MEMOISE: /* fallthrough */
         case LITERAL: /* fallthrough */
-        case CC: npos = 1; break;
+        case CC:      /* fallthrough */
+        case BACKREFERENCE: npos = 1; break;
 
         case ALT: /* fallthrough */
         case CONCAT: npos = count(re->left) + count(re->right); break;
