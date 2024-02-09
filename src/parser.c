@@ -479,13 +479,26 @@ static ParseResult parse_paren(const Parser *self,
                 case '>':
                 case '\'':
                 case 'P':
+                case 'R':
+                case '+':
+                case '-':
+                case '(':
                 case 'C': return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+
+                case '#':
+                    while (*++ps->ch != ')')
+                        if (!*ps->ch)
+                            return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE,
+                                             ch);
+                    return PARSE_RES(PARSE_SUCCESS, ++ps->ch);
 
                 case '=': pos = TRUE; /* fallthrough */
                 case '!': is_lookahead = TRUE; break;
 
                 case '|': break;
                 default:
+                    if (isdigit(*ps->ch))
+                        return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
                     res = parse_opt_set_flag(ps);
                     if (ERRORED(res.code)) return res;
                     if (*ps->ch != ':')
@@ -745,7 +758,8 @@ static ParseResult parse_escape(ParseState *ps,
         case 'Q':
         case 'E':
         case 'p':
-        case 'P': res.code = PARSE_UNSUPPORTED; break;
+        case 'P':
+        case 'R': res.code = PARSE_UNSUPPORTED; break;
 
         default:
             if (isdigit(*ps->ch)) {
@@ -872,6 +886,9 @@ static ParseResult parse_escape_cc(ParseState   *ps,
             PUSH_INTERVAL("0", "9");
             PUSH_CHAR("_");
             break;
+
+        case 'C':
+        case 'X': res.code = PARSE_UNSUPPORTED; break;
 
         default: res.code = PARSE_NO_MATCH; break;
     }

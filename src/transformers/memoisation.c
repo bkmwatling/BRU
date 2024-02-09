@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -78,7 +79,7 @@ static byte *memoise_cn(StateMachine *sm)
 static void memoise_states(StateMachine *sm, byte *sids)
 {
     state_id sid;
-    size_t   k = (size_t) -1;
+    size_t   k = SIZE_MAX;
     // NOTE: `k` can be any value -- it must only be unique amongst MEMO
     // actions. Of course, if there is already memoisation then there could be
     // overlap. It is expected that starting at the maximum possible value for k

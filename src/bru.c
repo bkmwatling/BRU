@@ -181,7 +181,7 @@ int main(int argc, const char **argv)
                   &compiler_opts.capture_semantics, "pcre | re2",
                   "which type of capturing semantics to compile with", "pcre",
                   convert_capture_semantics },
-        { STC_ARG_CUSTOM, NULL, "--memo-scheme", &compiler_opts.memo_scheme,
+        { STC_ARG_CUSTOM, "-m", "--memo-scheme", &compiler_opts.memo_scheme,
                   "none | CN | IN | IAR", "which memoisation scheme to apply", "none",
                   convert_memo_scheme },
         { STC_ARG_CUSTOM, "-s", "--scheduler", &scheduler_type,
