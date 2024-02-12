@@ -1,6 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#define UNUSED(var) ((void) &var)
+
 #define ENSURE_SPACE(arr, len, alloc, size)           \
     do {                                              \
         if ((len) >= (alloc)) {                       \

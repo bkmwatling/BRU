@@ -10,27 +10,28 @@
 
 struct srvm {
     ThreadManager *thread_manager;
-    Scheduler     *scheduler;
+    const Program *program;
+    const char    *curr_sp;
     len_t          ncaptures;
     const char   **captures;
 };
 
 /* --- Private function prototypes ------------------------------------------ */
 
-static int srvm_run(const char    *text,
-                    ThreadManager *thread_manager,
-                    Scheduler     *scheduler,
-                    const char   **captures);
+static int  srvm_run(SRVM *self, const char *text);
+static void srvm_init(SRVM *self);
 
 /* --- Public function definitions ------------------------------------------ */
 
-SRVM *srvm_new(ThreadManager *thread_manager, Scheduler *scheduler)
+SRVM *srvm_new(ThreadManager *thread_manager,
+               const Program *prog /* , Scheduler *scheduler */)
 {
     SRVM *srvm = malloc(sizeof(SRVM));
 
     srvm->thread_manager = thread_manager;
-    srvm->scheduler      = scheduler;
-    srvm->ncaptures      = scheduler_program(scheduler)->ncaptures;
+    srvm->program        = prog;
+    srvm->curr_sp        = NULL;
+    srvm->ncaptures      = prog->ncaptures;
     srvm->captures       = malloc(2 * srvm->ncaptures * sizeof(char *));
     memset(srvm->captures, 0, 2 * srvm->ncaptures * sizeof(char *));
 
@@ -39,8 +40,7 @@ SRVM *srvm_new(ThreadManager *thread_manager, Scheduler *scheduler)
 
 void srvm_free(SRVM *self)
 {
-    free(self->thread_manager);
-    scheduler_free(self->scheduler);
+    thread_manager_free(self->thread_manager);
     free(self->captures);
     free(self);
 }
@@ -49,11 +49,11 @@ int srvm_match(SRVM *self, const char *text)
 {
     if (text == NULL) return 0;
 
+    self->curr_sp = text;
     memset(self->captures, 0, 2 * self->ncaptures * sizeof(char *));
-    scheduler_reset(self->scheduler);
-    scheduler_init(self->scheduler, text);
-    return srvm_run(text, self->thread_manager, self->scheduler,
-                    self->captures);
+    thread_manager_reset(self->thread_manager);
+
+    return srvm_run(self, text);
 }
 
 StcStringView srvm_capture(SRVM *self, len_t idx)
@@ -78,25 +78,47 @@ StcStringView *srvm_captures(SRVM *self, len_t *ncaptures)
 }
 
 int srvm_matches(ThreadManager *thread_manager,
-                 Scheduler     *scheduler,
+                 const Program *prog,
                  const char    *text)
 {
-    SRVM *srvm    = srvm_new(thread_manager, scheduler);
+    SRVM *srvm    = srvm_new(thread_manager, prog /* , scheduler */);
     int   matches = srvm_match(srvm, text);
     srvm_free(srvm);
+
     return matches;
 }
 
 /* --- Private function definitions ----------------------------------------- */
 
-static int srvm_run(const char    *text,
-                    ThreadManager *thread_manager,
-                    Scheduler     *scheduler,
-                    const char   **captures)
+static int srvm_run(SRVM *self, const char *text)
 {
+#ifdef BENCHMARK
+#    define INST_COUNT_LEN            (2 * NBYTECODES)
+#    define DECL_INST_COUNT()         size_t inst_counts[INST_COUNT_LEN] = { 0 }
+#    define INST_IDX(i)               (2 * (i))
+#    define INST_COUNT(i)             inst_counts[INST_IDX(i)]
+#    define INC_INST_COUNT(i)         INST_COUNT(i)++
+#    define INST_FAILURE_COUNT(i)     inst_counts[INST_IDX(i) + 1]
+#    define INC_INST_FAILURE_COUNT(i) INST_FAILURE_COUNT(i)++
+#    define INC_CURR_INST()           INC_INST_COUNT(*pc)
+#    define LOG_INSTS(i) \
+        printf(#i ": %lu (FAILED: %lu)\n", INST_COUNT(i), INST_FAILURE_COUNT(i))
+#else
+#    define INST_COUNT_LEN
+#    define DECL_INST_COUNT()
+#    define INST_IDX(i)
+#    define INST_COUNT(i)
+#    define INC_INST_COUNT(i)
+#    define INST_FAILURE_COUNT(i)
+#    define INC_INST_FAILURE_COUNT(i)
+#    define INC_CURR_INST()
+#    define LOG_INSTS(i)
+#endif /* BENCHMARK */
+
     void          *null    = NULL;
     int            matched = 0, cond;
-    const Program *prog    = scheduler_program(scheduler);
+    const Program *prog    = self->program;
+    ThreadManager *tm      = self->thread_manager;
     void          *thread, *t;
     const byte    *pc;
     const char    *sp, *codepoint;
@@ -104,231 +126,243 @@ static int srvm_run(const char    *text,
     offset_t       x, y;
     cntr_t         cval, n;
     Interval      *intervals;
-    Scheduler     *s;
-    size_t         text_len = strlen(text);
+    size_t         text_len = strlen(self->curr_sp);
+    DECL_INST_COUNT();
 
-#define CURR_INSTR (uint) * (pc - 1)
-    size_t instr_counts[NBYTECODES] = { 0 };
+    thread_manager_init_memoisation(self->thread_manager,
+                                    self->program->nmemo_insts, text_len);
+    do {
+        srvm_init(self);
+        while ((thread = thread_manager_next_thread(tm))) {
+            if ((sp = thread_manager_sp(tm, thread)) > text && sp[-1] == '\0') {
+                thread_manager_kill_thread(tm, thread);
+                continue;
+            }
 
-    while ((thread = scheduler_next(scheduler))) {
-        if ((sp = thread_manager->sp(thread)) != text && sp[-1] == '\0') {
-            scheduler_kill(scheduler, thread);
-            continue;
-        }
+            pc = thread_manager_pc(tm, thread);
+            INC_CURR_INST();
+            switch (*pc++) {
+                case NOOP:
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
 
-        pc = thread_manager->pc(thread);
-        switch (*pc++) {
-            case NOOP:
-                instr_counts[CURR_INSTR]++;
-                thread_manager->set_pc(thread, pc);
-                scheduler_schedule(scheduler, thread);
+                case MATCH:
+                    matched = 1;
+                    if (self->captures)
+                        memcpy(self->captures,
+                               thread_manager_captures(tm, thread, &ncaptures),
+                               2 * self->ncaptures * sizeof(char *));
+                    thread_manager_notify_thread_match(tm, thread);
+                    break;
 
-            case MATCH:
-                instr_counts[CURR_INSTR]++;
-                scheduler_notify_match(scheduler);
-                matched = 1;
-                if (captures)
-                    memcpy(captures,
-                           thread_manager->captures(thread, &ncaptures),
-                           2 * ncaptures * sizeof(char *));
-                thread_manager->free(thread);
-                break;
+                case BEGIN:
+                    if (sp == text) {
+                        thread_manager_set_pc(tm, thread, pc);
+                        thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        INC_INST_FAILURE_COUNT(BEGIN);
+                        thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
 
-            case BEGIN:
-                instr_counts[CURR_INSTR]++;
-                if (sp == text) {
-                    thread_manager->set_pc(thread, pc);
-                    scheduler_schedule(scheduler, thread);
-                } else {
-                    scheduler_kill(scheduler, thread);
-                }
-                break;
+                case END:
+                    if (*sp == '\0') {
+                        thread_manager_set_pc(tm, thread, pc);
+                        thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        INC_INST_FAILURE_COUNT(END);
+                        thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
 
-            case END:
-                instr_counts[CURR_INSTR]++;
-                if (*sp == '\0') {
-                    thread_manager->set_pc(thread, pc);
-                    scheduler_schedule(scheduler, thread);
-                } else {
-                    scheduler_kill(scheduler, thread);
-                }
-                break;
+                case MEMO:
+                    MEMREAD(k, pc, len_t);
+                    if (thread_manager_memoise(tm, thread, text, text_len, k)) {
+                        thread_manager_set_pc(tm, thread, pc);
+                        thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        INC_INST_FAILURE_COUNT(MEMO);
+                        thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
 
-            case MEMO:
-                MEMREAD(k, pc, len_t);
-                if (thread_manager->memoise(thread, text, text_len, k)) {
-                    instr_counts[MEMO]++;
-                    thread_manager->set_pc(thread, pc);
-                    scheduler_schedule(scheduler, thread);
-                } else {
-                    scheduler_kill(scheduler, thread);
-                }
-                break;
+                case CHAR:
+                    MEMREAD(codepoint, pc, const char *);
+                    if (*sp && stc_utf8_cmp(codepoint, sp) == 0) {
+                        thread_manager_set_pc(tm, thread, pc);
+                        thread_manager_inc_sp(tm, thread);
+                        thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        INC_INST_FAILURE_COUNT(CHAR);
+                        thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
 
-            case CHAR:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(codepoint, pc, const char *);
-                if (*sp && stc_utf8_cmp(codepoint, sp) == 0) {
-                    thread_manager->set_pc(thread, pc);
-                    thread_manager->try_inc_sp(thread);
-                    scheduler_schedule(scheduler, thread);
-                } else {
-                    scheduler_kill(scheduler, thread);
-                }
-                break;
+                case PRED:
+                    MEMREAD(intervals_len, pc, len_t);
+                    MEMREAD(k, pc, len_t);
+                    intervals = (Interval *) (prog->aux + k);
+                    if (*sp &&
+                        intervals_predicate(intervals, intervals_len, sp)) {
+                        thread_manager_set_pc(tm, thread, pc);
+                        thread_manager_inc_sp(tm, thread);
+                        thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        INC_INST_FAILURE_COUNT(PRED);
+                        thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
 
-            case PRED:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(intervals_len, pc, len_t);
-                MEMREAD(k, pc, len_t);
-                intervals = (Interval *) (prog->aux + k);
-                if (*sp && intervals_predicate(intervals, intervals_len, sp)) {
-                    thread_manager->set_pc(thread, pc);
-                    thread_manager->try_inc_sp(thread);
-                    scheduler_schedule(scheduler, thread);
-                } else {
-                    scheduler_kill(scheduler, thread);
-                }
-                break;
+                case SAVE:
+                    MEMREAD(k, pc, len_t);
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_set_capture(tm, thread, k);
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
 
-            case SAVE:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                thread_manager->set_pc(thread, pc);
-                thread_manager->set_capture(thread, k);
-                scheduler_schedule(scheduler, thread);
-                break;
-
-            case JMP:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(x, pc, offset_t);
-                thread_manager->set_pc(thread, pc + x);
-                scheduler_schedule(scheduler, thread);
-                break;
-
-            case SPLIT:
-                instr_counts[CURR_INSTR]++;
-                t = thread_manager->clone(thread);
-                MEMREAD(x, pc, offset_t);
-                thread_manager->set_pc(thread, pc + x);
-                MEMREAD(y, pc, offset_t);
-                thread_manager->set_pc(t, pc + y);
-                scheduler_schedule(scheduler, thread);
-                scheduler_schedule(scheduler, t);
-                break;
-
-            /* TODO: */
-            case GSPLIT: break;
-            case LSPLIT: break;
-
-            case TSWITCH:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                for (; k > 0; k--) {
+                case JMP:
                     MEMREAD(x, pc, offset_t);
-                    t = thread_manager->clone(thread);
-                    thread_manager->set_pc(t, pc + x);
-                    scheduler_schedule_in_order(scheduler, t);
-                }
-                thread_manager->free(thread);
-                break;
+                    thread_manager_set_pc(tm, thread, pc + x);
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
 
-            case EPSRESET:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                thread_manager->set_pc(thread, pc);
-                thread_manager->set_memory(thread, k, &null, sizeof(null));
-                scheduler_schedule(scheduler, thread);
-                break;
+                case SPLIT:
+                    t = thread_manager_clone_thread(tm, thread);
+                    MEMREAD(x, pc, offset_t);
+                    thread_manager_set_pc(tm, thread, pc + x);
+                    MEMREAD(y, pc, offset_t);
+                    thread_manager_set_pc(tm, t, pc + y);
+                    thread_manager_schedule_thread(tm, thread);
+                    thread_manager_schedule_thread(tm, t);
+                    break;
 
-            case EPSSET:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                thread_manager->set_pc(thread, pc);
-                thread_manager->set_memory(thread, k, &sp, sizeof(sp));
-                scheduler_schedule(scheduler, thread);
-                break;
+                /* TODO: */
+                case GSPLIT: break;
+                case LSPLIT: break;
 
-            case EPSCHK:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                if (*(char **) thread_manager->memory(thread, k) < sp) {
-                    thread_manager->set_pc(thread, pc);
-                    scheduler_schedule(scheduler, thread);
-                } else {
-                    scheduler_kill(scheduler, thread);
-                }
-                break;
+                case TSWITCH:
+                    MEMREAD(k, pc, len_t);
+                    for (; k > 0; k--) {
+                        MEMREAD(x, pc, offset_t);
+                        t = thread_manager_clone_thread(tm, thread);
+                        thread_manager_set_pc(tm, t, pc + x);
+                        thread_manager_schedule_thread_in_order(tm, t);
+                    }
+                    thread_manager_kill_thread(tm, thread);
+                    break;
 
-            case RESET:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                MEMREAD(cval, pc, cntr_t);
-                thread_manager->set_pc(thread, pc);
-                thread_manager->set_counter(thread, k, cval);
-                scheduler_schedule(scheduler, thread);
-                break;
+                case EPSRESET:
+                    MEMREAD(k, pc, len_t);
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_set_memory(tm, thread, k, &null,
+                                              sizeof(null));
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
 
-            case CMP:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                MEMREAD(n, pc, cntr_t);
-                cval = thread_manager->counter(thread, k);
-                switch (*pc++) {
-                    case LT: cond = (cval < n); break;
-                    case LE: cond = (cval <= n); break;
-                    case EQ: cond = (cval == n); break;
-                    case NE: cond = (cval != n); break;
-                    case GE: cond = (cval >= n); break;
-                    case GT: cond = (cval > n); break;
-                    default: cond = 0; break;
-                }
+                case EPSSET:
+                    MEMREAD(k, pc, len_t);
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_set_memory(tm, thread, k, &sp, sizeof(sp));
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
 
-                if (cond) {
-                    thread_manager->set_pc(thread, pc);
-                    scheduler_schedule(scheduler, thread);
-                } else {
-                    scheduler_kill(scheduler, thread);
-                }
-                break;
+                case EPSCHK:
+                    MEMREAD(k, pc, len_t);
+                    if (*(char **) thread_manager_memory(tm, thread, k) < sp) {
+                        thread_manager_set_pc(tm, thread, pc);
+                        thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        INC_INST_FAILURE_COUNT(EPSCHK);
+                        thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
 
-            case INC:
-                instr_counts[CURR_INSTR]++;
-                MEMREAD(k, pc, len_t);
-                thread_manager->set_pc(thread, pc);
-                thread_manager->inc_counter(thread, k);
-                scheduler_schedule(scheduler, thread);
-                break;
+                case RESET:
+                    MEMREAD(k, pc, len_t);
+                    MEMREAD(cval, pc, cntr_t);
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_set_counter(tm, thread, k, cval);
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
 
-            case ZWA:
-                instr_counts[CURR_INSTR]++;
-                t = thread_manager->clone(thread);
-                MEMREAD(x, pc, offset_t);
-                thread_manager->set_pc(t, pc + x);
-                MEMREAD(y, pc, offset_t);
-                thread_manager->set_pc(thread, pc + y);
-                s = malloc(sizeof(Scheduler));
-                scheduler_copy_with(s, scheduler, t);
+                case CMP:
+                    MEMREAD(k, pc, len_t);
+                    MEMREAD(n, pc, cntr_t);
+                    cval = thread_manager_counter(tm, thread, k);
+                    switch (*pc++) {
+                        case LT: cond = (cval < n); break;
+                        case LE: cond = (cval <= n); break;
+                        case EQ: cond = (cval == n); break;
+                        case NE: cond = (cval != n); break;
+                        case GE: cond = (cval >= n); break;
+                        case GT: cond = (cval > n); break;
+                        default: cond = 0; break;
+                    }
 
-                if (srvm_run(text, thread_manager, s, NULL) == *pc)
-                    scheduler_schedule(scheduler, thread);
-                else
-                    scheduler_kill(scheduler, thread);
-                scheduler_free(s);
-                break;
+                    if (cond) {
+                        thread_manager_set_pc(tm, thread, pc);
+                        thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        INC_INST_FAILURE_COUNT(CMP);
+                        thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
 
-            case NBYTECODES: assert(0 && "unreachable");
+                case INC:
+                    MEMREAD(k, pc, len_t);
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_inc_counter(tm, thread, k);
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case ZWA:
+                    t = thread_manager_clone_thread(tm, thread);
+                    MEMREAD(x, pc, offset_t);
+                    thread_manager_set_pc(tm, t, pc + x);
+                    MEMREAD(y, pc, offset_t);
+                    thread_manager_set_pc(tm, thread, pc + y);
+                    // TODO:
+                    // s = malloc(sizeof(Scheduler));
+                    // scheduler_copy_with(s, scheduler, t);
+                    //
+                    // if (srvm_run(text, thread_manager, s, NULL) == *pc)
+                    //     scheduler_schedule(scheduler, thread);
+                    // else
+                    //     scheduler_kill(scheduler, thread);
+                    // scheduler_free(s);
+                    break;
+
+                case NBYTECODES: assert(0 && "unreachable");
+            }
         }
-    }
 
-#define LOG_INSTRS(i) printf(#i ": %lu\n", instr_counts[(uint) i])
+        if (*self->curr_sp == '\0') break;
+        self->curr_sp = stc_utf8_str_next(self->curr_sp);
+    } while (!matched);
 
-    LOG_INSTRS(MATCH);
-    LOG_INSTRS(MEMO);
-    LOG_INSTRS(CHAR);
-    LOG_INSTRS(PRED);
-
-#undef LOG_INSTRS
+    LOG_INSTS(MATCH);
+    LOG_INSTS(MEMO);
+    LOG_INSTS(CHAR);
+    LOG_INSTS(PRED);
 
     return matched;
+
+#undef INST_COUNT_LEN
+#undef DECL_INST_COUNT
+#undef INST_IDX
+#undef INST_COUNT
+#undef INC_INST_COUNT
+#undef INST_FAILURE_COUNT
+#undef INC_INST_FAILURE_COUNT
+#undef INC_CURR_INST
+#undef LOG_INSTS
+}
+
+static void srvm_init(SRVM *self)
+{
+    Thread *t = thread_manager_spawn_thread(
+        self->thread_manager, self->program->insts, self->curr_sp);
+
+    thread_manager_schedule_thread(self->thread_manager, t);
 }

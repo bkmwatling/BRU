@@ -7,11 +7,11 @@
 #include "stc/util/utf.h"
 
 #include "compiler.h"
-#include "lockstep.h"
 #include "parser.h"
-#include "scheduler.h"
-#include "spencer.h"
 #include "srvm.h"
+#include "thread_managers/lockstep.h"
+#include "thread_managers/memoisation.h"
+#include "thread_managers/spencer.h"
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -140,7 +140,6 @@ int main(int argc, const char **argv)
     CompilerOpts   compiler_opts;
     ParserOpts     parser_opts;
     ThreadManager *thread_manager = NULL;
-    Scheduler     *scheduler      = NULL;
     SRVM          *srvm;
     StcStringView  capture, *captures;
     len_t          i, ncaptures;
@@ -204,7 +203,6 @@ int main(int argc, const char **argv)
         if (res.code == PARSE_SUCCESS) {
             s = regex_to_tree_str(re.root);
             printf("%s\n", s);
-
             regex_node_free(re.root);
             free(s);
         } else {
@@ -232,16 +230,16 @@ int main(int argc, const char **argv)
         c = compiler_new(parser_new(sdup(regex), parser_opts), &compiler_opts);
         prog = compiler_compile(c);
         if (scheduler_type == SCH_SPENCER) {
-            thread_manager = spencer_thread_manager_new();
-            scheduler =
-                spencer_scheduler_to_scheduler(spencer_scheduler_new(prog));
+            thread_manager = spencer_thread_manager_new(0, prog->thread_mem_len,
+                                                        prog->ncaptures);
+            if (compiler_opts.memo_scheme != MS_NONE)
+                thread_manager = memoised_thread_manager_new(thread_manager);
         } else if (scheduler_type == SCH_LOCKSTEP) {
-            thread_manager = thompson_thread_manager_new();
-            scheduler      = thompson_scheduler_to_scheduler(
-                thompson_scheduler_new(prog, text));
+            thread_manager = thompson_thread_manager_new(
+                0, prog->thread_mem_len, prog->ncaptures);
         }
 
-        srvm = srvm_new(thread_manager, scheduler);
+        srvm = srvm_new(thread_manager, prog);
         printf("matched = %d\n", srvm_match(srvm, text));
         printf("captures:\n");
         captures = srvm_captures(srvm, &ncaptures);
