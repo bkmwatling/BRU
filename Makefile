@@ -13,7 +13,7 @@ WARNING             := -Wall -Wextra -Wno-variadic-macros \
 EXTRA               := -std=c11
 STC_FLAGS           := -DSTC_UTF_DISABLE_SV
 CFLAGS              := $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(STC_FLAGS)
-DFLAGS              := # -DBENCHMARK # -DDEBUG
+DFLAGS              := # -DDEBUG
 
 # commands
 CC                  := clang

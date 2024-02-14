@@ -9,6 +9,7 @@
 #include "compiler.h"
 #include "parser.h"
 #include "srvm.h"
+#include "thread_managers/benchmark.h"
 #include "thread_managers/lockstep.h"
 #include "thread_managers/memoisation.h"
 #include "thread_managers/spencer.h"
@@ -41,6 +42,20 @@ static StcArgConvertResult convert_subcommand(const char *arg, void *out)
     else if (strcmp(arg, "match") == 0)
         *cmd = CMD_MATCH;
     else
+        return STC_ARG_CR_FAILURE;
+
+    return STC_ARG_CR_SUCCESS;
+}
+
+static StcArgConvertResult convert_logfile(const char *arg, void *out)
+{
+    FILE **logfile = out;
+
+    if (strcmp(arg, "stdout") == 0)
+        *logfile = stdout;
+    else if (strcmp(arg, "stderr") == 0)
+        *logfile = stderr;
+    else if ((*logfile = fopen(arg, "a")) == NULL)
         return STC_ARG_CR_FAILURE;
 
     return STC_ARG_CR_SUCCESS;
@@ -128,8 +143,9 @@ static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
 
 int main(int argc, const char **argv)
 {
-    int            arg_idx, exit_code = EXIT_SUCCESS;
+    int            arg_idx, benchmark, exit_code = EXIT_SUCCESS;
     char          *regex, *text, *s;
+    FILE          *logfile;
     Subcommand     cmd;
     SchedulerType  scheduler_type;
     Parser        *p;
@@ -150,6 +166,9 @@ int main(int argc, const char **argv)
                   convert_subcommand },
         { STC_ARG_STR, "<regex>", NULL, &regex, NULL, "the regex to work with",
                   NULL, NULL },
+        { STC_ARG_CUSTOM, "-l", "--logfile", &logfile,
+                  "filepath | stdout | stderr", "the file for logging output", "stderr",
+                  convert_logfile },
         { STC_ARG_BOOL, "-o", "--only-counters", &parser_opts.only_counters,
                   NULL,
                   "whether to use just counters and treat *, +, and ? as counters",
@@ -187,6 +206,8 @@ int main(int argc, const char **argv)
                   "spencer | lockstep | thompson",
                   "which scheduler to use for execution", "spencer",
                   convert_scheduler_type },
+        { STC_ARG_BOOL, NULL, "--benchmark", &benchmark, NULL,
+                  "whether to benchmark SRVM execution", NULL, NULL },
         { STC_ARG_STR, "<input>", NULL, &text, NULL,
                   "the input string to match against the regex", NULL, NULL }
     };
@@ -206,7 +227,7 @@ int main(int argc, const char **argv)
             regex_node_free(re.root);
             free(s);
         } else {
-            fprintf(stderr, "ERROR %d: Invalidation of regex from %s\n",
+            fprintf(logfile, "ERROR %d: Invalidation of regex from %s\n",
                     res.code, res.ch);
             exit_code = res.code;
         }
@@ -239,6 +260,9 @@ int main(int argc, const char **argv)
                 0, prog->thread_mem_len, prog->ncaptures);
         }
 
+        if (benchmark)
+            thread_manager =
+                benchmark_thread_manager_new(thread_manager, logfile);
         srvm = srvm_new(thread_manager, prog);
         printf("matched = %d\n", srvm_match(srvm, text));
         printf("captures:\n");
@@ -262,6 +286,8 @@ int main(int argc, const char **argv)
         srvm_free(srvm);
         free(captures);
     }
+
+    if (logfile && logfile != stderr && logfile != stdout) fclose(logfile);
 
     return exit_code;
 }

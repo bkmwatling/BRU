@@ -92,29 +92,6 @@ int srvm_matches(ThreadManager *thread_manager,
 
 static int srvm_run(SRVM *self, const char *text)
 {
-#ifdef BENCHMARK
-#    define INST_COUNT_LEN            (2 * NBYTECODES)
-#    define DECL_INST_COUNT()         size_t inst_counts[INST_COUNT_LEN] = { 0 }
-#    define INST_IDX(i)               (2 * (i))
-#    define INST_COUNT(i)             inst_counts[INST_IDX(i)]
-#    define INC_INST_COUNT(i)         INST_COUNT(i)++
-#    define INST_FAILURE_COUNT(i)     inst_counts[INST_IDX(i) + 1]
-#    define INC_INST_FAILURE_COUNT(i) INST_FAILURE_COUNT(i)++
-#    define INC_CURR_INST()           INC_INST_COUNT(*pc)
-#    define LOG_INSTS(i) \
-        printf(#i ": %lu (FAILED: %lu)\n", INST_COUNT(i), INST_FAILURE_COUNT(i))
-#else
-#    define INST_COUNT_LEN
-#    define DECL_INST_COUNT()
-#    define INST_IDX(i)
-#    define INST_COUNT(i)
-#    define INC_INST_COUNT(i)
-#    define INST_FAILURE_COUNT(i)
-#    define INC_INST_FAILURE_COUNT(i)
-#    define INC_CURR_INST()
-#    define LOG_INSTS(i)
-#endif /* BENCHMARK */
-
     void          *null    = NULL;
     int            matched = 0, cond;
     const Program *prog    = self->program;
@@ -126,11 +103,9 @@ static int srvm_run(SRVM *self, const char *text)
     offset_t       x, y;
     cntr_t         cval, n;
     Interval      *intervals;
-    size_t         text_len = strlen(self->curr_sp);
-    DECL_INST_COUNT();
 
     thread_manager_init_memoisation(self->thread_manager,
-                                    self->program->nmemo_insts, text_len);
+                                    self->program->nmemo_insts, text);
     do {
         srvm_init(self);
         while ((thread = thread_manager_next_thread(tm))) {
@@ -140,7 +115,6 @@ static int srvm_run(SRVM *self, const char *text)
             }
 
             pc = thread_manager_pc(tm, thread);
-            INC_CURR_INST();
             switch (*pc++) {
                 case NOOP:
                     thread_manager_set_pc(tm, thread, pc);
@@ -161,7 +135,6 @@ static int srvm_run(SRVM *self, const char *text)
                         thread_manager_set_pc(tm, thread, pc);
                         thread_manager_schedule_thread(tm, thread);
                     } else {
-                        INC_INST_FAILURE_COUNT(BEGIN);
                         thread_manager_kill_thread(tm, thread);
                     }
                     break;
@@ -171,18 +144,16 @@ static int srvm_run(SRVM *self, const char *text)
                         thread_manager_set_pc(tm, thread, pc);
                         thread_manager_schedule_thread(tm, thread);
                     } else {
-                        INC_INST_FAILURE_COUNT(END);
                         thread_manager_kill_thread(tm, thread);
                     }
                     break;
 
                 case MEMO:
                     MEMREAD(k, pc, len_t);
-                    if (thread_manager_memoise(tm, thread, text, text_len, k)) {
+                    if (thread_manager_memoise(tm, thread, k)) {
                         thread_manager_set_pc(tm, thread, pc);
                         thread_manager_schedule_thread(tm, thread);
                     } else {
-                        INC_INST_FAILURE_COUNT(MEMO);
                         thread_manager_kill_thread(tm, thread);
                     }
                     break;
@@ -194,7 +165,6 @@ static int srvm_run(SRVM *self, const char *text)
                         thread_manager_inc_sp(tm, thread);
                         thread_manager_schedule_thread(tm, thread);
                     } else {
-                        INC_INST_FAILURE_COUNT(CHAR);
                         thread_manager_kill_thread(tm, thread);
                     }
                     break;
@@ -209,7 +179,6 @@ static int srvm_run(SRVM *self, const char *text)
                         thread_manager_inc_sp(tm, thread);
                         thread_manager_schedule_thread(tm, thread);
                     } else {
-                        INC_INST_FAILURE_COUNT(PRED);
                         thread_manager_kill_thread(tm, thread);
                     }
                     break;
@@ -273,7 +242,6 @@ static int srvm_run(SRVM *self, const char *text)
                         thread_manager_set_pc(tm, thread, pc);
                         thread_manager_schedule_thread(tm, thread);
                     } else {
-                        INC_INST_FAILURE_COUNT(EPSCHK);
                         thread_manager_kill_thread(tm, thread);
                     }
                     break;
@@ -304,7 +272,6 @@ static int srvm_run(SRVM *self, const char *text)
                         thread_manager_set_pc(tm, thread, pc);
                         thread_manager_schedule_thread(tm, thread);
                     } else {
-                        INC_INST_FAILURE_COUNT(CMP);
                         thread_manager_kill_thread(tm, thread);
                     }
                     break;
@@ -341,22 +308,7 @@ static int srvm_run(SRVM *self, const char *text)
         self->curr_sp = stc_utf8_str_next(self->curr_sp);
     } while (!matched);
 
-    LOG_INSTS(MATCH);
-    LOG_INSTS(MEMO);
-    LOG_INSTS(CHAR);
-    LOG_INSTS(PRED);
-
     return matched;
-
-#undef INST_COUNT_LEN
-#undef DECL_INST_COUNT
-#undef INST_IDX
-#undef INST_COUNT
-#undef INC_INST_COUNT
-#undef INST_FAILURE_COUNT
-#undef INC_INST_FAILURE_COUNT
-#undef INC_CURR_INST
-#undef LOG_INSTS
 }
 
 static void srvm_init(SRVM *self)
