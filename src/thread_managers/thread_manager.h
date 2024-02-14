@@ -54,8 +54,8 @@
     (manager)->sp((manager)->impl, (thread))
 #define thread_manager_inc_sp(manager, thread) \
     (manager)->inc_sp((manager)->impl, (thread))
-#define thread_manager_memoise(manager, thread, text, text_len, idx) \
-    (manager)->memoise((manager)->impl, (thread), (text), (text_len), (idx))
+#define thread_manager_memoise(manager, thread, idx) \
+    (manager)->memoise((manager)->impl, (thread), (idx))
 #define thread_manager_counter(manager, thread, idx) \
     (manager)->counter((manager)->impl, (thread), (idx))
 #define thread_manager_set_counter(manager, thread, idx, val) \
@@ -145,14 +145,10 @@ typedef struct thread_manager {
     void        (*inc_sp)(void *thread_manager_impl, Thread *thread);
 
     // non-required interface functions
-    void   (*init_memoisation)(void  *thread_manager_impl,
-                             size_t nmemo_insts,
-                             size_t text_len);
-    int    (*memoise)(void       *thread_manager_impl,
-                   Thread     *thread,
-                   const char *text,
-                   size_t      text_len,
-                   len_t       idx);
+    void   (*init_memoisation)(void       *thread_manager_impl,
+                             size_t      nmemo_insts,
+                             const char *text);
+    int    (*memoise)(void *thread_manager_impl, Thread *thread, len_t idx);
     cntr_t (*counter)(void         *thread_manager_impl,
                       const Thread *thread,
                       len_t         idx);
@@ -181,15 +177,13 @@ typedef struct thread_manager {
 // nothing should happen. Sensical return values are used -- NULL for pointers,
 // TRUE for memoisation, and 0 for counter values.
 
-void thread_manager_init_memoisation_noop(void  *thread_manager_impl,
-                                          size_t nmemo_insts,
-                                          size_t text_len);
+void thread_manager_init_memoisation_noop(void       *thread_manager_impl,
+                                          size_t      nmemo_insts,
+                                          const char *text);
 
-int thread_manager_memoise_noop(void       *thread_manager_impl,
-                                Thread     *thread,
-                                const char *text,
-                                size_t      text_len,
-                                len_t       idx);
+int thread_manager_memoise_noop(void   *thread_manager_impl,
+                                Thread *thread,
+                                len_t   idx);
 
 cntr_t thread_manager_counter_noop(void         *thread_manager_impl,
                                    const Thread *thread,

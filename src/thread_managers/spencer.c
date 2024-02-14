@@ -128,7 +128,7 @@ static Thread *
 spencer_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp)
 {
     SpencerThread        *st   = malloc(sizeof(*st));
-    SpencerThreadManager *self = (SpencerThreadManager *) impl;
+    SpencerThreadManager *self = impl;
 
     st->pc = pc;
     st->sp = sp;

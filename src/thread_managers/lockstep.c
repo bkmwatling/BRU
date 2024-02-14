@@ -131,7 +131,7 @@ static Thread *
 thompson_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp)
 {
     ThompsonThread        *tt   = malloc(sizeof(*tt));
-    ThompsonThreadManager *self = (ThompsonThreadManager *) impl;
+    ThompsonThreadManager *self = impl;
 
     tt->pc = pc;
     tt->sp = sp;

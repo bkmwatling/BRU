@@ -3,12 +3,51 @@
 #include <string.h>
 
 typedef struct {
-    byte  *memoisation_memory;
-    size_t nmemo_insts;
-    size_t text_len;
+    byte       *memoisation_memory;
+    const char *text;
+    size_t      text_len;
 
     ThreadManager *__manager;
 } MemoisedThreadManager;
+
+/* --- ThreadManager function prototypes ------------------------------------ */
+
+static void memoised_thread_manager_reset(void *impl);
+static void memoised_thread_manager_free(void *impl);
+
+static Thread *memoised_thread_manager_spawn_thread(void       *impl,
+                                                    const byte *pc,
+                                                    const char *sp);
+static void    memoised_thread_manager_schedule_thread(void *impl, Thread *t);
+static void    memoised_thread_manager_schedule_thread_in_order(void   *impl,
+                                                                Thread *t);
+static Thread *memoised_thread_manager_next_thread(void *impl);
+static void memoised_thread_manager_notify_thread_match(void *impl, Thread *t);
+static Thread *memoised_thread_manager_clone_thread(void         *impl,
+                                                    const Thread *t);
+static void    memoised_thread_manager_kill_thread(void *impl, Thread *t);
+static void    memoised_thread_manager_init_memoisation(void       *impl,
+                                                        size_t      nmemo_insts,
+                                                        const char *text);
+
+static const byte *memoised_thread_pc(void *impl, const Thread *t);
+static void memoised_thread_set_pc(void *impl, Thread *t, const byte *pc);
+static const char *memoised_thread_sp(void *impl, const Thread *t);
+static void        memoised_thread_inc_sp(void *impl, Thread *t);
+static int         memoised_thread_memoise(void *impl, Thread *t, len_t idx);
+static cntr_t memoised_thread_counter(void *impl, const Thread *t, len_t idx);
+static void
+memoised_thread_set_counter(void *impl, Thread *t, len_t idx, cntr_t val);
+static void  memoised_thread_inc_counter(void *impl, Thread *t, len_t idx);
+static void *memoised_thread_memory(void *impl, const Thread *t, len_t idx);
+static void  memoised_thread_set_memory(void       *impl,
+                                        Thread     *t,
+                                        len_t       idx,
+                                        const void *val,
+                                        size_t      size);
+static const char *const *
+memoised_thread_captures(void *impl, const Thread *t, len_t *ncaptures);
+static void memoised_thread_set_capture(void *impl, Thread *t, len_t idx);
 
 /* --- API Routine ---------------------------------------------------------- */
 
@@ -19,7 +58,7 @@ ThreadManager *memoised_thread_manager_new(ThreadManager *thread_manager)
 
     mtm->memoisation_memory = NULL;
     mtm->text_len           = 0;
-    mtm->nmemo_insts        = 0;
+    mtm->text_len           = 0;
     mtm->__manager          = thread_manager;
 
     THREAD_MANAGER_SET_ALL_FUNCS(tm, memoised);
@@ -28,170 +67,158 @@ ThreadManager *memoised_thread_manager_new(ThreadManager *thread_manager)
     return tm;
 }
 
-void memoised_thread_manager_reset(void *_self)
+/* --- ThreadManager functions ---------------------------------------------- */
+
+static void memoised_thread_manager_reset(void *impl)
 {
-    MemoisedThreadManager *self = (MemoisedThreadManager *) _self;
+    MemoisedThreadManager *self = impl;
     thread_manager_reset(self->__manager);
     if (self->memoisation_memory)
         memset(self->memoisation_memory, 0,
-               self->text_len * self->nmemo_insts *
+               self->text_len * self->text_len *
                    sizeof(*self->memoisation_memory));
 }
 
-void memoised_thread_manager_free(void *_self)
+static void memoised_thread_manager_free(void *impl)
 {
-    free(((MemoisedThreadManager *) _self)->memoisation_memory);
-    thread_manager_free(((MemoisedThreadManager *) _self)->__manager);
-    free(_self);
+    free(((MemoisedThreadManager *) impl)->memoisation_memory);
+    thread_manager_free(((MemoisedThreadManager *) impl)->__manager);
+    free(impl);
 }
 
-Thread *memoised_thread_manager_spawn_thread(void       *_self,
-                                             const byte *pc,
-                                             const char *sp)
+static Thread *
+memoised_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp)
 {
     return thread_manager_spawn_thread(
-        ((MemoisedThreadManager *) _self)->__manager, pc, sp);
+        ((MemoisedThreadManager *) impl)->__manager, pc, sp);
 }
 
-void memoised_thread_manager_schedule_thread(void *_self, Thread *t)
+static void memoised_thread_manager_schedule_thread(void *impl, Thread *t)
 {
-    thread_manager_schedule_thread(((MemoisedThreadManager *) _self)->__manager,
+    thread_manager_schedule_thread(((MemoisedThreadManager *) impl)->__manager,
                                    t);
 }
 
-void memoised_thread_manager_schedule_thread_in_order(void *_self, Thread *t)
+static void memoised_thread_manager_schedule_thread_in_order(void   *impl,
+                                                             Thread *t)
 {
     thread_manager_schedule_thread_in_order(
-        ((MemoisedThreadManager *) _self)->__manager, t);
+        ((MemoisedThreadManager *) impl)->__manager, t);
 }
 
-Thread *memoised_thread_manager_next_thread(void *_self)
+static Thread *memoised_thread_manager_next_thread(void *impl)
 {
     return thread_manager_next_thread(
-        ((MemoisedThreadManager *) _self)->__manager);
+        ((MemoisedThreadManager *) impl)->__manager);
 }
 
-void memoised_thread_manager_notify_thread_match(void *_self, Thread *t)
+static void memoised_thread_manager_notify_thread_match(void *impl, Thread *t)
 {
     thread_manager_notify_thread_match(
-        ((MemoisedThreadManager *) _self)->__manager, t);
+        ((MemoisedThreadManager *) impl)->__manager, t);
 }
 
-Thread *memoised_thread_manager_clone_thread(void *_self, const Thread *t)
+static Thread *memoised_thread_manager_clone_thread(void *impl, const Thread *t)
 {
     return thread_manager_clone_thread(
-        ((MemoisedThreadManager *) _self)->__manager, t);
+        ((MemoisedThreadManager *) impl)->__manager, t);
 }
 
-void memoised_thread_manager_kill_thread(void *_self, Thread *t)
+static void memoised_thread_manager_kill_thread(void *impl, Thread *t)
 {
-    thread_manager_kill_thread(((MemoisedThreadManager *) _self)->__manager, t);
+    thread_manager_kill_thread(((MemoisedThreadManager *) impl)->__manager, t);
 }
 
-const byte *memoised_thread_pc(void *_self, const Thread *t)
+static const byte *memoised_thread_pc(void *impl, const Thread *t)
 {
-    return thread_manager_pc(((MemoisedThreadManager *) _self)->__manager, t);
+    return thread_manager_pc(((MemoisedThreadManager *) impl)->__manager, t);
 }
 
-void memoised_thread_set_pc(void *_self, Thread *t, const byte *pc)
+static void memoised_thread_set_pc(void *impl, Thread *t, const byte *pc)
 {
-    thread_manager_set_pc(((MemoisedThreadManager *) _self)->__manager, t, pc);
+    thread_manager_set_pc(((MemoisedThreadManager *) impl)->__manager, t, pc);
 }
 
-const char *memoised_thread_sp(void *_self, const Thread *t)
+static const char *memoised_thread_sp(void *impl, const Thread *t)
 {
-    return thread_manager_sp(((MemoisedThreadManager *) _self)->__manager, t);
+    return thread_manager_sp(((MemoisedThreadManager *) impl)->__manager, t);
 }
 
-void memoised_thread_inc_sp(void *_self, Thread *t)
+static void memoised_thread_inc_sp(void *impl, Thread *t)
 {
-    thread_manager_inc_sp(((MemoisedThreadManager *) _self)->__manager, t);
+    thread_manager_inc_sp(((MemoisedThreadManager *) impl)->__manager, t);
 }
 
-void memoised_thread_manager_init_memoisation(void  *_self,
-                                              size_t nmemo_insts,
-                                              size_t text_len)
+static void memoised_thread_manager_init_memoisation(void       *impl,
+                                                     size_t      nmemo_insts,
+                                                     const char *text)
 {
-    MemoisedThreadManager *self = (MemoisedThreadManager *) _self;
+    MemoisedThreadManager *self = impl;
 
-    if (self->memoisation_memory) {
-        if (self->nmemo_insts == nmemo_insts && self->text_len == text_len) {
-            memset(self->memoisation_memory, FALSE,
-                   self->nmemo_insts * self->text_len *
-                       sizeof(*self->memoisation_memory));
-            return;
-        } else {
-            free(self->memoisation_memory);
-        }
-    }
+    if (self->memoisation_memory) free(self->memoisation_memory);
 
-    self->nmemo_insts = nmemo_insts;
-    self->text_len    = text_len;
-    self->memoisation_memory =
-        malloc(nmemo_insts * text_len * sizeof(*self->memoisation_memory));
+    self->text               = text;
+    self->text_len           = strlen(text);
+    self->memoisation_memory = malloc(nmemo_insts * self->text_len *
+                                      sizeof(*self->memoisation_memory));
     memset(self->memoisation_memory, FALSE,
-           nmemo_insts * text_len * sizeof(*self->memoisation_memory));
+           nmemo_insts * self->text_len * sizeof(*self->memoisation_memory));
 }
 
-int memoised_thread_memoise(void       *_self,
-                            Thread     *t,
-                            const char *text,
-                            size_t      text_len,
-                            len_t       idx)
+static int memoised_thread_memoise(void *impl, Thread *t, len_t idx)
 {
-    MemoisedThreadManager *self = (MemoisedThreadManager *) _self;
-    size_t                 i    = idx * text_len + t->sp - text;
+    MemoisedThreadManager *self = impl;
+    size_t                 i    = idx * self->text_len + (t->sp - self->text);
     if (self->memoisation_memory[i]) return FALSE;
 
     self->memoisation_memory[i] = TRUE;
     return TRUE;
 }
 
-cntr_t memoised_thread_counter(void *_self, const Thread *t, len_t idx)
+static cntr_t memoised_thread_counter(void *impl, const Thread *t, len_t idx)
 {
-    return thread_manager_counter(((MemoisedThreadManager *) _self)->__manager,
+    return thread_manager_counter(((MemoisedThreadManager *) impl)->__manager,
                                   t, idx);
 }
 
-void memoised_thread_set_counter(void *_self, Thread *t, len_t idx, cntr_t val)
+static void
+memoised_thread_set_counter(void *impl, Thread *t, len_t idx, cntr_t val)
 {
-    thread_manager_set_counter(((MemoisedThreadManager *) _self)->__manager, t,
+    thread_manager_set_counter(((MemoisedThreadManager *) impl)->__manager, t,
                                idx, val);
 }
 
-void memoised_thread_inc_counter(void *_self, Thread *t, len_t idx)
+static void memoised_thread_inc_counter(void *impl, Thread *t, len_t idx)
 {
-    thread_manager_inc_counter(((MemoisedThreadManager *) _self)->__manager, t,
+    thread_manager_inc_counter(((MemoisedThreadManager *) impl)->__manager, t,
                                idx);
 }
 
-void *memoised_thread_memory(void *_self, const Thread *t, len_t idx)
+static void *memoised_thread_memory(void *impl, const Thread *t, len_t idx)
 {
-    return thread_manager_memory(((MemoisedThreadManager *) _self)->__manager,
-                                 t, idx);
+    return thread_manager_memory(((MemoisedThreadManager *) impl)->__manager, t,
+                                 idx);
 }
 
-void memoised_thread_set_memory(void       *_self,
-                                Thread     *t,
-                                len_t       idx,
-                                const void *val,
-                                size_t      size)
+static void memoised_thread_set_memory(void       *impl,
+                                       Thread     *t,
+                                       len_t       idx,
+                                       const void *val,
+                                       size_t      size)
 {
-    thread_manager_set_memory(((MemoisedThreadManager *) _self)->__manager, t,
+    thread_manager_set_memory(((MemoisedThreadManager *) impl)->__manager, t,
                               idx, val, size);
 }
 
-const char *const *
-memoised_thread_captures(void *_self, const Thread *t, len_t *ncaptures)
+static const char *const *
+memoised_thread_captures(void *impl, const Thread *t, len_t *ncaptures)
 {
-    return thread_manager_captures(((MemoisedThreadManager *) _self)->__manager,
+    return thread_manager_captures(((MemoisedThreadManager *) impl)->__manager,
                                    t, ncaptures);
 }
 
-void memoised_thread_set_capture(void *_self, Thread *t, len_t idx)
+static void memoised_thread_set_capture(void *impl, Thread *t, len_t idx)
 {
-    thread_manager_set_capture(((MemoisedThreadManager *) _self)->__manager, t,
+    thread_manager_set_capture(((MemoisedThreadManager *) impl)->__manager, t,
                                idx);
 }
-
-/* --- */

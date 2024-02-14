@@ -3,25 +3,21 @@
 
 /* --- Thread Manager NO-OP Routines ---------------------------------------- */
 
-void thread_manager_init_memoisation_noop(void  *thread_manager_impl,
-                                          size_t nmemo_insts,
-                                          size_t text_len)
+void thread_manager_init_memoisation_noop(void       *thread_manager_impl,
+                                          size_t      nmemo_insts,
+                                          const char *text)
 {
     UNUSED(thread_manager_impl);
     UNUSED(nmemo_insts);
-    UNUSED(text_len);
+    UNUSED(text);
 }
 
-int thread_manager_memoise_noop(void       *thread_manager_impl,
-                                Thread     *thread,
-                                const char *text,
-                                size_t      text_len,
-                                len_t       idx)
+int thread_manager_memoise_noop(void   *thread_manager_impl,
+                                Thread *thread,
+                                len_t   idx)
 {
     UNUSED(thread_manager_impl);
     UNUSED(thread);
-    UNUSED(text);
-    UNUSED(text_len);
     UNUSED(idx);
 
     return TRUE;
