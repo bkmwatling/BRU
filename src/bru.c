@@ -9,6 +9,7 @@
 #include "compiler.h"
 #include "parser.h"
 #include "srvm.h"
+#include "thread_managers/all_matches.h"
 #include "thread_managers/benchmark.h"
 #include "thread_managers/lockstep.h"
 #include "thread_managers/memoisation.h"
@@ -47,7 +48,7 @@ static StcArgConvertResult convert_subcommand(const char *arg, void *out)
     return STC_ARG_CR_SUCCESS;
 }
 
-static StcArgConvertResult convert_logfile(const char *arg, void *out)
+static StcArgConvertResult convert_filepath(const char *arg, void *out)
 {
     FILE **logfile = out;
 
@@ -143,9 +144,9 @@ static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
 
 int main(int argc, const char **argv)
 {
-    int            arg_idx, benchmark, exit_code = EXIT_SUCCESS;
-    char          *regex, *text, *s;
-    FILE          *logfile;
+    int   arg_idx, benchmark, matched, all_matches, exit_code = EXIT_SUCCESS;
+    char *regex, *text, *s;
+    FILE *outfile, *logfile;
     Subcommand     cmd;
     SchedulerType  scheduler_type;
     Parser        *p;
@@ -166,10 +167,13 @@ int main(int argc, const char **argv)
                   convert_subcommand },
         { STC_ARG_STR, "<regex>", NULL, &regex, NULL, "the regex to work with",
                   NULL, NULL },
+        { STC_ARG_CUSTOM, "-o", "--outfile", &outfile,
+                  "filepath | stdout | stderr", "the file for normal output", "stdout",
+                  convert_filepath },
         { STC_ARG_CUSTOM, "-l", "--logfile", &logfile,
                   "filepath | stdout | stderr", "the file for logging output", "stderr",
-                  convert_logfile },
-        { STC_ARG_BOOL, "-o", "--only-counters", &parser_opts.only_counters,
+                  convert_filepath },
+        { STC_ARG_BOOL, NULL, "--only-counters", &parser_opts.only_counters,
                   NULL,
                   "whether to use just counters and treat *, +, and ? as counters",
                   NULL, NULL },
@@ -207,6 +211,8 @@ int main(int argc, const char **argv)
                   convert_scheduler_type },
         { STC_ARG_BOOL, NULL, "--benchmark", &benchmark, NULL,
                   "whether to benchmark SRVM execution", NULL, NULL },
+        { STC_ARG_BOOL, NULL, "--all-matches", &all_matches, NULL,
+                  "whether to report all matches", NULL, NULL },
         { STC_ARG_STR, "<input>", NULL, &text, NULL,
                   "the input string to match against the regex", NULL, NULL }
     };
@@ -222,7 +228,7 @@ int main(int argc, const char **argv)
         res = parser_parse(p, &re);
         if (res.code == PARSE_SUCCESS) {
             s = regex_to_tree_str(re.root);
-            printf("%s\n", s);
+            fprintf(outfile, "%s\n", s);
             regex_node_free(re.root);
             free(s);
         } else {
@@ -239,7 +245,7 @@ int main(int argc, const char **argv)
         prog = compiler_compile(c);
         s    = program_to_str(prog);
 
-        printf("%s\n", s);
+        fprintf(outfile, "%s\n", s);
 
         compiler_free(c);
         program_free((Program *) prog);
@@ -262,31 +268,37 @@ int main(int argc, const char **argv)
         if (benchmark)
             thread_manager =
                 benchmark_thread_manager_new(thread_manager, logfile);
+        if (all_matches)
+            thread_manager =
+                all_matches_thread_manager_new(thread_manager, logfile, text);
         srvm = srvm_new(thread_manager, prog);
-        printf("matched = %d\n", srvm_match(srvm, text));
-        printf("captures:\n");
-        captures = srvm_captures(srvm, &ncaptures);
-        printf("  input: '%s'\n", text);
-        for (i = 0; i < ncaptures; i++) {
-            capture = captures[i];
-            printf("%7hu: ", i);
-            if (capture.str) {
-                ncodepoints = stc_utf8_str_ncodepoints(text) -
-                              stc_utf8_str_ncodepoints(capture.str);
-                printf("%*s'" STC_SV_FMT "'\n", (int) ncodepoints, "",
-                       STC_SV_ARG(capture));
-            } else {
-                printf("not captured\n");
+        while ((matched = srvm_find(srvm, text)) != MATCHES_EXHAUSTED) {
+            fprintf(outfile, "matched = %d\n", matched);
+            fprintf(outfile, "captures:\n");
+            captures = srvm_captures(srvm, &ncaptures);
+            fprintf(outfile, "  input: '%s'\n", text);
+            for (i = 0; i < ncaptures; i++) {
+                capture = captures[i];
+                fprintf(outfile, "%7hu: ", i);
+                if (capture.str) {
+                    ncodepoints = stc_utf8_str_ncodepoints(text) -
+                                  stc_utf8_str_ncodepoints(capture.str);
+                    fprintf(outfile, "%*s'" STC_SV_FMT "'\n", (int) ncodepoints,
+                            "", STC_SV_ARG(capture));
+                } else {
+                    fprintf(outfile, "not captured\n");
+                }
             }
+            free(captures);
         }
 
         compiler_free(c);
         program_free((Program *) prog);
         srvm_free(srvm);
-        free(captures);
     }
 
     if (logfile && logfile != stderr && logfile != stdout) fclose(logfile);
+    if (outfile && outfile != stderr && outfile != stdout) fclose(outfile);
 
     return exit_code;
 }
