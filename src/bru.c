@@ -222,7 +222,7 @@ int main(int argc, const char **argv)
     argv    += arg_idx - 1;
 
     if (cmd == CMD_PARSE) {
-        stc_args_parse_exact(argc, argv, args + 1, 5, NULL);
+        stc_args_parse_exact(argc, argv, args + 1, 7, NULL);
 
         p   = parser_new(sdup(regex), parser_opts);
         res = parser_parse(p, &re);
