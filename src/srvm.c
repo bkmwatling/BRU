@@ -12,7 +12,7 @@ struct srvm {
     ThreadManager *thread_manager;
     const Program *program;
     const char    *curr_sp;
-    int            run_on_eos;
+    int            matching_finished;
     len_t          ncaptures;
     const char   **captures;
 };
@@ -28,12 +28,12 @@ SRVM *srvm_new(ThreadManager *thread_manager, const Program *prog)
 {
     SRVM *srvm = malloc(sizeof(SRVM));
 
-    srvm->thread_manager = thread_manager;
-    srvm->program        = prog;
-    srvm->curr_sp        = NULL;
-    srvm->run_on_eos     = FALSE;
-    srvm->ncaptures      = prog->ncaptures;
-    srvm->captures       = malloc(2 * srvm->ncaptures * sizeof(char *));
+    srvm->thread_manager    = thread_manager;
+    srvm->program           = prog;
+    srvm->curr_sp           = NULL;
+    srvm->matching_finished = FALSE;
+    srvm->ncaptures         = prog->ncaptures;
+    srvm->captures          = malloc(2 * srvm->ncaptures * sizeof(char *));
     memset(srvm->captures, 0, 2 * srvm->ncaptures * sizeof(char *));
 
     return srvm;
@@ -50,7 +50,8 @@ int srvm_match(SRVM *self, const char *text)
 {
     if (text == NULL) return 0;
 
-    self->curr_sp = text;
+    self->curr_sp           = text;
+    self->matching_finished = FALSE;
     memset(self->captures, 0, 2 * self->ncaptures * sizeof(char *));
     thread_manager_reset(self->thread_manager);
 
@@ -62,8 +63,8 @@ int srvm_find(SRVM *self, const char *text)
     if (text == NULL) return 0;
 
     if (self->curr_sp == NULL) {
-        fprintf(stderr, "setting text\n");
-        self->curr_sp = text;
+        self->curr_sp           = text;
+        self->matching_finished = FALSE;
         thread_manager_reset(self->thread_manager);
     }
     memset(self->captures, 0, 2 * self->ncaptures * sizeof(char *));
@@ -113,13 +114,13 @@ static int srvm_run(SRVM *self, const char *text)
     ThreadManager *tm      = self->thread_manager;
     void          *thread, *t;
     const byte    *pc;
-    const char    *sp, *codepoint;
+    const char    *sp, *codepoint, *matched_sp;
     len_t          ncaptures, intervals_len, k;
     offset_t       x, y;
     cntr_t         cval, n;
     Interval      *intervals;
 
-    if (*self->curr_sp == '\0' && self->run_on_eos) return MATCHES_EXHAUSTED;
+    if (self->matching_finished) return MATCHES_EXHAUSTED;
 
     thread_manager_init_memoisation(self->thread_manager,
                                     self->program->nmemo_insts, text);
@@ -139,7 +140,8 @@ static int srvm_run(SRVM *self, const char *text)
                     break;
 
                 case MATCH:
-                    matched = 1;
+                    matched_sp = thread_manager_sp(tm, thread);
+                    matched    = 1;
                     if (self->captures)
                         memcpy(self->captures,
                                thread_manager_captures(tm, thread, &ncaptures),
@@ -322,10 +324,12 @@ static int srvm_run(SRVM *self, const char *text)
         }
 
         if (*self->curr_sp == '\0') {
-            self->run_on_eos = TRUE;
+            self->matching_finished = TRUE;
             break;
         }
-        self->curr_sp = stc_utf8_str_next(self->curr_sp);
+        self->curr_sp = matched && matched_sp != self->curr_sp
+                            ? matched_sp
+                            : stc_utf8_str_next(self->curr_sp);
     } while (!matched);
 
     return matched;
