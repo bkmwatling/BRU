@@ -67,15 +67,13 @@ typedef struct {
 
 static void     pp_free(PosPair *self);
 static PosPair *pp_clone(const PosPair *self);
-static void     pp_action_push_front(PosPair *self, const Action *action);
 static void     pp_insert_after(PosPair *self, PosPair *pp);
 static PosPair *pp_insert_pos_after(PosPair *self, size_t pos);
 static PosPair *pp_remove(PosPair *self);
-static int      pp_remove_from(size_t pos, PosPair *start, PosPair *end);
 
 static PosPairList *ppl_new(void);
 static void         ppl_free(PosPairList *self);
-static PosPairList *ppl_clone(const PosPairList *self);
+static void         ppl_clone_into(const PosPairList *self, PosPairList *clone);
 static void         ppl_clear(PosPairList *self);
 static void         ppl_remove(PosPairList *self, size_t pos);
 static void         ppl_replace_gamma(PosPairList *self, PosPairList *ppl);
@@ -86,8 +84,6 @@ rfa_new(PosPairList **follow, size_t npositions, const Action **positions);
 static void rfa_free(Rfa *self);
 static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first);
 static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited);
-static void
-rfa_absorb(Rfa *self, size_t pos, len_t *visited, const CompilerOpts *opts);
 
 static size_t count(const RegexNode *re);
 static void   emit(StateMachine *sm, const Rfa *rfa);
@@ -127,11 +123,7 @@ StateMachine *glushkov_construct(Regex re, const CompilerOpts *opts)
     rfa_print(rfa, stderr);
     rfa_merge_outgoing(rfa, START_POS, visited);
     rfa_print(rfa, stderr);
-    rfa_absorb(rfa, START_POS, visited, opts);
-    rfa_print(rfa, stderr);
 
-    for (i = 1, npositions = 0; i < rfa->npositions; i++)
-        if (smir_action_type(rfa->positions[i]) != ACT_SAVE) npositions++;
     sm = smir_new(re.regex, npositions);
     emit(sm, rfa);
 
@@ -188,62 +180,6 @@ static PosPair *pp_clone(const PosPair *self)
     return pp;
 }
 
-static void pp_action_push_front(PosPair *self, const Action *action)
-{
-    const Action       *act, *a;
-    ActionListIterator *iter = smir_action_list_iter(self->actions);
-    size_t              action_idx, act_idx;
-
-    while ((act = smir_action_list_iterator_next(iter))) {
-        if (smir_action_type(action) != smir_action_type(act)) continue;
-        switch (smir_action_type(action)) {
-            case ACT_BEGIN: /* fallthrough */
-            case ACT_END: smir_action_free(action); goto cleanup;
-
-            case ACT_MEMO:
-                if (smir_action_get_num(action) == smir_action_get_num(act)) {
-                    smir_action_free(action);
-                    goto cleanup;
-                }
-
-            case ACT_SAVE:
-                action_idx = smir_action_get_num(action);
-                act_idx    = smir_action_get_num(act);
-                if (action_idx == act_idx) {
-                    smir_action_free(action);
-                    goto cleanup;
-                } else if (action_idx % 2 == 1 && act_idx == action_idx - 1) {
-                    goto push_front;
-                } else if (action_idx % 2 == 0 && act_idx == action_idx + 1) {
-                    while ((a = smir_action_list_iterator_next(iter)) &&
-                           (smir_action_type(a) != ACT_SAVE ||
-                            action_idx != smir_action_get_num(a)))
-                        ;
-                    if (!a) goto push_front;
-                    // make iterator go back to act
-                    while ((a = smir_action_list_iterator_prev(iter)) &&
-                           a != act)
-                        ;
-                    smir_action_list_iterator_remove(iter);
-                    smir_action_free(action);
-                    goto cleanup;
-                }
-                break;
-
-            case ACT_CHAR:   /* fallthrough */
-            case ACT_PRED:   /* fallthrough */
-            case ACT_EPSCHK: /* fallthrough */
-            case ACT_EPSSET: assert(0 && "unreachable");
-        }
-    }
-
-push_front:
-    smir_action_list_push_front(self->actions, action);
-
-cleanup:
-    free(iter);
-}
-
 static void pp_insert_after(PosPair *self, PosPair *pp)
 {
     pp->prev       = self;
@@ -271,20 +207,6 @@ static PosPair *pp_remove(PosPair *self)
     return next;
 }
 
-static int pp_remove_from(size_t pos, PosPair *start, PosPair *end)
-{
-    PosPair *pp;
-
-    for (pp = start; pp && pp != end; pp = pp->next) {
-        if (pp->pos == pos) {
-            pp_remove(pp);
-            return TRUE;
-        }
-    }
-
-    return FALSE;
-}
-
 static PosPairList *ppl_new(void)
 {
     PosPairList *ppl = malloc(sizeof(*ppl));
@@ -304,18 +226,15 @@ static void ppl_free(PosPairList *self)
     free(self);
 }
 
-static PosPairList *ppl_clone(const PosPairList *self)
+static void ppl_clone_into(const PosPairList *self, PosPairList *clone)
 {
-    PosPairList *ppl = ppl_new();
-    PosPair     *pp;
+    PosPair *pp;
 
-    ppl->len = self->len;
+    clone->len = self->len;
     FOREACH(pp, self->sentinel) {
-        pp_insert_after(ppl->sentinel->prev, pp_clone(pp));
-        if (pp == self->gamma) ppl->gamma = ppl->sentinel->prev;
+        pp_insert_after(clone->sentinel->prev, pp_clone(pp));
+        if (pp == self->gamma) clone->gamma = clone->sentinel->prev;
     }
-
-    return ppl;
 }
 
 static void ppl_clear(PosPairList *self)
@@ -422,11 +341,11 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
         self->last->len++;                                    \
     } while (0)
 
-    Rfa         *rfa_tmp;
-    PosPairList *ppl_tmp, *first_tmp;
-    PosPair     *pp;
-    size_t       pos = 0;
-    size_t       pos_open, pos_close; /* for capture positions */
+    Rfa         *rfa_r2  = NULL;
+    PosPairList *ppl_tmp = NULL, *first_r2 = NULL;
+    PosPair     *pp, *pp_tmp;
+    ActionList  *al_tmp = NULL;
+    size_t       pos    = 0;
 
     if (first == NULL) first = FIRST(self);
     switch (re->type) {
@@ -444,69 +363,79 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
 
         case ALT:
             rfa_construct(self, re->left, first);
-            rfa_tmp   = RFA_NEW_FROM(self);
-            first_tmp = ppl_new();
-            rfa_construct(rfa_tmp, re->right, first_tmp);
-            self->npositions = rfa_tmp->npositions;
+            rfa_r2   = RFA_NEW_FROM(self);
+            first_r2 = ppl_new();
+            rfa_construct(rfa_r2, re->right, first_r2);
+            self->npositions = rfa_r2->npositions;
 
-            if (NULLABLE(first)) ppl_remove(first_tmp, GAMMA_POS);
-            ppl_append(first, first_tmp);
-            ppl_append(self->last, rfa_tmp->last);
+            if (NULLABLE(first)) ppl_remove(first_r2, GAMMA_POS);
+            ppl_append(first, first_r2);
+            ppl_append(self->last, rfa_r2->last);
 
-            ppl_free(first_tmp);
-            rfa_free(rfa_tmp);
-            break;
+            goto cleanup;
 
         case CONCAT:
             rfa_construct(self, re->left, first);
-            rfa_tmp   = RFA_NEW_FROM(self);
-            first_tmp = ppl_new();
-            rfa_construct(rfa_tmp, re->right, first_tmp);
-            self->npositions = rfa_tmp->npositions;
+            rfa_r2   = RFA_NEW_FROM(self);
+            first_r2 = ppl_new();
+            rfa_construct(rfa_r2, re->right, first_r2);
+            self->npositions = rfa_r2->npositions;
 
+            al_tmp  = smir_action_list_new();
+            ppl_tmp = ppl_new();
             FOREACH(pp, self->last->sentinel) {
-                ppl_tmp = ppl_clone(first_tmp);
+                ppl_clone_into(first_r2, ppl_tmp);
+                FOREACH(pp_tmp, ppl_tmp->sentinel) {
+                    smir_action_list_clone_into(pp->actions, al_tmp);
+                    smir_action_list_prepend(pp_tmp->actions, al_tmp);
+                }
                 ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
-                ppl_free(ppl_tmp);
             }
 
-            if (NULLABLE(first)) ppl_replace_gamma(first, first_tmp);
+            if (NULLABLE(first)) {
+                FOREACH(pp_tmp, first_r2->sentinel) {
+                    smir_action_list_clone_into(first->gamma->actions, al_tmp);
+                    smir_action_list_prepend(pp_tmp->actions, al_tmp);
+                }
+                ppl_replace_gamma(first, first_r2);
+            }
 
-            ppl_tmp       = self->last;
-            self->last    = rfa_tmp->last;
-            rfa_tmp->last = ppl_tmp;
-            if (NULLABLE(first_tmp)) ppl_append(self->last, rfa_tmp->last);
+            if (NULLABLE(first_r2)) {
+                FOREACH(pp_tmp, self->last->sentinel) {
+                    smir_action_list_clone_into(first_r2->gamma->actions,
+                                                al_tmp);
+                    smir_action_list_append(pp_tmp->actions, al_tmp);
+                }
+                ppl_append(self->last, rfa_r2->last);
+            } else {
+                ppl_tmp      = self->last;
+                self->last   = rfa_r2->last;
+                rfa_r2->last = ppl_tmp;
+            }
 
-            ppl_free(first_tmp);
-            rfa_free(rfa_tmp);
-            break;
+            goto cleanup;
 
         case CAPTURE:
-            self->positions[pos_open = self->npositions++] =
-                smir_action_num(ACT_SAVE, 2 * re->capture_idx);
-
+            // TODO: PCRE/RE2 semantics
             rfa_construct(self, re->left, first);
 
-            self->positions[pos_close = self->npositions++] =
-                smir_action_num(ACT_SAVE, 2 * re->capture_idx + 1);
-
-            ppl_append(self->follow[pos_open], first);
-            /* allows next loop to handle gamma replace */
-            if (NULLABLE(self->follow[pos_open])) {
-                pp_insert_pos_after(self->last->sentinel, pos_open);
-                self->last->len++;
+            FOREACH(pp_tmp, first->sentinel) {
+                smir_action_list_push_front(
+                    pp_tmp->actions,
+                    smir_action_num(ACT_SAVE, 2 * re->capture_idx));
             }
-            FOREACH(pp, self->last->sentinel) {
-                self->follow[pp->pos]->gamma->pos = pos_close;
-                self->follow[pp->pos]->gamma      = NULL;
-            }
-            PREPEND_GAMMA(self->follow[pos_close]);
-            ppl_clear(self->last);
 
-            pp_insert_pos_after(first->sentinel, pos_open);
-            first->len++;
-            pp_insert_pos_after(self->last->sentinel, pos_close);
-            self->last->len++;
+            if (NULLABLE(first)) {
+                smir_action_list_push_back(
+                    first->gamma->actions,
+                    smir_action_num(ACT_SAVE, 2 * re->capture_idx + 1));
+            }
+
+            FOREACH(pp_tmp, self->last->sentinel) {
+                smir_action_list_push_back(
+                    pp_tmp->actions,
+                    smir_action_num(ACT_SAVE, 2 * re->capture_idx + 1));
+            }
 
             break;
 
@@ -519,27 +448,40 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
                 PREPEND_GAMMA(first);
             }
 
+            al_tmp  = smir_action_list_new();
+            ppl_tmp = ppl_new();
             FOREACH(pp, self->last->sentinel) {
-                ppl_tmp = ppl_clone(first);
+                ppl_clone_into(first, ppl_tmp);
+                FOREACH(pp_tmp, ppl_tmp->sentinel) {
+                    smir_action_list_clone_into(pp->actions, al_tmp);
+                    smir_action_list_prepend(pp_tmp->actions, al_tmp);
+                }
                 ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
-                ppl_free(ppl_tmp);
             }
-            break;
+
+            goto cleanup;
 
         case PLUS:
             rfa_construct(self, re->left, first);
+
+            ppl_tmp = ppl_new();
+            al_tmp  = smir_action_list_new();
             FOREACH(pp, self->last->sentinel) {
-                ppl_tmp = ppl_clone(first);
+                ppl_clone_into(first, ppl_tmp);
                 if (re->pos) {
                     if (!NULLABLE(first)) APPEND_GAMMA(ppl_tmp);
                 } else {
                     ppl_remove(ppl_tmp, GAMMA_POS);
                     PREPEND_GAMMA(ppl_tmp);
                 }
+                FOREACH(pp_tmp, ppl_tmp->sentinel) {
+                    smir_action_list_clone_into(pp->actions, al_tmp);
+                    smir_action_list_prepend(pp_tmp->actions, al_tmp);
+                }
                 ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
-                ppl_free(ppl_tmp);
             }
-            break;
+
+            goto cleanup;
 
         case QUES:
             rfa_construct(self, re->left, first);
@@ -557,6 +499,13 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
         case BACKREFERENCE: assert(0 && "TODO");
         case NREGEXTYPES: assert(0 && "unreachable");
     }
+
+cleanup:
+
+    if (rfa_r2) rfa_free(rfa_r2);
+    if (first_r2) ppl_free(first_r2);
+    if (ppl_tmp) ppl_free(ppl_tmp);
+    if (al_tmp) smir_action_list_free(al_tmp);
 
 #undef APPEND_POSITION
 }
@@ -586,80 +535,6 @@ static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited)
     visited[pos] = FALSE;
 }
 
-static void
-rfa_absorb(Rfa *rfa, size_t pos, len_t *visited, const CompilerOpts *opts)
-{
-    PosPair            *t, *e, *tmp, *pp, *p = NULL;
-    PosPairList        *follow, *follow_pos = rfa->follow[pos];
-    ActionListIterator *iter;
-    const Action       *act;
-
-    visited[pos] = TRUE;
-    FOREACH(t, follow_pos->sentinel)
-        if (!visited[t->pos]) rfa_absorb(rfa, t->pos, visited, opts);
-
-    e = follow_pos->sentinel->next;
-    while (e != follow_pos->sentinel) {
-        if (e->pos == pos && pos != GAMMA_POS) {
-            if (IS_EPS_TRANSITION(rfa->positions[e->pos])) p = e;
-            e = e->next;
-            continue;
-        } else if (!IS_EPS_TRANSITION(rfa->positions[e->pos])) {
-            e = e->next;
-            continue;
-        }
-
-        tmp    = e;
-        follow = rfa->follow[e->pos];
-        FOREACH(t, follow->sentinel) {
-            // iterate over edges (pos, pp) up to (pos, e)
-            // looking for an edge (pos, t).
-            // if we find (pos, t), then current value of t can
-            // be skipped since it will have a lower priority than
-            // the one we found.
-            FOREACH(pp, follow_pos->sentinel)
-                if (pp->pos == e->pos || pp->pos == t->pos) break;
-            /* since e is in follow_pos, we should at least find e and thus no
-             * need to check if pp is follow_pos->sentinel */
-            if (pp->pos != e->pos) continue;
-
-            // otherwise, iterate over edges (pos, e) up to the end,
-            // and if any of them are t, delete them as they will have a lower
-            // priority than the current one
-            if (pp_remove_from(t->pos, tmp, follow_pos->sentinel))
-                follow_pos->len--;
-            pp = pp_clone(t);
-            pp_action_push_front(pp, smir_action_clone(rfa->positions[e->pos]));
-            iter = smir_action_list_iter(e->actions);
-            while ((act = smir_action_list_iterator_prev(iter)))
-                pp_action_push_front(pp, smir_action_clone(act));
-            free(iter);
-            pp_insert_after(tmp, pp);
-            follow_pos->len++;
-            tmp = pp;
-        }
-
-        e = pp_remove(e);
-        follow_pos->len--;
-    }
-
-    if (p) {
-        if (opts->capture_semantics == CS_PCRE) {
-            for (t = p->next; t != follow_pos->sentinel; t = t->next) {
-                pp_action_push_front(t, smir_action_clone(rfa->positions[pos]));
-                iter = smir_action_list_iter(p->actions);
-                while ((act = smir_action_list_iterator_prev(iter)))
-                    pp_action_push_front(t, smir_action_clone(act));
-                free(iter);
-            }
-        }
-        pp_remove(p);
-        follow_pos->len--;
-    }
-
-    visited[pos] = FALSE;
-}
-
 static size_t count(const RegexNode *re)
 {
     size_t npos = 0;
@@ -677,7 +552,7 @@ static size_t count(const RegexNode *re)
         case ALT: /* fallthrough */
         case CONCAT: npos = count(re->left) + count(re->right); break;
 
-        case CAPTURE: npos = 2 + count(re->left); break;
+        case CAPTURE: npos = /* 2 + */ count(re->left); break;
 
         case STAR: /* fallthrough */
         case PLUS: /* fallthrough */
@@ -780,6 +655,8 @@ static void rfa_print(Rfa *rfa, FILE *stream)
         ppl_print(rfa->follow[i], stream);
         fprintf(stream, "\n");
     }
+    fprintf(stream, "LAST: ");
+    ppl_print(rfa->last, stream);
     fprintf(stream, "\n");
 }
 #endif
