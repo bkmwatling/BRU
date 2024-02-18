@@ -549,17 +549,24 @@ ActionList *smir_action_list_new(void)
 
 ActionList *smir_action_list_clone(const ActionList *self)
 {
-    ActionList       *clone, *al;
-    const ActionList *tmp;
+    ActionList *clone;
 
     DLL_INIT(clone);
+    smir_action_list_clone_into(self, clone);
+
+    return clone;
+}
+
+void smir_action_list_clone_into(const ActionList *self, ActionList *clone)
+{
+    ActionList       *al;
+    const ActionList *tmp;
+
     for (tmp = self->next; tmp != self; tmp = tmp->next) {
         al      = malloc(sizeof(*al));
         al->act = smir_action_clone(tmp->act);
         DLL_PUSH_BACK(clone, al);
     }
-
-    return clone;
 }
 
 void smir_action_list_free(ActionList *self)

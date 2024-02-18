@@ -467,6 +467,17 @@ ActionList *smir_action_list_new(void);
 ActionList *smir_action_list_clone(const ActionList *self);
 
 /**
+ * Clone the list of actions into an existing list.
+ *
+ * Note: If the list to clone into is not empty, this will insert the cloned
+ * items at the end of the list.
+ *
+ * @param[in] self  the list of actions to clone
+ * @param[in] clone the preallocated list to clone into
+ */
+void smir_action_list_clone_into(const ActionList *self, ActionList *clone);
+
+/**
  * Free the list of actions.
  *
  * @param[in] self the list of actions
