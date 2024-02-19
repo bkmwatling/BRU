@@ -569,6 +569,18 @@ void smir_action_list_clone_into(const ActionList *self, ActionList *clone)
     }
 }
 
+void smir_action_list_clear(ActionList *self)
+{
+    ActionList *next, *elem;
+
+    for (elem = self->next; elem != self; elem = next) {
+        next = elem->next;
+        action_list_free(elem);
+    }
+    self->next = self;
+    self->prev = self;
+}
+
 void smir_action_list_free(ActionList *self)
 {
     ActionList *elem, *next;
