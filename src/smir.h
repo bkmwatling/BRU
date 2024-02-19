@@ -478,6 +478,13 @@ ActionList *smir_action_list_clone(const ActionList *self);
 void smir_action_list_clone_into(const ActionList *self, ActionList *clone);
 
 /**
+ * Remove (and free) the elements of a list of actions.
+ *
+ * @param[in] self the list of actions
+ */
+void smir_action_list_clear(ActionList *self);
+
+/**
  * Free the list of actions.
  *
  * @param[in] self the list of actions
