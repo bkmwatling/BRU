@@ -82,7 +82,10 @@ static void         ppl_append(PosPairList *self, PosPairList *ppl);
 static Rfa *
 rfa_new(PosPairList **follow, size_t npositions, const Action **positions);
 static void rfa_free(Rfa *self);
-static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first);
+static void rfa_construct(Rfa                *self,
+                          const RegexNode    *re,
+                          PosPairList        *first,
+                          const CompilerOpts *opts);
 static void rfa_merge_outgoing(Rfa *rfa, size_t pos, len_t *visited);
 
 static size_t count(const RegexNode *re);
@@ -119,7 +122,7 @@ StateMachine *glushkov_construct(Regex re, const CompilerOpts *opts)
 
     positions[START_POS] = NULL;
     rfa                  = rfa_new(follow, 1, positions);
-    rfa_construct(rfa, re.root, NULL);
+    rfa_construct(rfa, re.root, NULL, opts);
     rfa_print(rfa, stderr);
     rfa_merge_outgoing(rfa, START_POS, visited);
     rfa_print(rfa, stderr);
@@ -329,7 +332,10 @@ static void rfa_free(Rfa *self)
     free(self);
 }
 
-static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
+static void rfa_construct(Rfa                *self,
+                          const RegexNode    *re,
+                          PosPairList        *first,
+                          const CompilerOpts *opts)
 {
 #define APPEND_POSITION(action)                               \
     do {                                                      \
@@ -373,10 +379,10 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
             break;
 
         case ALT:
-            rfa_construct(self, re->left, first);
+            rfa_construct(self, re->left, first, opts);
             rfa_r2   = RFA_NEW_FROM(self);
             first_r2 = ppl_new();
-            rfa_construct(rfa_r2, re->right, first_r2);
+            rfa_construct(rfa_r2, re->right, first_r2, opts);
             self->npositions = rfa_r2->npositions;
 
             if (NULLABLE(first)) ppl_remove(first_r2, GAMMA_POS);
@@ -386,10 +392,10 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
             goto cleanup;
 
         case CONCAT:
-            rfa_construct(self, re->left, first);
+            rfa_construct(self, re->left, first, opts);
             rfa_r2   = RFA_NEW_FROM(self);
             first_r2 = ppl_new();
-            rfa_construct(rfa_r2, re->right, first_r2);
+            rfa_construct(rfa_r2, re->right, first_r2, opts);
             self->npositions = rfa_r2->npositions;
 
             al_tmp  = smir_action_list_new();
@@ -429,7 +435,7 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
             goto cleanup;
 
         case CAPTURE:
-            rfa_construct(self, re->left, first);
+            rfa_construct(self, re->left, first, opts);
 
             FOREACH(pp_tmp, first->sentinel) {
                 smir_action_list_push_front(
@@ -447,13 +453,16 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
                 smir_action_list_push_back(
                     pp_tmp->actions,
                     smir_action_num(ACT_SAVE, 2 * re->capture_idx + 1));
+                if (self->follow[pp_tmp->pos]->gamma) {
+                    smir_action_list_push_back(
+                        self->follow[pp_tmp->pos]->gamma->actions,
+                        smir_action_num(ACT_SAVE, 2 * re->capture_idx + 1));
+                }
             }
-
             break;
 
         case STAR:
-            // TODO: PCRE/RE2 semantics
-            rfa_construct(self, re->left, first);
+            rfa_construct(self, re->left, first, opts);
             if (re->pos) {
                 if (!NULLABLE(first)) APPEND_GAMMA(first);
             } else {
@@ -465,6 +474,8 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
             ppl_tmp = ppl_new();
             FOREACH(pp, self->last->sentinel) {
                 ppl_clone_into(first, ppl_tmp);
+                if (opts->capture_semantics == CS_RE2 && NULLABLE(first))
+                    smir_action_list_clear(ppl_tmp->gamma->actions);
                 FOREACH(pp_tmp, ppl_tmp->sentinel) {
                     smir_action_list_clone_into(pp->actions, al_tmp);
                     smir_action_list_prepend(pp_tmp->actions, al_tmp);
@@ -475,8 +486,7 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
             goto cleanup;
 
         case PLUS:
-            // TODO: PCRE/RE2 semantics
-            rfa_construct(self, re->left, first);
+            rfa_construct(self, re->left, first, opts);
 
             ppl_tmp = ppl_new();
             al_tmp  = smir_action_list_new();
@@ -489,6 +499,8 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
                     PREPEND_GAMMA(ppl_tmp);
                 }
                 FOREACH(pp_tmp, ppl_tmp->sentinel) {
+                    if (opts->capture_semantics == CS_RE2 && NULLABLE(first))
+                        smir_action_list_clear(ppl_tmp->gamma->actions);
                     smir_action_list_clone_into(pp->actions, al_tmp);
                     smir_action_list_prepend(pp_tmp->actions, al_tmp);
                 }
@@ -498,7 +510,7 @@ static void rfa_construct(Rfa *self, const RegexNode *re, PosPairList *first)
             goto cleanup;
 
         case QUES:
-            rfa_construct(self, re->left, first);
+            rfa_construct(self, re->left, first, opts);
             if (re->pos) {
                 if (!NULLABLE(first)) APPEND_GAMMA(first);
             } else {
@@ -555,11 +567,11 @@ static size_t count(const RegexNode *re)
     size_t npos = 0;
 
     switch (re->type) {
-        case EPSILON: break;
-
         case CARET:   /* fallthrough */
         case DOLLAR:  /* fallthrough */
         case MEMOISE: /* fallthrough */
+        case EPSILON: break;
+
         case LITERAL: /* fallthrough */
         case CC:      /* fallthrough */
         case BACKREFERENCE: npos = 1; break;
