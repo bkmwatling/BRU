@@ -127,24 +127,20 @@ StateMachine *glushkov_construct(Regex re, const CompilerOpts *opts)
     rfa_merge_outgoing(rfa, START_POS, visited);
     rfa_print(rfa, stderr);
 
-    sm = smir_new(re.regex, npositions);
+    // npositions - 1 to remove dummy gamma/start state
+    sm = smir_new(re.regex, rfa->npositions - 1);
     emit(sm, rfa);
 
     for (i = 0; i < rfa->npositions; i++) {
-        if (i && smir_action_type(rfa->positions[i]) == ACT_SAVE) {
-            ppl_free(follow[i]);
-            smir_action_free(rfa->positions[i]);
-        } else {
-            // manually free just ppl and pp containers not actions
-            while (follow[i]->sentinel->next != follow[i]->sentinel) {
-                pp                        = follow[i]->sentinel->next;
-                follow[i]->sentinel->next = pp->next;
-                free(pp);
-            }
-
-            pp_free(follow[i]->sentinel);
-            free(follow[i]);
+        // manually free just ppl and pp containers not actions
+        while (follow[i]->sentinel->next != follow[i]->sentinel) {
+            pp                        = follow[i]->sentinel->next;
+            follow[i]->sentinel->next = pp->next;
+            free(pp);
         }
+
+        pp_free(follow[i]->sentinel);
+        free(follow[i]);
     }
     rfa_free(rfa);
     free(follow);
