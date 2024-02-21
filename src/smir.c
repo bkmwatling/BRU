@@ -988,6 +988,7 @@ static void compile_transitions(StateMachine *sm,
 {
     trans_id *out;
     byte     *pc;
+    state_id  dst;
     size_t    n, i, nstates;
     offset_t  offset_idx;
     int       compile_jmp;
@@ -1004,9 +1005,9 @@ static void compile_transitions(StateMachine *sm,
             pc = compile_transition(sm, pc, prog, out[i], TRUE, state_blocks,
                                     mmaps);
         } else {
-            sid = smir_get_dst(sm, out[i]);
-            if (!sid) sid = nstates + 1;
-            SET_OFFSET(prog->insts, offset_idx, state_blocks[sid].entry);
+            dst = smir_get_dst(sm, out[i]);
+            if (!dst) dst = nstates + 1;
+            SET_OFFSET(prog->insts, offset_idx, state_blocks[dst].entry);
         }
     }
 
@@ -1018,9 +1019,9 @@ static void compile_transitions(StateMachine *sm,
             compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks,
                                mmaps);
         } else {
-            sid = smir_get_dst(sm, out[i]);
-            if (!sid) sid = nstates + 1;
-            SET_OFFSET(prog->insts, offset_idx, state_blocks[sid].entry);
+            dst = smir_get_dst(sm, out[i]);
+            if (!dst) dst = nstates + 1;
+            SET_OFFSET(prog->insts, offset_idx, state_blocks[dst].entry);
         }
     } else if (n == 1) {
         compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks,
