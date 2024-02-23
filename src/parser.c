@@ -395,19 +395,19 @@ static ParseResult parse_quantifier(const Parser *self,
         *re = regex_counter(*re, greedy, min, max);
         SET_RID(*re, ps);
     } else if (min == 0 && max == CNTR_MAX) {
-        *re = regex_single_child(STAR, *re, greedy);
+        *re = regex_repetition(STAR, *re, greedy);
         SET_RID(*re, ps);
     } else if (min == 1 && max == CNTR_MAX) {
-        *re = regex_single_child(PLUS, *re, greedy);
+        *re = regex_repetition(PLUS, *re, greedy);
         SET_RID(*re, ps);
     } else if (min == 0 && max == 1) {
-        *re = regex_single_child(QUES, *re, greedy);
+        *re = regex_repetition(QUES, *re, greedy);
         SET_RID(*re, ps);
     } else if (self->opts.unbounded_counters || max < CNTR_MAX) {
         *re = parser_regex_counter(*re, greedy, min, max,
                                    self->opts.expand_counters, ps);
     } else {
-        tmp = regex_single_child(STAR, *re, greedy);
+        tmp = regex_repetition(STAR, *re, greedy);
         *re = regex_branch(CONCAT,
                            parser_regex_counter(regex_clone(*re), greedy, min,
                                                 min, self->opts.expand_counters,
@@ -518,7 +518,7 @@ static ParseResult parse_paren(const Parser *self,
                 return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
 
             if (is_lookahead) {
-                *re = regex_single_child(LOOKAHEAD, *re, pos);
+                *re = regex_lookahead(*re, pos);
                 SET_RID(*re, ps);
             }
             break;
@@ -1000,14 +1000,14 @@ static RegexNode *parser_regex_counter(RegexNode  *child,
             SET_RID(left, ps);
         }
 
-        right = max > min ? regex_single_child(
+        right = max > min ? regex_repetition(
                                 QUES, left ? regex_clone(child) : child, greedy)
                           : NULL;
         SET_RID(right, ps);
         for (i = min + 1; i < max; i++) {
             tmp = regex_branch(CONCAT, regex_clone(child), right);
             SET_RID(tmp, ps);
-            right = regex_single_child(QUES, tmp, greedy);
+            right = regex_repetition(QUES, tmp, greedy);
             SET_RID(right, ps);
         }
 

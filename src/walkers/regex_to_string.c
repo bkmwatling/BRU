@@ -174,7 +174,7 @@ LISTENER_F(POSTORDER, STAR)
     if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     append(sb, "*");
-    if (!REGEX->pos) append(sb, "?"); // lazy
+    if (!REGEX->greedy) append(sb, "?"); // lazy
 }
 
 /* --- PLUS ---------------------------------------------------------------- */
@@ -195,7 +195,7 @@ LISTENER_F(POSTORDER, PLUS)
     if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     append(sb, "+");
-    if (!REGEX->pos) append(sb, "?"); // lazy
+    if (!REGEX->greedy) append(sb, "?"); // lazy
 }
 
 /* --- QUES ---------------------------------------------------------------- */
@@ -216,7 +216,7 @@ LISTENER_F(POSTORDER, QUES)
     if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     append(sb, "?");
-    if (!REGEX->pos) append(sb, "?"); // lazy
+    if (!REGEX->greedy) append(sb, "?"); // lazy
 }
 
 /* --- COUNTER ------------------------------------------------------------- */
@@ -237,7 +237,7 @@ LISTENER_F(POSTORDER, COUNTER)
     if (IS_OP(REGEX->left->type)) append(sb, ")");
 
     appendf(sb, "{" CNTR_FMT ", " CNTR_FMT "}", REGEX->min, REGEX->max);
-    if (!REGEX->pos) append(sb, "?"); // lazy
+    if (!REGEX->greedy) append(sb, "?"); // lazy
 }
 
 /* --- LOOKAHEAD ----------------------------------------------------------- */
@@ -247,11 +247,10 @@ LISTENER_F(PREORDER, LOOKAHEAD)
     GET_STATE(StringBuilder *, sb);
 
     append(sb, "(?");
-    if (REGEX->pos) {
+    if (REGEX->positive)
         append(sb, "=");
-    } else {
+    else
         append(sb, "!");
-    }
 }
 
 LISTENER_F(POSTORDER, LOOKAHEAD)

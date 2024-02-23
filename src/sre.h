@@ -54,7 +54,8 @@ struct regex_node {
     };
 
     union {
-        byte       pos;
+        byte       greedy;
+        byte       positive;
         len_t      cc_len;
         len_t      capture_idx;
         RegexNode *right;
@@ -94,8 +95,9 @@ RegexNode *regex_cc(Interval *intervals, len_t len);
 RegexNode *regex_branch(RegexType kind, RegexNode *left, RegexNode *right);
 RegexNode *regex_capture(RegexNode *child, len_t idx);
 RegexNode *regex_backreference(len_t idx);
-RegexNode *regex_single_child(RegexType kind, RegexNode *child, byte pos);
+RegexNode *regex_repetition(RegexType kind, RegexNode *child, byte greedy);
 RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max);
+RegexNode *regex_lookahead(RegexNode *child, byte pos);
 
 void       regex_node_free(RegexNode *self);
 RegexNode *regex_clone(RegexNode *self);

@@ -112,7 +112,7 @@ char *intervals_to_str(const Interval *intervals, size_t len)
 
 RegexNode *regex_new(RegexType type)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
     /* check `type` to make sure correct node type */
     assert(type == CARET || type == DOLLAR || type == MEMOISE ||
@@ -124,7 +124,7 @@ RegexNode *regex_new(RegexType type)
 
 RegexNode *regex_literal(const char *ch)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
     re->type = LITERAL;
     re->ch   = ch;
@@ -134,7 +134,7 @@ RegexNode *regex_literal(const char *ch)
 
 RegexNode *regex_cc(Interval *intervals, len_t len)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
     re->type      = CC;
     re->intervals = intervals;
@@ -145,7 +145,7 @@ RegexNode *regex_cc(Interval *intervals, len_t len)
 
 RegexNode *regex_branch(RegexType type, RegexNode *left, RegexNode *right)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
     /* check `type` to make sure correct node type */
     assert(type == ALT || type == CONCAT);
@@ -158,7 +158,7 @@ RegexNode *regex_branch(RegexType type, RegexNode *left, RegexNode *right)
 
 RegexNode *regex_capture(RegexNode *child, len_t idx)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
     re->type        = CAPTURE;
     re->left        = child;
@@ -169,7 +169,7 @@ RegexNode *regex_capture(RegexNode *child, len_t idx)
 
 RegexNode *regex_backreference(len_t idx)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
     re->type        = BACKREFERENCE;
     re->capture_idx = idx;
@@ -177,28 +177,39 @@ RegexNode *regex_backreference(len_t idx)
     return re;
 }
 
-RegexNode *regex_single_child(RegexType type, RegexNode *child, byte pos)
+RegexNode *regex_repetition(RegexType type, RegexNode *child, byte greedy)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
     /* check `type` to make sure correct node type */
-    assert(type == STAR || type == PLUS || type == QUES || type == LOOKAHEAD);
-    re->type = type;
-    re->left = child;
-    re->pos  = pos;
+    assert(type == STAR || type == PLUS || type == QUES);
+    re->type   = type;
+    re->left   = child;
+    re->greedy = greedy;
 
     return re;
 }
 
 RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
-    re->type = COUNTER;
-    re->left = child;
-    re->pos  = greedy;
-    re->min  = min;
-    re->max  = max;
+    re->type   = COUNTER;
+    re->left   = child;
+    re->greedy = greedy;
+    re->min    = min;
+    re->max    = max;
+
+    return re;
+}
+
+RegexNode *regex_lookahead(RegexNode *child, byte positive)
+{
+    RegexNode *re = malloc(sizeof(*re));
+
+    re->type     = LOOKAHEAD;
+    re->left     = child;
+    re->positive = positive;
 
     return re;
 }
@@ -320,18 +331,18 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
         case CAPTURE:
             fprintf(stream, "Capture(%d)", re->capture_idx);
             goto body;
-        case STAR: fprintf(stream, "Star(%d)", re->pos); goto body;
-        case PLUS: fprintf(stream, "Plus(%d)", re->pos); goto body;
-        case QUES: fprintf(stream, "Ques(%d)", re->pos); goto body;
+        case STAR: fprintf(stream, "Star(%d)", re->greedy); goto body;
+        case PLUS: fprintf(stream, "Plus(%d)", re->greedy); goto body;
+        case QUES: fprintf(stream, "Ques(%d)", re->greedy); goto body;
         case COUNTER:
-            fprintf(stream, "Counter(%d, " CNTR_FMT ", ", re->pos, re->min);
+            fprintf(stream, "Counter(%d, " CNTR_FMT ", ", re->greedy, re->min);
             if (re->max < CNTR_MAX)
                 fprintf(stream, CNTR_FMT ")", re->max);
             else
                 fprintf(stream, "inf)");
             goto body;
         case LOOKAHEAD:
-            fprintf(stream, "Lookahead(%d)", re->pos);
+            fprintf(stream, "Lookahead(%d)", re->positive);
         body:
             if (re->left) {
                 fprintf(stream, "\n%*sbody:\n", indent, "");

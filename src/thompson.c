@@ -8,7 +8,7 @@
 
 #define SET_TRANS_PRIORITY(sm, re, sid, enter, leave)   \
     do {                                                \
-        if ((re)->pos) {                                \
+        if ((re)->greedy) {                             \
             (enter) = smir_add_transition((sm), (sid)); \
             (leave) = smir_add_transition((sm), (sid)); \
         } else {                                        \

@@ -459,7 +459,7 @@ static void rfa_construct(Rfa                *self,
 
         case STAR:
             rfa_construct(self, re->left, first, opts);
-            if (re->pos) {
+            if (re->greedy) {
                 if (!NULLABLE(first)) APPEND_GAMMA(first);
             } else {
                 ppl_remove(first, GAMMA_POS);
@@ -488,7 +488,7 @@ static void rfa_construct(Rfa                *self,
             al_tmp  = smir_action_list_new();
             FOREACH(pp, self->last->sentinel) {
                 ppl_clone_into(first, ppl_tmp);
-                if (re->pos) {
+                if (re->greedy) {
                     if (!NULLABLE(first)) APPEND_GAMMA(ppl_tmp);
                 } else {
                     ppl_remove(ppl_tmp, GAMMA_POS);
@@ -507,7 +507,7 @@ static void rfa_construct(Rfa                *self,
 
         case QUES:
             rfa_construct(self, re->left, first, opts);
-            if (re->pos) {
+            if (re->greedy) {
                 if (!NULLABLE(first)) APPEND_GAMMA(first);
             } else {
                 ppl_remove(first, GAMMA_POS);

@@ -62,6 +62,66 @@ static StcArgConvertResult convert_filepath(const char *arg, void *out)
     return STC_ARG_CR_SUCCESS;
 }
 
+static StcArgConvertResult convert_construction(const char *arg, void *out)
+{
+    Construction *construction = out;
+
+    if (strcmp(arg, "thompson") == 0)
+        *construction = THOMPSON;
+    else if (strcmp(arg, "glushkov") == 0)
+        *construction = GLUSHKOV;
+    else
+        return STC_ARG_CR_FAILURE;
+
+    return STC_ARG_CR_SUCCESS;
+}
+
+static StcArgConvertResult convert_branch(const char *arg, void *out)
+{
+    SplitChoice *branch = out;
+
+    if (strcmp(arg, "split") == 0)
+        *branch = SC_SPLIT;
+    else if (strcmp(arg, "tswitch") == 0)
+        *branch = SC_TSWITCH;
+    else
+        return STC_ARG_CR_FAILURE;
+
+    return STC_ARG_CR_SUCCESS;
+}
+
+static StcArgConvertResult convert_capture_semantics(const char *arg, void *out)
+{
+    CaptureSemantics *cs = out;
+
+    if (strcmp(arg, "pcre") == 0)
+        *cs = CS_PCRE;
+    else if (strcmp(arg, "re2") == 0)
+        *cs = CS_RE2;
+    else
+        return STC_ARG_CR_FAILURE;
+
+    return STC_ARG_CR_SUCCESS;
+}
+
+static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
+{
+    MemoScheme *ms = out;
+
+    if (strcmp(arg, "in") == 0 || strcmp(arg, "IN") == 0)
+        *ms = MS_IN;
+    else if (strcmp(arg, "cn") == 0 || strcmp(arg, "CN") == 0)
+        *ms = MS_CN;
+    else if (strcmp(arg, "iar") == 0 || strcmp(arg, "IAR") == 0)
+        *ms = MS_IAR;
+    else if (strcmp(arg, "none") == 0)
+        *ms = MS_NONE;
+    else
+        return STC_ARG_CR_FAILURE;
+
+    return STC_ARG_CR_SUCCESS;
+}
+
 static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
 {
     SchedulerType *type = out;
@@ -76,77 +136,12 @@ static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
     return STC_ARG_CR_SUCCESS;
 }
 
-static StcArgConvertResult convert_construction(const char *arg, void *out)
-{
-    Construction *construction = out;
-
-    if (strcmp(arg, "thompson") == 0) {
-        *construction = THOMPSON;
-    } else if (strcmp(arg, "glushkov") == 0) {
-        *construction = GLUSHKOV;
-    } else {
-        /* fprintf(stderr, "ERROR: invalid construction\n"); */
-        return STC_ARG_CR_FAILURE;
-    }
-
-    return STC_ARG_CR_SUCCESS;
-}
-
-static StcArgConvertResult convert_branch(const char *arg, void *out)
-{
-    SplitChoice *branch = out;
-
-    if (strcmp(arg, "split") == 0) {
-        *branch = SC_SPLIT;
-    } else if (strcmp(arg, "tswitch") == 0) {
-        *branch = SC_TSWITCH;
-    } else {
-        /* fprintf(stderr, "ERROR: invalid branching type\n"); */
-        return STC_ARG_CR_FAILURE;
-    }
-
-    return STC_ARG_CR_SUCCESS;
-}
-
-static StcArgConvertResult convert_capture_semantics(const char *arg, void *out)
-{
-    CaptureSemantics *cs = out;
-
-    if (strcmp(arg, "pcre") == 0) {
-        *cs = CS_PCRE;
-    } else if (strcmp(arg, "re2") == 0) {
-        *cs = CS_RE2;
-    } else {
-        /* fprintf(stderr, "ERROR: invalid type of capturing semantics\n"); */
-        return STC_ARG_CR_FAILURE;
-    }
-
-    return STC_ARG_CR_SUCCESS;
-}
-
-static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
-{
-    MemoScheme *ms = out;
-
-    if (strcmp(arg, "IN") == 0)
-        *ms = MS_IN;
-    else if (strcmp(arg, "CN") == 0)
-        *ms = MS_CN;
-    else if (strcmp(arg, "IAR") == 0)
-        *ms = MS_IAR;
-    else if (strcmp(arg, "none") == 0)
-        *ms = MS_NONE;
-    else
-        return STC_ARG_CR_FAILURE;
-
-    return STC_ARG_CR_SUCCESS;
-}
-
 int main(int argc, const char **argv)
 {
-    int   arg_idx, benchmark, matched, all_matches, exit_code = EXIT_SUCCESS;
-    char *regex, *text;
-    FILE *outfile, *logfile;
+    int            arg_idx, exit_code = EXIT_SUCCESS;
+    int            benchmark, matched, all_matches;
+    char          *regex, *text;
+    FILE          *outfile, *logfile;
     Subcommand     cmd;
     SchedulerType  scheduler_type;
     Parser        *p;
@@ -203,7 +198,7 @@ int main(int argc, const char **argv)
                   "which type of capturing semantics to compile with", "pcre",
                   convert_capture_semantics },
         { STC_ARG_CUSTOM, "-m", "--memo-scheme", &compiler_opts.memo_scheme,
-                  "none | CN | IN | IAR", "which memoisation scheme to apply", "none",
+                  "none | cn | in | iar", "which memoisation scheme to apply", "none",
                   convert_memo_scheme },
         { STC_ARG_CUSTOM, "-s", "--scheduler", &scheduler_type,
                   "spencer | lockstep | thompson",
@@ -237,7 +232,7 @@ int main(int argc, const char **argv)
         free((char *) p->regex);
         parser_free(p);
     } else if (cmd == CMD_COMPILE) {
-        stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 3, NULL);
+        stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 5, NULL);
 
         c = compiler_new(parser_new(sdup(regex), parser_opts), &compiler_opts);
         prog = compiler_compile(c);
