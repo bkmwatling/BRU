@@ -2,6 +2,7 @@
 #define SRE_H
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include "stc/util/utf.h"
 
@@ -98,6 +99,6 @@ RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max);
 
 void       regex_node_free(RegexNode *self);
 RegexNode *regex_clone(RegexNode *self);
-char      *regex_to_tree_str(const RegexNode *self);
+void       regex_print_tree(const RegexNode *self, FILE *stream);
 
 #endif /* SRE_H */

@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -9,30 +9,56 @@
 #include "utils.h"
 
 #define BUF              512
-#define INTERVAL_MAX_BUF 13
+#define INTERVAL_MAX_BUF 26
 
-static void regex_to_tree_str_indent(char           **s,
-                                     size_t          *len,
-                                     size_t          *alloc,
-                                     const RegexNode *re,
-                                     int              indent);
+static void
+regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
+static uint utf8_str_to_num(const char *codepoint)
+{
+    short i, nbytes;
+    uint  num = 0;
+
+    for (i = 0, nbytes = stc_utf8_nbytes(codepoint); i < nbytes; i++)
+        num += (uint) codepoint[i] << (8 * (nbytes - i - 1));
+
+    return num;
+}
+
+static int utf8_isprint(const char *codepoint)
+{
+    /* TODO: check for more than just ASCII isprint */
+    return *codepoint > 127 || isprint(*codepoint);
+}
+
 Interval interval(int neg, const char *lbound, const char *ubound)
 {
-    Interval interval = { neg, lbound, ubound };
-    return interval;
+    return (Interval){ neg, lbound, ubound };
 }
 
 char *interval_to_str(const Interval *self)
 {
-    char *s = malloc((INTERVAL_MAX_BUF + 1) * sizeof(char)), *p = s;
+    char  *s   = malloc(INTERVAL_MAX_BUF * sizeof(*s));
+    size_t len = 0;
 
-    if (self->neg) *p++ = '^';
-    p += snprintf(p, INTERVAL_MAX_BUF + 1, "(%.*s, %.*s)",
-                  stc_utf8_nbytes(self->lbound), self->lbound,
-                  stc_utf8_nbytes(self->ubound), self->ubound);
+    if (self->neg) s[len++] = '^';
+    if (utf8_isprint(self->lbound))
+        len += snprintf(s + len, INTERVAL_MAX_BUF - len, "(%.*s, ",
+                        stc_utf8_nbytes(self->lbound), self->lbound);
+    else
+        len += snprintf(s + len, INTERVAL_MAX_BUF - len, "(\\u%0*x, ",
+                        2 * stc_utf8_nbytes(self->lbound),
+                        utf8_str_to_num(self->lbound));
+
+    if (utf8_isprint(self->ubound))
+        snprintf(s + len, INTERVAL_MAX_BUF - len, "%.*s)",
+                 stc_utf8_nbytes(self->ubound), self->ubound);
+    else
+        snprintf(s + len, INTERVAL_MAX_BUF - len, "\\u%0*x)",
+                 2 * stc_utf8_nbytes(self->ubound),
+                 utf8_str_to_num(self->ubound));
 
     return s;
 }
@@ -63,7 +89,7 @@ int intervals_predicate(const Interval *intervals,
 char *intervals_to_str(const Interval *intervals, size_t len)
 {
     size_t i, slen = 0, alloc = 3 + 2 * INTERVAL_MAX_BUF;
-    char  *s = malloc(alloc * sizeof(char)), *p;
+    char  *s = malloc(alloc * sizeof(*s)), *p;
 
     s[slen++] = '[';
     for (i = 0; i < len; ++i) {
@@ -209,9 +235,9 @@ void regex_node_free(RegexNode *self)
 
 RegexNode *regex_clone(RegexNode *self)
 {
-    RegexNode *re = malloc(sizeof(RegexNode));
+    RegexNode *re = malloc(sizeof(*re));
 
-    memcpy(re, self, sizeof(RegexNode));
+    memcpy(re, self, sizeof(*re));
     switch (re->type) {
         case EPSILON: /* fallthrough */
         case CARET:   /* fallthrough */
@@ -221,9 +247,9 @@ RegexNode *regex_clone(RegexNode *self)
         case BACKREFERENCE: break;
 
         case CC:
-            re->intervals = malloc(re->cc_len * sizeof(Interval));
+            re->intervals = malloc(re->cc_len * sizeof(*re->intervals));
             memcpy(re->intervals, self->intervals,
-                   re->cc_len * sizeof(Interval));
+                   re->cc_len * sizeof(*re->intervals));
             break;
 
         case ALT: /* fallthrough */
@@ -244,118 +270,77 @@ RegexNode *regex_clone(RegexNode *self)
     return re;
 }
 
-char *regex_to_tree_str(const RegexNode *self)
+void regex_print_tree(const RegexNode *self, FILE *stream)
 {
-    size_t len = 0, alloc = BUF;
-
-    char *s = malloc(alloc * sizeof(char));
-    regex_to_tree_str_indent(&s, &len, &alloc, self, 0);
-
-    return s;
+    regex_print_tree_indent(stream, self, 0);
+    fputc('\n', stream);
 }
 
-static void regex_to_tree_str_indent(char           **s,
-                                     size_t          *len,
-                                     size_t          *alloc,
-                                     const RegexNode *re,
-                                     int              indent)
+static void
+regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
 {
     char *p;
 
     if (re == NULL) return;
 
-    ENSURE_SPACE(*s, *len + indent + 1, *alloc, sizeof(char));
-    *len += snprintf(*s + *len, *alloc - *len, "%*s", indent, "");
-
-    ENSURE_SPACE(*s, *len + 9, *alloc, sizeof(char));
-    *len += snprintf(*s + *len, *alloc - *len, "%06lu: ", re->rid);
+    fprintf(stream, "%*s", indent, "");
+    fprintf(stream, "%06lu: ", re->rid);
 
     switch (re->type) {
-        case EPSILON: STR_PUSH(*s, *len, *alloc, "Epsilon"); break;
-
-        case CARET: STR_PUSH(*s, *len, *alloc, "Caret"); break;
-
-        case DOLLAR: STR_PUSH(*s, *len, *alloc, "Dollar"); break;
-
-        case MEMOISE: STR_PUSH(*s, *len, *alloc, "Memoise"); break;
+        case EPSILON: fputs("Epsilon", stream); break;
+        case CARET: fputs("Caret", stream); break;
+        case DOLLAR: fputs("Dollar", stream); break;
+        case MEMOISE: fputs("Memoise", stream); break;
 
         case LITERAL:
-            ENSURE_SPACE(*s, *len + 14, *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len, "Literal(%.*s)",
-                             stc_utf8_nbytes(re->ch), re->ch);
+            fprintf(stream, "Literal(%.*s)", stc_utf8_nbytes(re->ch), re->ch);
             break;
 
         case CC:
             p = intervals_to_str(re->intervals, re->cc_len);
-            ENSURE_SPACE(*s, *len + 12 + strlen(p), *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len, "CharClass(%s)", p);
+            fprintf(stream, "CharClass(%s)", p);
             free(p);
             break;
 
-        case ALT: STR_PUSH(*s, *len, *alloc, "Alternation"); goto concat_body;
+        case ALT: fputs("Alternation", stream); goto concat_body;
         case CONCAT:
-            STR_PUSH(*s, *len, *alloc, "Concatenation");
+            fputs("Concatenation", stream);
         concat_body:
             if (re->left) {
-                ENSURE_SPACE(*s, *len + indent + 7, *alloc, sizeof(char));
-                *len += snprintf(*s + *len, *alloc - *len, "\n%*sleft:\n",
-                                 indent, "");
-                regex_to_tree_str_indent(s, len, alloc, re->left, indent + 2);
+                fprintf(stream, "\n%*sleft:\n", indent, "");
+                regex_print_tree_indent(stream, re->left, indent + 2);
             }
 
             if (re->right) {
-                ENSURE_SPACE(*s, *len + indent + 8, *alloc, sizeof(char));
-                *len += snprintf(*s + *len, *alloc - *len, "\n%*sright:\n",
-                                 indent, "");
-                regex_to_tree_str_indent(s, len, alloc, re->right, indent + 2);
+                fprintf(stream, "\n%*sright:\n", indent, "");
+                regex_print_tree_indent(stream, re->right, indent + 2);
             }
             break;
 
         case CAPTURE:
-            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len, "Capture(%d)",
-                             re->capture_idx);
+            fprintf(stream, "Capture(%d)", re->capture_idx);
             goto body;
-        case STAR:
-            ENSURE_SPACE(*s, *len + 10, *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len, "Star(%d)", re->pos);
-            goto body;
-        case PLUS:
-            ENSURE_SPACE(*s, *len + 10, *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len, "Plus(%d)", re->pos);
-            goto body;
-        case QUES:
-            ENSURE_SPACE(*s, *len + 10, *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len, "Ques(%d)", re->pos);
-            goto body;
+        case STAR: fprintf(stream, "Star(%d)", re->pos); goto body;
+        case PLUS: fprintf(stream, "Plus(%d)", re->pos); goto body;
+        case QUES: fprintf(stream, "Ques(%d)", re->pos); goto body;
         case COUNTER:
-            ENSURE_SPACE(*s, *len + 56, *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len,
-                             "Counter(%d, " CNTR_FMT ", ", re->pos, re->min);
-            if (re->max == CNTR_MAX) {
-                *len += snprintf(*s + *len, *alloc - *len, "inf)");
-            } else {
-                *len +=
-                    snprintf(*s + *len, *alloc - *len, CNTR_FMT ")", re->max);
-            }
+            fprintf(stream, "Counter(%d, " CNTR_FMT ", ", re->pos, re->min);
+            if (re->max < CNTR_MAX)
+                fprintf(stream, CNTR_FMT ")", re->max);
+            else
+                fprintf(stream, "inf)");
             goto body;
         case LOOKAHEAD:
-            ENSURE_SPACE(*s, *len + 15, *alloc, sizeof(char));
-            *len +=
-                snprintf(*s + *len, *alloc - *len, "Lookahead(%d)", re->pos);
+            fprintf(stream, "Lookahead(%d)", re->pos);
         body:
             if (re->left) {
-                ENSURE_SPACE(*s, *len + indent + 7, *alloc, sizeof(char));
-                *len += snprintf(*s + *len, *alloc - *len, "\n%*sbody:\n",
-                                 indent, "");
-                regex_to_tree_str_indent(s, len, alloc, re->left, indent + 2);
+                fprintf(stream, "\n%*sbody:\n", indent, "");
+                regex_print_tree_indent(stream, re->left, indent + 2);
             }
             break;
 
         case BACKREFERENCE:
-            ENSURE_SPACE(*s, *len + 17, *alloc, sizeof(char));
-            *len += snprintf(*s + *len, *alloc - *len, "Backreference(%d)",
-                             re->capture_idx);
+            fprintf(stream, "Backreference(%d)", re->capture_idx);
             break;
 
         case NREGEXTYPES: assert(0 && "unreachable");

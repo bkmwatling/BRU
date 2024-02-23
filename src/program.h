@@ -1,6 +1,8 @@
 #ifndef PROGRAM_H
 #define PROGRAM_H
 
+#include <stdio.h>
+
 #include "stc/fatp/vec.h"
 
 #include "sre.h"
@@ -97,6 +99,6 @@ Program *program_new(const char *regex,
                      size_t      ncaptures);
 Program *program_default(const char *regex);
 void     program_free(Program *self);
-char    *program_to_str(const Program *self);
+void     program_print(const Program *self, FILE *stream);
 
 #endif /* PROGRAM_H */

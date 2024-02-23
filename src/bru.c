@@ -145,7 +145,7 @@ static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
 int main(int argc, const char **argv)
 {
     int   arg_idx, benchmark, matched, all_matches, exit_code = EXIT_SUCCESS;
-    char *regex, *text, *s;
+    char *regex, *text;
     FILE *outfile, *logfile;
     Subcommand     cmd;
     SchedulerType  scheduler_type;
@@ -227,10 +227,8 @@ int main(int argc, const char **argv)
         p   = parser_new(sdup(regex), parser_opts);
         res = parser_parse(p, &re);
         if (res.code == PARSE_SUCCESS) {
-            s = regex_to_tree_str(re.root);
-            fprintf(outfile, "%s\n", s);
+            regex_print_tree(re.root, outfile);
             regex_node_free(re.root);
-            free(s);
         } else {
             fprintf(logfile, "ERROR %d: Invalidation of regex from %s\n",
                     res.code, res.ch);
@@ -243,13 +241,10 @@ int main(int argc, const char **argv)
 
         c = compiler_new(parser_new(sdup(regex), parser_opts), &compiler_opts);
         prog = compiler_compile(c);
-        s    = program_to_str(prog);
-
-        fprintf(outfile, "%s\n", s);
+        program_print(prog, outfile);
 
         compiler_free(c);
         program_free((Program *) prog);
-        free(s);
     } else if (cmd == CMD_MATCH) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
 
