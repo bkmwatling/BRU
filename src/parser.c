@@ -648,7 +648,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /*<< out parameter */)
         return res;
     }
 
-    if (!ch_start)
+    if (!ch_start && ps->ch[1] != ']')
         return PARSE_RES(PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ, ch);
 
     switch (*++ps->ch) {
@@ -676,12 +676,16 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /*<< out parameter */)
             break;
 
         case ']':
-            INTERVAL_LIST_ITEM_INIT(item, interval(neg, ch_start, ch_start));
-            DLL_PUSH_BACK(list->sentinel, item);
+            if (ch_start) {
+                INTERVAL_LIST_ITEM_INIT(item,
+                                        interval(neg, ch_start, ch_start));
+                DLL_PUSH_BACK(list->sentinel, item);
+                list->len++;
+            }
             INTERVAL_LIST_ITEM_INIT(item, interval(neg, "-", "-"));
             DLL_PUSH_BACK(list->sentinel, item);
-            list->len += 2;
-            res        = PARSE_RES(PARSE_SUCCESS, ps->ch);
+            list->len++;
+            res = PARSE_RES(PARSE_SUCCESS, ps->ch);
             break;
 
         case '\0':
