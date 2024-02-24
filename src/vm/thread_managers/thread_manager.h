@@ -21,8 +21,8 @@
 
 /* --- Preprocessor Directives ---------------------------------------------- */
 
+#include "../../types.h"
 #include "../program.h"
-#include "../types.h"
 
 #define thread_manager_reset(manager) (manager)->reset((manager)->impl)
 #define thread_manager_free(manager)      \

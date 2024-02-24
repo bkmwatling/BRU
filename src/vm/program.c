@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stc/fatp/vec.h"
-#include "stc/util/utf.h"
+#include "../stc/fatp/vec.h"
+#include "../stc/util/utf.h"
 
+#include "../types.h"
 #include "program.h"
-#include "types.h"
 
 #define BUFSIZE 512
 

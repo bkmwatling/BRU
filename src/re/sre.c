@@ -3,10 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stc/util/utf.h"
-
+#include "../utils.h"
 #include "sre.h"
-#include "utils.h"
 
 #define BUF              512
 #define INTERVAL_MAX_BUF 26

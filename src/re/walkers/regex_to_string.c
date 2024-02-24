@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../utils.h"
+#include "../../utils.h"
 #include "regex_to_string.h"
 
 /* --- data structures ----------------------------------------------------- */

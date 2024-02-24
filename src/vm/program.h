@@ -3,10 +3,10 @@
 
 #include <stdio.h>
 
-#include "stc/fatp/vec.h"
+#include "../stc/fatp/vec.h"
 
-#include "sre.h"
-#include "types.h"
+#include "../re/sre.h"
+#include "../types.h"
 
 #define BCWRITE(pc, bytecode) *(pc)++ = (bytecode)
 

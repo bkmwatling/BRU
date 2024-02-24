@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "../stc/fatp/vec.h"
+#include "../../stc/fatp/vec.h"
 
 #include "transformer.h"
 

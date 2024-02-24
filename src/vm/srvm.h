@@ -1,10 +1,11 @@
 #ifndef SRVM_H
 #define SRVM_H
 
-#include "stc/fatp/string_view.h"
+#include "../stc/fatp/string_view.h"
+
 #include "thread_managers/thread_manager.h"
 
-/* --- preprocessor constants ----------------------------------------------- */
+/* --- Preprocessor constants ----------------------------------------------- */
 
 #define NO_MATCH          0
 #define MATCH             1

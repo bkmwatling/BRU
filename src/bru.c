@@ -6,14 +6,14 @@
 #include "stc/util/args.h"
 #include "stc/util/utf.h"
 
-#include "compiler.h"
-#include "parser.h"
-#include "srvm.h"
-#include "thread_managers/all_matches.h"
-#include "thread_managers/benchmark.h"
-#include "thread_managers/lockstep.h"
-#include "thread_managers/memoisation.h"
-#include "thread_managers/spencer.h"
+#include "re/parser.h"
+#include "vm/compiler.h"
+#include "vm/srvm.h"
+#include "vm/thread_managers/all_matches.h"
+#include "vm/thread_managers/benchmark.h"
+#include "vm/thread_managers/lockstep.h"
+#include "vm/thread_managers/memoisation.h"
+#include "vm/thread_managers/spencer.h"
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 

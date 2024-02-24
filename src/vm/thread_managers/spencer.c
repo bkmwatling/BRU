@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../stc/fatp/slice.h"
-#include "../stc/fatp/vec.h"
-#include "../utils.h"
+#include "../../stc/fatp/slice.h"
+#include "../../stc/fatp/vec.h"
+#include "../../utils.h"
 
 #include "spencer.h"
 #include "thread_manager.h"

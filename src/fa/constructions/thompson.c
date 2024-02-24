@@ -1,7 +1,6 @@
 #include <assert.h>
 
-#include "smir.h"
-#include "sre.h"
+#include "../../re/sre.h"
 #include "thompson.h"
 
 /* --- Macros --------------------------------------------------------------- */

@@ -1,7 +1,7 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "parser.h"
+#include "../re/parser.h"
 #include "program.h"
 
 typedef enum {
@@ -23,7 +23,7 @@ typedef enum {
     MS_NONE,
     MS_CN,
     MS_IN,
-    MS_IAR
+    MS_IAR,
 } MemoScheme;
 
 typedef struct {

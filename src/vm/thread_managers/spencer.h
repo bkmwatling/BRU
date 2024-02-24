@@ -3,8 +3,8 @@
 
 #include <stddef.h>
 
+#include "../../types.h"
 #include "../program.h"
-#include "../types.h"
 
 #include "thread_manager.h"
 

@@ -1,5 +1,6 @@
-#include "thread_pool.h"
 #include <stdlib.h>
+
+#include "thread_pool.h"
 
 /* --- Data Structures ------------------------------------------------------ */
 

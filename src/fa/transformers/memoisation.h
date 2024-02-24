@@ -1,7 +1,7 @@
 #ifndef MEMOISATION_H
 #define MEMOISATION_H
 
-#include "../compiler.h"
+#include "../../vm/compiler.h"
 #include "../smir.h"
 
 /**

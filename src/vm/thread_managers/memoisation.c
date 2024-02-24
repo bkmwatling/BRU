@@ -1,6 +1,7 @@
-#include "memoisation.h"
 #include <stdlib.h>
 #include <string.h>
+
+#include "memoisation.h"
 
 typedef struct {
     byte       *memoisation_memory;

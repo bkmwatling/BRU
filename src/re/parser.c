@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../types.h"
+#include "../utils.h"
 #include "parser.h"
 #include "sre.h"
-#include "types.h"
-#include "utils.h"
 
 /* --- Macros --------------------------------------------------------------- */
 

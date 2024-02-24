@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "stc/fatp/vec.h"
+#include "../stc/fatp/vec.h"
 
+#include "../utils.h"
 #include "smir.h"
-#include "utils.h"
 
 /* --- Macros --------------------------------------------------------------- */
 

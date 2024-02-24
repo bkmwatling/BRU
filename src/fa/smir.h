@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "srvm.h"
+#include "../vm/srvm.h"
 
 /* --- Macros --------------------------------------------------------------- */
 

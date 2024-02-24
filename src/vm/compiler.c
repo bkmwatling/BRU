@@ -1,11 +1,11 @@
 #include <stdlib.h>
 
+#include "../fa/constructions/glushkov.h"
+#include "../fa/constructions/thompson.h"
+#include "../fa/transformers/memoisation.h"
+#include "../re/parser.h"
+#include "../re/sre.h"
 #include "compiler.h"
-#include "glushkov.h"
-#include "parser.h"
-#include "sre.h"
-#include "thompson.h"
-#include "transformers/memoisation.h"
 
 #ifdef DEBUG
 #    include "walkers/regex_to_string.h"

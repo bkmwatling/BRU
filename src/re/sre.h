@@ -4,9 +4,9 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "stc/util/utf.h"
+#include "../stc/util/utf.h"
 
-#include "types.h"
+#include "../types.h"
 
 /* --- Type definitions ----------------------------------------------------- */
 

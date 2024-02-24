@@ -39,7 +39,7 @@
 /* --- data structures ------------------------------------------------------ */
 
 typedef struct walker Walker;
-typedef void (*listener_f)(void *state, RegexNode *curr);
+typedef void          (*listener_f)(void *state, RegexNode *curr);
 
 // double pointer to facilitate replacing current node in tree
 typedef void (*walker_f)(Walker *w, RegexNode **curr);
