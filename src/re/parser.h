@@ -4,15 +4,15 @@
 #include "sre.h"
 
 typedef struct {
-    int only_counters;       /*<< whether to convert *, +, and ? to counters  */
-    int unbounded_counters;  /*<< whether to allow counters to be unbounded   */
-    int expand_counters;     /*<< whether to exapnd counters                  */
-    int whole_match_capture; /*<< whether to save entire match into capture 0 */
+    int only_counters;       /**< whether to convert *, +, and ? to counters  */
+    int unbounded_counters;  /**< whether to allow counters to be unbounded   */
+    int expand_counters;     /**< whether to exapnd counters                  */
+    int whole_match_capture; /**< whether to save entire match into capture 0 */
 } ParserOpts;
 
 typedef struct {
-    const char *regex; /*<< the regex string to parse                         */
-    ParserOpts  opts;  /*<< the options for parsing                           */
+    const char *regex; /**< the regex string to parse                         */
+    ParserOpts  opts;  /**< the options for parsing                           */
 } Parser;
 
 typedef enum {
@@ -31,26 +31,26 @@ typedef enum {
 } ParseResultCode;
 
 typedef struct {
-    ParseResultCode code; /*<< the result code for this result                */
-    const char *ch; /*<< the pointer into the regex that caused this result   */
+    ParseResultCode code; /**< the result code for this result                */
+    const char *ch; /**< the pointer into the regex that caused this result   */
 } ParseResult;
 
 /**
- * Create a parser from a regex string with specified options.
+ * Construct a parser from a regex string with specified options.
  *
  * @param[in] regex the regex string
  * @param[in] opts  the options for the parser
  *
- * @return the created parser
+ * @return the constructed parser
  */
 Parser *parser_new(const char *regex, ParserOpts opts);
 
 /**
- * Create a parser from a regex string with default options.
+ * Construct a parser from a regex string with default options.
  *
  * @param[in] regex the regex string
  *
- * @return the created parser
+ * @return the constructed parser
  */
 Parser *parser_default(const char *regex);
 

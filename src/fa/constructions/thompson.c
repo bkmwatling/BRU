@@ -16,19 +16,19 @@
         }                                               \
     } while (0)
 
-/* --- Data Structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
     state_id initial;
     state_id final;
 } StateIdPair;
 
-/* --- Helper Prototypes ---------------------------------------------------- */
+/* --- Helper function prototypes ------------------------------------------- */
 
 static StateIdPair
 emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts);
 
-/* --- Main Routine --------------------------------------------------------- */
+/* --- API function --------------------------------------------------------- */
 
 StateMachine *thompson_construct(Regex re, const CompilerOpts *opts)
 {
@@ -43,7 +43,7 @@ StateMachine *thompson_construct(Regex re, const CompilerOpts *opts)
     return sm;
 }
 
-/* --- Helper Routines ------------------------------------------------------ */
+/* --- Helper functions ----------------------------------------------------- */
 
 static StateIdPair
 emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)

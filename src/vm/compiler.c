@@ -3,13 +3,13 @@
 #include "../fa/constructions/glushkov.h"
 #include "../fa/constructions/thompson.h"
 #include "../fa/transformers/memoisation.h"
-#include "../re/parser.h"
 #include "../re/sre.h"
 #include "compiler.h"
 
 #ifdef DEBUG
-#    include "walkers/regex_to_string.h"
 #    include <stdio.h>
+
+#    include "../re/walkers/regex_to_string.h"
 #endif
 
 #define COMPILER_OPTS_DEFAULT \

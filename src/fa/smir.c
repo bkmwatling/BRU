@@ -21,7 +21,7 @@
         DLL_INIT((trans)->actions_sentinel); \
     } while (0)
 
-/* --- Type Definitions ----------------------------------------------------- */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct trans Trans;
 
@@ -29,13 +29,13 @@ struct action {
     ActionType type;
 
     union {
-        const char     *ch;   /*<< type = ACT_CHAR                            */
-        const Interval *pred; /*<< type = ACT_PRED                            */
+        const char     *ch;   /**< type = ACT_CHAR                            */
+        const Interval *pred; /**< type = ACT_PRED                            */
     };
 
     union {
-        len_t pred_len; /*<< type = ACT_PRED                                  */
-        size_t k; /*<< type = ACT_MEMO | ACT_SAVE | ACT_EPSCHK | ACT_EPSSET   */
+        len_t pred_len; /**< type = ACT_PRED                                  */
+        size_t k; /**< type = ACT_MEMO | ACT_SAVE | ACT_EPSCHK | ACT_EPSSET   */
     };
 };
 
@@ -75,7 +75,7 @@ struct state_machine {
     size_t      ninits;
 };
 
-/* --- Helper Functions ----------------------------------------------------- */
+/* --- Helper functions ----------------------------------------------------- */
 
 static void action_list_free(ActionList *self)
 {
@@ -746,14 +746,7 @@ void smir_reorder_states(StateMachine *self, state_id *sid_ordering)
     self->states = states;
 }
 
-void smir_transform(StateMachine *self, transform_f transformer)
-{
-    (void) self;
-    (void) transformer;
-    assert(0 && "TODO");
-}
-
-/* --- SMIR Compilation ----------------------------------------------------- */
+/* --- SMIR compilation ----------------------------------------------------- */
 
 #define RESERVE(bytes, n)               \
     do {                                \
@@ -767,7 +760,7 @@ void smir_transform(StateMachine *self, transform_f transformer)
     *((offset_t *) ((insts) + (offset_idx))) = \
         (offset_t) (idx) - ((offset_idx) + sizeof(offset_t))
 
-/* --- Data Structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
     offset_t entry;     /*<< where the state is compiled in the program       */
@@ -789,7 +782,7 @@ typedef struct {
     // TODO: counter memory
 } MemoryMaps; // map RIDs to memory indices
 
-/* --- Helper Routines ------------------------------------------------------ */
+/* --- Helper functions ----------------------------------------------------- */
 
 static size_t count_bytes_actions(const ActionList *acts)
 {
@@ -1035,8 +1028,8 @@ cleanup:
 static void compile_state(StateMachine *sm,
                           Program      *prog,
                           state_id      sid,
-                          compile_f     pre,
-                          compile_f     post,
+                          compile_f    *pre,
+                          compile_f    *post,
                           StateBlock   *state_blocks,
                           MemoryMaps   *mmaps)
 {
@@ -1096,9 +1089,10 @@ static void compile_initial(StateMachine *sm,
     compile_state(sm, prog, INITIAL_STATE_ID, NULL, NULL, state_blocks, mmaps);
 }
 
-/* --- Main Routine --------------------------------------------------------- */
+/* --- API function --------------------------------------------------------- */
 
-Program *smir_compile_with_meta(StateMachine *sm, compile_f pre, compile_f post)
+Program *
+smir_compile_with_meta(StateMachine *sm, compile_f *pre, compile_f *post)
 {
     Program    *prog  = program_default(sm->regex);
     MemoryMaps  mmaps = { 0 };

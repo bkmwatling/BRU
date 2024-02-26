@@ -4,7 +4,7 @@
 
 #include "transformer.h"
 
-/* --- API Routines --------------------------------------------------------- */
+/* --- API functions -------------------------------------------------------- */
 
 StateMachine *transform_from_states(StateMachine *old_sm, state_id *states)
 {
@@ -133,7 +133,7 @@ StateMachine *transform_from_transitions(StateMachine *old_sm,
     return new_sm;
 }
 
-StateMachine *transform_with_states(StateMachine *sm, state_predicate_f spf)
+StateMachine *transform_with_states(StateMachine *sm, state_predicate_f *spf)
 {
     unsigned int *states;
     state_id      sid;
@@ -149,7 +149,7 @@ StateMachine *transform_with_states(StateMachine *sm, state_predicate_f spf)
     return transform_from_states(sm, states);
 }
 
-StateMachine *transform_with_trans(StateMachine *sm, trans_predicate_f tpf)
+StateMachine *transform_with_trans(StateMachine *sm, trans_predicate_f *tpf)
 {
     trans_id *transitions, *out_trans;
     state_id  sid;

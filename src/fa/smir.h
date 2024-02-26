@@ -16,7 +16,7 @@
 #define IS_INITIAL_STATE(sid) (sid == INITIAL_STATE_ID)
 #define IS_FINAL_STATE(sid)   (sid == FINAL_STATE_ID)
 
-/* --- Type Definitions ----------------------------------------------------- */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef enum {
     ACT_BEGIN,
@@ -28,7 +28,7 @@ typedef enum {
     ACT_MEMO,
     ACT_SAVE,
     ACT_EPSCHK,
-    ACT_EPSSET
+    ACT_EPSSET,
 } ActionType;
 
 typedef ActionType PredicateType;
@@ -42,20 +42,7 @@ typedef struct state_machine        StateMachine;
 typedef uint32_t state_id; // 0 => nonexistent
 typedef uint64_t trans_id; // (src state_id, idx into outgoing transitions)
 
-/**
- * TODO: decide on compilation function signature
- * e.g. void compile_f(void *pre_meta, Prog *p) => push instructions onto p
- *      void compile_f(void *pre_meta, byte *b) => push instructions onto b
- *      Prog *compile_f(void *pre_meta)         => compile into sub-program
- *      ...
- */
-typedef void (*compile_f)(void *, Program *);
-
-/**
- * TODO: decide on transformer functions for running graph algorithms
- * on the state machine.
- */
-typedef void (*transform_f)(StateMachine *self);
+typedef void compile_f(void *meta, Program *prog);
 
 /* --- API ------------------------------------------------------------------ */
 
@@ -167,7 +154,7 @@ trans_id smir_set_final(StateMachine *self, state_id sid);
  * Add an outgoing transition to a state.
  *
  * The added transition will not have a destination state.
- * See \ref smir_set_dst.
+ * @see smir_set_dst.
  *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
@@ -545,7 +532,7 @@ ActionListIterator *smir_action_list_iter(const ActionList *self);
  * Get the next action in the action list iterator.
  *
  * Note: you can call this function interchangeably with
- * \ref smir_action_list_iterator_prev, but note that if that function returns
+ * @ref smir_action_list_iterator_prev, but note that if that function returns
  * NULL, then this function will return NULL for the rest of the iterator's
  * lifetime.
  *
@@ -560,7 +547,7 @@ const Action *smir_action_list_iterator_next(ActionListIterator *self);
  * Get the previous action in the action list iterator.
  *
  * Note: you can call this function interchangeably with
- * \ref smir_action_list_iterator_next, but note that if that function returns
+ * @ref smir_action_list_iterator_next, but note that if that function returns
  * NULL, then this function will return NULL for the rest of the iterator's
  * lifetime.
  *
@@ -645,8 +632,8 @@ void *smir_get_post_meta(StateMachine *self, state_id sid);
  * @return the compiled program
  */
 Program *smir_compile_with_meta(StateMachine *self,
-                                compile_f     pre_meta,
-                                compile_f     post_meta);
+                                compile_f    *pre_meta,
+                                compile_f    *post_meta);
 
 /**
  * Reorder the states of the state machine with the given ordering.
@@ -662,13 +649,5 @@ Program *smir_compile_with_meta(StateMachine *self,
  * @param[in] sid_ordering the new order of the states
  */
 void smir_reorder_states(StateMachine *self, state_id *sid_ordering);
-
-/**
- * Transform the state machine (in-place) with the provided transformer.
- *
- * @param[in] self        the state machine
- * @param[in] transformer the transformer
- */
-void smir_transform(StateMachine *self, transform_f transformer);
 
 #endif /* SMIR_H */

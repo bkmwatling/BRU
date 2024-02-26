@@ -45,23 +45,23 @@
 typedef struct pos_pair PosPair;
 
 struct pos_pair {
-    size_t      pos;     /*<< linearised position for Glushkov                */
-    ActionList *actions; /*<< list of actions on transition                   */
+    size_t      pos;     /**< linearised position for Glushkov                */
+    ActionList *actions; /**< list of actions on transition                   */
     PosPair    *prev;
     PosPair    *next;
 };
 
 typedef struct {
-    size_t   len;      /*<< length of (number of elements in) the list        */
-    PosPair *sentinel; /*<< sentinel for circly linked list                   */
-    PosPair *gamma;    /*<< shortcut to gamma pair in linked list             */
+    size_t   len;      /**< length of (number of elements in) the list        */
+    PosPair *sentinel; /**< sentinel for circly linked list                   */
+    PosPair *gamma;    /**< shortcut to gamma pair in linked list             */
 } PosPairList;
 
 typedef struct {
-    PosPairList  *last;       /*<< last *set* for Glushkov                    */
-    PosPairList **follow;     /*<< integer map of positions to follow lists   */
-    size_t        npositions; /*<< number of linearised positions             */
-    const Action **positions; /*<< integer map of positions to actual info    */
+    PosPairList  *last;       /**< last *set* for Glushkov                    */
+    PosPairList **follow;     /**< integer map of positions to follow lists   */
+    size_t        npositions; /**< number of linearised positions             */
+    const Action **positions; /**< integer map of positions to actual info    */
 } Rfa;
 
 static void     pp_free(PosPair *self);
@@ -523,7 +523,6 @@ static void rfa_construct(Rfa                *self,
     }
 
 cleanup:
-
     if (rfa_r2) rfa_free(rfa_r2);
     if (first_r2) ppl_free(first_r2);
     if (ppl_tmp) ppl_free(ppl_tmp);

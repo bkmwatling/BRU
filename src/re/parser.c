@@ -61,54 +61,56 @@ typedef struct {
 
 static ParseResult parse_alt(const Parser *self,
                              ParseState   *ps,
-                             RegexNode   **re /*<< out parameter */);
+                             RegexNode   **re /**< out parameter */);
 
 static ParseResult parse_expr(const Parser *self,
                               ParseState   *ps,
-                              RegexNode   **re /*<< out parameter */);
+                              RegexNode   **re /**< out parameter */);
 
 static ParseResult parse_elem(const Parser *self,
                               ParseState   *ps,
-                              RegexNode   **re /*<< out parameter */);
+                              RegexNode   **re /**< out parameter */);
 
 static ParseResult parse_atom(const Parser *self,
                               ParseState   *ps,
-                              RegexNode   **re /*<< out parameter */);
+                              RegexNode   **re /**< out parameter */);
 
 static ParseResult parse_quantifier(const Parser *self,
                                     ParseState   *ps,
-                                    RegexNode   **re /*<< in,out parameter */);
+                                    RegexNode   **re /**< in,out parameter */);
 
 static ParseResult parse_curly(ParseState *ps,
-                               cntr_t     *min /*<< out parameter */,
-                               cntr_t     *max /*<< out parameter */);
+                               cntr_t     *min /**< out parameter */,
+                               cntr_t     *max /**< out parameter */);
 
 static ParseResult parse_paren(const Parser *self,
                                ParseState   *ps,
-                               RegexNode   **re /*<< out parameter */);
+                               RegexNode   **re /**< out parameter */);
 
 static ParseResult parse_opt_set_flag(ParseState *ps);
 
 static ParseResult parse_cc(ParseState *ps,
-                            RegexNode **re /*<< out parameter */);
+                            RegexNode **re /**< out parameter */);
 
 static ParseResult parse_cc_atom(ParseState   *ps,
                                  int           neg,
-                                 IntervalList *list /*<< out parameter */);
+                                 IntervalList *list /**< out parameter */);
 
 static ParseResult parse_escape(ParseState *ps,
-                                RegexNode **re /*<< out parameter */);
+                                RegexNode **re /**< out parameter */);
 
 static ParseResult parse_escape_char(ParseState  *ps,
-                                     const char **ch /*<< out parameter */);
+                                     const char **ch /**< out parameter */);
 
 static ParseResult parse_escape_cc(ParseState   *ps,
                                    int           neg,
-                                   IntervalList *list /*<< out parameter */);
+                                   IntervalList *list /**< out parameter */);
 
 static ParseResult parse_posix_cc(ParseState   *ps,
                                   int           neg,
-                                  IntervalList *list /*<< out parameter */);
+                                  IntervalList *list /**< out parameter */);
+
+static ParseResult skip_comment(ParseState *ps);
 
 static RegexNode *parser_regex_counter(RegexNode  *child,
                                        byte        greedy,
@@ -117,7 +119,7 @@ static RegexNode *parser_regex_counter(RegexNode  *child,
                                        int         expand_counters,
                                        ParseState *ps);
 
-/* --- Public function definitions ------------------------------------------ */
+/* --- API function definitions --------------------------------------------- */
 
 Parser *parser_new(const char *regex, ParserOpts opts)
 {
@@ -171,7 +173,7 @@ static Interval *dot(void)
 
 static ParseResult parse_alt(const Parser *self,
                              ParseState   *ps,
-                             RegexNode   **re /*<< out parameter */)
+                             RegexNode   **re /**< out parameter */)
 {
     RegexNode  *r;
     ParseResult res;
@@ -195,7 +197,7 @@ static ParseResult parse_alt(const Parser *self,
 
 static ParseResult parse_expr(const Parser *self,
                               ParseState   *ps,
-                              RegexNode   **re /*<< out parameter */)
+                              RegexNode   **re /**< out parameter */)
 {
     RegexNode  *r;
     ParseResult res;
@@ -229,7 +231,7 @@ static ParseResult parse_expr(const Parser *self,
 
 static ParseResult parse_elem(const Parser *self,
                               ParseState   *ps,
-                              RegexNode   **re /*<< out parameter */)
+                              RegexNode   **re /**< out parameter */)
 {
     ParseResult res;
 
@@ -243,9 +245,12 @@ static ParseResult parse_elem(const Parser *self,
 
 static ParseResult parse_atom(const Parser *self,
                               ParseState   *ps,
-                              RegexNode   **re /*<< out parameter */)
+                              RegexNode   **re /**< out parameter */)
 {
     ParseResult res;
+
+    res = skip_comment(ps);
+    if (ERRORED(res.code)) return res;
 
     switch (*ps->ch) {
         case '\\': res = parse_escape(ps, re); break;
@@ -279,9 +284,9 @@ static ParseResult parse_atom(const Parser *self,
             break;
 
         case '\0':
-            *re = regex_new(EPSILON);
-            SET_RID(*re, ps);
-            res = PARSE_RES(PARSE_SUCCESS, ps->ch);
+            // *re = regex_new(EPSILON);
+            // SET_RID(*re, ps);
+            res = PARSE_RES(PARSE_NO_MATCH, ps->ch);
             break;
 
         case ')':
@@ -309,12 +314,14 @@ static ParseResult parse_atom(const Parser *self,
             break;
     }
 
+    if (SUCCEEDED(res.code)) res = skip_comment(ps);
+
     return res;
 }
 
 static ParseResult parse_quantifier(const Parser *self,
                                     ParseState   *ps,
-                                    RegexNode   **re /*<< in,out parameter */)
+                                    RegexNode   **re /**< in,out parameter */)
 {
     RegexNode  *tmp;
     ParseResult res;
@@ -421,8 +428,8 @@ static ParseResult parse_quantifier(const Parser *self,
 }
 
 static ParseResult parse_curly(ParseState *ps,
-                               cntr_t     *min /*<< out parameter */,
-                               cntr_t     *max /*<< out parameter */)
+                               cntr_t     *min /**< out parameter */,
+                               cntr_t     *max /**< out parameter */)
 {
     char        ch;
     cntr_t      m, n;
@@ -459,7 +466,7 @@ done:
 
 static ParseResult parse_paren(const Parser *self,
                                ParseState   *ps,
-                               RegexNode   **re /*<< out parameter */)
+                               RegexNode   **re /**< out parameter */)
 {
     ParseResult res;
     ParseState  ps_tmp;
@@ -484,13 +491,6 @@ static ParseResult parse_paren(const Parser *self,
                 case '-':
                 case '(':
                 case 'C': return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
-
-                case '#':
-                    while (*++ps->ch != ')')
-                        if (!*ps->ch)
-                            return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE,
-                                             ch);
-                    return PARSE_RES(PARSE_SUCCESS, ++ps->ch);
 
                 case '=': pos = TRUE; /* fallthrough */
                 case '!': is_lookahead = TRUE; break;
@@ -560,7 +560,7 @@ static ParseResult parse_opt_set_flag(ParseState *ps)
 }
 
 static ParseResult parse_cc(ParseState *ps,
-                            RegexNode **re /*<< out parameter */)
+                            RegexNode **re /**< out parameter */)
 {
     ParseResult       res;
     IntervalList      list = { 0 };
@@ -602,7 +602,7 @@ done:
 }
 
 static ParseResult
-parse_cc_atom(ParseState *ps, int neg, IntervalList *list /*<< out parameter */)
+parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
 {
     ParseResult       res;
     IntervalListItem *item;
@@ -712,7 +712,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /*<< out parameter */)
 }
 
 static ParseResult parse_escape(ParseState *ps,
-                                RegexNode **re /*<< out parameter */)
+                                RegexNode **re /**< out parameter */)
 {
     ParseResult       res;
     IntervalList      list = { 0 };
@@ -789,7 +789,7 @@ done:
 }
 
 static ParseResult parse_escape_char(ParseState  *ps,
-                                     const char **ch /*<< out parameter */)
+                                     const char **ch /**< out parameter */)
 {
     ParseResult res = { PARSE_SUCCESS, NULL };
     const char *next_ch;
@@ -842,7 +842,7 @@ static ParseResult parse_escape_char(ParseState  *ps,
 
 static ParseResult parse_escape_cc(ParseState   *ps,
                                    int           neg,
-                                   IntervalList *list /*<< out parameter */)
+                                   IntervalList *list /**< out parameter */)
 {
     IntervalListItem *item;
     ParseResult       res = { PARSE_SUCCESS, NULL };
@@ -904,7 +904,7 @@ static ParseResult parse_escape_cc(ParseState   *ps,
 
 static ParseResult parse_posix_cc(ParseState   *ps,
                                   int           neg,
-                                  IntervalList *list /*<< out parameter */)
+                                  IntervalList *list /**< out parameter */)
 {
     IntervalListItem *item;
     ParseResult       res = { PARSE_SUCCESS, NULL };
@@ -979,6 +979,22 @@ static ParseResult parse_posix_cc(ParseState   *ps,
 
 #undef PUSH_CHAR
 #undef PUSH_INTERVAL
+
+static ParseResult skip_comment(ParseState *ps)
+{
+    const char *ch = ps->ch;
+
+check_for_comment:
+    if (*ch++ == '(' && *ch++ == '?' && *ch++ == '#') {
+        while (*ch++ != ')')
+            if (!*ch)
+                return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ps->ch);
+        ps->ch = ch;
+        goto check_for_comment;
+    }
+
+    return PARSE_RES(PARSE_SUCCESS, ps->ch);
+}
 
 static RegexNode *parser_regex_counter(RegexNode  *child,
                                        byte        greedy,

@@ -3,10 +3,10 @@
 
 #include "../smir.h"
 
-typedef StateMachine *(*transformer_f)(StateMachine *);
+typedef StateMachine *transformer_f(StateMachine *);
 
-typedef int (*state_predicate_f)(StateMachine *, state_id);
-typedef int (*trans_predicate_f)(StateMachine *, trans_id);
+typedef int state_predicate_f(StateMachine *, state_id);
+typedef int trans_predicate_f(StateMachine *, trans_id);
 
 /**
  * Create the submachine induced by a set of state identifiers.
@@ -19,7 +19,7 @@ typedef int (*trans_predicate_f)(StateMachine *, trans_id);
  * Note that the old state identifiers will not necessarily map to corresponding
  * states in the transformed state machine.
  *
- * @param[in]      sm     the state machine
+ * @param[in]     sm     the state machine
  * @param[in,out] states the boolean vector indicating which states to keep/
  *                       the map of old state identifiers to new state
  *                       identifiers where 0 indicates the state does not
@@ -60,7 +60,7 @@ StateMachine *transform_from_transitions(StateMachine *sm,
  *
  * @return the submachine (possibly the original)
  */
-StateMachine *transform_with_states(StateMachine *sm, state_predicate_f spf);
+StateMachine *transform_with_states(StateMachine *sm, state_predicate_f *spf);
 
 /**
  * Create the submachine induced by the transitions matching a predicate.
@@ -72,6 +72,6 @@ StateMachine *transform_with_states(StateMachine *sm, state_predicate_f spf);
  *
  * @return the submachine (possibly the original)
  */
-StateMachine *transform_with_trans(StateMachine *sm, trans_predicate_f tpf);
+StateMachine *transform_with_trans(StateMachine *sm, trans_predicate_f *tpf);
 
 #endif /* TRANSFORMER_H */

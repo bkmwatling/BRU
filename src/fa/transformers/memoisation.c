@@ -4,7 +4,7 @@
 
 #include "memoisation.h"
 
-/* --- Helper Routines ------------------------------------------------------ */
+/* --- Helper functions ----------------------------------------------------- */
 
 static byte *memoise_in(StateMachine *sm)
 {
@@ -90,7 +90,7 @@ static void memoise_states(StateMachine *sm, byte *sids)
             smir_state_prepend_action(sm, sid, smir_action_num(ACT_MEMO, k--));
 }
 
-/* --- Main Routine --------------------------------------------------------- */
+/* --- API function --------------------------------------------------------- */
 
 StateMachine *transform_memoise(StateMachine *sm, MemoScheme memo)
 {
