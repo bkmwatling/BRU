@@ -9,7 +9,7 @@
 #include "parser.h"
 #include "sre.h"
 
-/* --- Macros --------------------------------------------------------------- */
+/* --- Preprocessor directives ---------------------------------------------- */
 
 #define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 0, 0, 1 })
 

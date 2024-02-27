@@ -3,7 +3,7 @@
 #include "../../re/sre.h"
 #include "thompson.h"
 
-/* --- Macros --------------------------------------------------------------- */
+/* --- Preprocessor directives ---------------------------------------------- */
 
 #define SET_TRANS_PRIORITY(sm, re, sid, enter, leave)   \
     do {                                                \

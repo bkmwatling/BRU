@@ -4,13 +4,13 @@
 #include "all_matches.h"
 
 typedef struct {
-    FILE       *logfile;
-    const char *text;
+    FILE       *logfile; /**< the file stream for logging captures on match   */
+    const char *text;    /**< the input string being matched against          */
 
-    ThreadManager *__manager;
+    ThreadManager *__manager; /**< the thread manager being wrapped           */
 } AllMatchesThreadManager;
 
-/* --- ThreadManager function prototypes ------------------------------------ */
+/* --- AllMatchesThreadManager function prototypes -------------------------- */
 
 static void all_matches_thread_manager_reset(void *impl);
 static void all_matches_thread_manager_free(void *impl);
@@ -51,7 +51,7 @@ static const char *const *
 all_matches_thread_captures(void *impl, const Thread *t, len_t *ncaptures);
 static void all_matches_thread_set_capture(void *impl, Thread *t, len_t idx);
 
-/* --- API Routine ---------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
 ThreadManager *all_matches_thread_manager_new(ThreadManager *thread_manager,
                                               FILE          *logfile,
@@ -70,7 +70,7 @@ ThreadManager *all_matches_thread_manager_new(ThreadManager *thread_manager,
     return tm;
 }
 
-/* --- ThreadManager functions ---------------------------------------------- */
+/* --- AllMatchesThreadManager function definitions ------------------------- */
 
 static void print_match(AllMatchesThreadManager *self, Thread *t)
 {

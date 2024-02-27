@@ -76,20 +76,6 @@ static StcArgConvertResult convert_construction(const char *arg, void *out)
     return STC_ARG_CR_SUCCESS;
 }
 
-static StcArgConvertResult convert_branch(const char *arg, void *out)
-{
-    SplitChoice *branch = out;
-
-    if (strcmp(arg, "split") == 0)
-        *branch = SC_SPLIT;
-    else if (strcmp(arg, "tswitch") == 0)
-        *branch = SC_TSWITCH;
-    else
-        return STC_ARG_CR_FAILURE;
-
-    return STC_ARG_CR_SUCCESS;
-}
-
 static StcArgConvertResult convert_capture_semantics(const char *arg, void *out)
 {
     CaptureSemantics *cs = out;
@@ -190,9 +176,6 @@ int main(int argc, const char **argv)
         { STC_ARG_BOOL, NULL, "--only-std-split", &compiler_opts.only_std_split,
                   NULL, "whether to use standard `split` instruction only", NULL,
                   NULL },
-        { STC_ARG_CUSTOM, "-b", "--branch", &compiler_opts.branch,
-                  "split | tswitch", "which type of branching to use for control flow",
-                  "split", convert_branch },
         { STC_ARG_CUSTOM, NULL, "--capture-semantics",
                   &compiler_opts.capture_semantics, "pcre | re2",
                   "which type of capturing semantics to compile with", "pcre",
@@ -204,7 +187,7 @@ int main(int argc, const char **argv)
                   "spencer | lockstep | thompson",
                   "which scheduler to use for execution", "spencer",
                   convert_scheduler_type },
-        { STC_ARG_BOOL, NULL, "--benchmark", &benchmark, NULL,
+        { STC_ARG_BOOL, "-b", "--benchmark", &benchmark, NULL,
                   "whether to benchmark SRVM execution", NULL, NULL },
         { STC_ARG_BOOL, NULL, "--all-matches", &all_matches, NULL,
                   "whether to report all matches", NULL, NULL },
@@ -234,7 +217,7 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_COMPILE) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 5, NULL);
 
-        c = compiler_new(parser_new(sdup(regex), parser_opts), &compiler_opts);
+        c = compiler_new(parser_new(sdup(regex), parser_opts), compiler_opts);
         prog = compiler_compile(c);
         program_print(prog, outfile);
 
@@ -243,7 +226,7 @@ int main(int argc, const char **argv)
     } else if (cmd == CMD_MATCH) {
         stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
 
-        c = compiler_new(parser_new(sdup(regex), parser_opts), &compiler_opts);
+        c = compiler_new(parser_new(sdup(regex), parser_opts), compiler_opts);
         prog = compiler_compile(c);
         if (scheduler_type == SCH_SPENCER) {
             thread_manager = spencer_thread_manager_new(0, prog->thread_mem_len,

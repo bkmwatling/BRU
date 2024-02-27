@@ -3,8 +3,8 @@
 
 #include "../../stc/fatp/slice.h"
 #include "../../stc/fatp/vec.h"
-#include "../../utils.h"
 
+#include "../../utils.h"
 #include "lockstep.h"
 #include "thread_manager.h"
 
@@ -13,30 +13,29 @@
 typedef struct thompson_thread {
     const byte  *pc;
     const char  *sp;
-    cntr_t      *counters; /*<< stc_slice                                     */
-    byte        *memory;   /*<< stc_slice                                     */
-    const char **captures; /*<< stc_slice                                     */
+    cntr_t      *counters; /**< stc_slice of counter values                   */
+    byte        *memory;   /**< stc_slice for general memory                  */
+    const char **captures; /**< stc_slice of capture SPs                      */
 } ThompsonThread;
 
 typedef struct thompson_scheduler {
-    const char *text;
-    int         in_sync;
+    int in_sync; /**< whether to execute the synchronisation queue of threads */
 
-    Thread **curr; /*<< stc_vec                                       */
-    Thread **next; /*<< stc_vec                                       */
-    Thread **sync; /*<< stc_vec                                       */
+    Thread **curr; /**< stc_vec for current queue of threads to be executed   */
+    Thread **next; /**< stc_vec for next queue of threads to be executed      */
+    Thread **sync; /**< stc_vec for synchronisation queue for lockstep        */
 } ThompsonScheduler;
 
 typedef struct thompson_thread_manager {
-    ThompsonScheduler *scheduler;
+    ThompsonScheduler *scheduler; /**< the Thompson scheduler for scheduling  */
 
     // for spawning threads
-    len_t ncounters;
-    len_t memory_len;
-    len_t ncaptures;
+    len_t ncounters;  /**< number of counter values to spawn threads with     */
+    len_t memory_len; /**< number bytes allocated for thread general memory   */
+    len_t ncaptures;  /**< number of captures to allocate memory in threads   */
 } ThompsonThreadManager;
 
-/* --- ThreadManager function prototypes ------------------------------------ */
+/* --- ThompsonThreadManager function prototypes ---------------------------- */
 
 static void thompson_thread_manager_reset(void *impl);
 static void thompson_thread_manager_free(void *impl);
@@ -71,7 +70,7 @@ static const char *const *
 thompson_thread_captures(void *impl, const Thread *t, len_t *ncaptures);
 static void thompson_thread_set_capture(void *impl, Thread *t, len_t idx);
 
-/* --- Scheduler function prototypes ---------------------------------------- */
+/* --- ThompsonScheduler function prototypes -------------------------------- */
 
 static ThompsonScheduler *thompson_scheduler_new(void);
 static int thompson_scheduler_schedule(ThompsonScheduler *self, Thread *thread);

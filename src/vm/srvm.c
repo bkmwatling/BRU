@@ -9,12 +9,12 @@
 /* --- Type definitions ----------------------------------------------------- */
 
 struct srvm {
-    ThreadManager *thread_manager;
-    const Program *program;
-    const char    *curr_sp;
-    int            matching_finished;
-    len_t          ncaptures;
-    const char   **captures;
+    ThreadManager *thread_manager;    /**< the thread manager to execute with */
+    const Program *program;           /**< the program of the SRVM to execute */
+    const char    *curr_sp;           /**< the SP to generate threads from    */
+    int            matching_finished; /**< flag to indicate matching is done  */
+    len_t          ncaptures; /**< the number of captures in the program      */
+    const char   **captures;  /**< the array of (start, end) capture pairs    */
 };
 
 /* --- Private function prototypes ------------------------------------------ */
@@ -22,7 +22,7 @@ struct srvm {
 static int  srvm_run(SRVM *self, const char *text);
 static void srvm_init(SRVM *self);
 
-/* --- Public function definitions ------------------------------------------ */
+/* --- API function definitions --------------------------------------------- */
 
 SRVM *srvm_new(ThreadManager *thread_manager, const Program *prog)
 {

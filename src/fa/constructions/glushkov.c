@@ -98,7 +98,7 @@ static void rfa_print(Rfa *self, FILE *stream);
 #    define rfa_print(...)
 #endif
 
-/* --- Main Routine --------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
 StateMachine *glushkov_construct(Regex re, const CompilerOpts *opts)
 {

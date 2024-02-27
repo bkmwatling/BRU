@@ -7,7 +7,7 @@
 
 #include "../vm/srvm.h"
 
-/* --- Macros --------------------------------------------------------------- */
+/* --- Preprocessor directives ---------------------------------------------- */
 
 #define NULL_STATE       0
 #define INITIAL_STATE_ID NULL_STATE

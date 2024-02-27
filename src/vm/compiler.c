@@ -13,16 +13,23 @@
 #endif
 
 #define COMPILER_OPTS_DEFAULT \
-    ((CompilerOpts){ THOMPSON, FALSE, SC_SPLIT, CS_PCRE, MS_NONE })
+    ((CompilerOpts){ THOMPSON, FALSE, CS_PCRE, MS_NONE })
 
 #define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) + 1))
 
-Compiler *compiler_new(const Parser *parser, const CompilerOpts *opts)
+Compiler *compiler_new(const Parser *parser, const CompilerOpts opts)
 {
-    Compiler *compiler = malloc(sizeof(Compiler));
-    compiler->parser   = parser;
-    compiler->opts     = opts ? *opts : COMPILER_OPTS_DEFAULT;
+    Compiler *compiler = malloc(sizeof(*compiler));
+
+    compiler->parser = parser;
+    compiler->opts   = opts;
+
     return compiler;
+}
+
+Compiler *compiler_default(const Parser *parser)
+{
+    return compiler_new(parser, COMPILER_OPTS_DEFAULT);
 }
 
 void compiler_free(Compiler *self)
@@ -35,8 +42,8 @@ const Program *compiler_compile(const Compiler *self)
 {
     Regex          re;
     ParseResult    res;
-    StateMachine  *sm = NULL;
     const Program *prog;
+    StateMachine  *sm = NULL;
 
     res = parser_parse(self->parser, &re);
     if (res.code != PARSE_SUCCESS) return NULL;

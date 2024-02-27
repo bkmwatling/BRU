@@ -7,7 +7,7 @@
 #include "../utils.h"
 #include "smir.h"
 
-/* --- Macros --------------------------------------------------------------- */
+/* --- Preprocessor directives ---------------------------------------------- */
 
 #define trans_id_from_parts(sid, idx) ((((trans_id) sid) << 32) | idx)
 
@@ -763,26 +763,26 @@ void smir_reorder_states(StateMachine *self, state_id *sid_ordering)
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
-    offset_t entry;     /*<< where the state is compiled in the program       */
-    offset_t exit;      /*<< the to-be-filled outgoing transition offsets     */
-    size_t transitions; /*<< where the transitions start                      */
+    offset_t entry;     /**< where the state is compiled in the program       */
+    offset_t exit;      /**< the to-be-filled outgoing transition offsets     */
+    size_t transitions; /**< where the transitions start                      */
 } StateBlock;
 
 typedef struct {
-    regex_id rid;
-    len_t    idx;
+    regex_id rid; /**< the regex identifier for the mapping                   */
+    len_t    idx; /**< the index the regex identifier is mapped to            */
 } RidToIdx;
 
 typedef struct {
-    RidToIdx *thread_map;      /*<< stc_vec                                   */
-    RidToIdx *memoisation_map; /*<< stc_vec                                   */
-    len_t     next_thread_idx;
-    len_t     next_memoisation_idx;
+    RidToIdx *thread_map;           /**< stc_vec for thread mapping           */
+    RidToIdx *memoisation_map;      /**< stc_vec for memoisation mapping      */
+    len_t     next_thread_idx;      /**< next index for thread map            */
+    len_t     next_memoisation_idx; /**< next index for memoisation map       */
 
     // TODO: counter memory
 } MemoryMaps; // map RIDs to memory indices
 
-/* --- Helper functions ----------------------------------------------------- */
+/* --- Helper function definitions ------------------------------------------ */
 
 static size_t count_bytes_actions(const ActionList *acts)
 {

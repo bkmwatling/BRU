@@ -6,7 +6,6 @@
  * of threads in the SRVM.
  *
  * It has since been deprecated in favour of using the thread manager interface.
- *
  */
 
 #include "thread_manager.h"
@@ -34,7 +33,7 @@ typedef struct {
     void    (*clear)(void *scheduler_impl);
     void    (*free)(void *scheduler_impl);
 
-    void *impl; /*<< pointer to actual implementation of the scheduler */
+    void *impl; /**< the underlying implementation of the scheduler           */
 } Scheduler;
 
 #endif

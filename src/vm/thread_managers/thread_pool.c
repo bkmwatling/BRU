@@ -2,14 +2,14 @@
 
 #include "thread_pool.h"
 
-/* --- Data Structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
     ThreadPool *pool;
     void       *tm_impl;
 } ThreadManagerWithPool;
 
-/* --- Main Routine --------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
 ThreadManager *thread_manager_with_pool(ThreadManager *tm)
 {

@@ -3,8 +3,8 @@
 
 #include "../../stc/fatp/slice.h"
 #include "../../stc/fatp/vec.h"
-#include "../../utils.h"
 
+#include "../../utils.h"
 #include "spencer.h"
 #include "thread_manager.h"
 
@@ -13,24 +13,24 @@
 typedef struct spencer_thread {
     const byte  *pc;
     const char  *sp;
-    cntr_t      *counters; /*<< stc_slice                                     */
-    byte        *memory;   /*<< stc_slice                                     */
-    const char **captures; /*<< stc_slice                                     */
+    cntr_t      *counters; /**< stc_slice of counter values                   */
+    byte        *memory;   /**< stc_slice for general memory                  */
+    const char **captures; /**< stc_slice of capture SPs                      */
 } SpencerThread;
 
 typedef struct spencer_scheduler {
-    size_t   in_order_idx;
-    Thread  *active;
-    Thread **stack; /*<< stc_vec                                       */
+    size_t   in_order_idx; /**< the index for inserting threads when in-order */
+    Thread  *active;       /**< the active thread for the scheduler           */
+    Thread **stack;        /**< stc_vec for thread stack for DFS scheduling   */
 } SpencerScheduler;
 
 typedef struct spencer_thread_manager {
-    SpencerScheduler *scheduler;
+    SpencerScheduler *scheduler; /**< the Spencer scheduler for scheduling    */
 
     // for spawning threads
-    len_t ncounters;
-    len_t memory_len;
-    len_t ncaptures;
+    len_t ncounters;  /**< number of counter values to spawn threads with     */
+    len_t memory_len; /**< number bytes allocated for thread general memory   */
+    len_t ncaptures;  /**< number of captures to allocate memory in threads   */
 } SpencerThreadManager;
 
 /* --- SpencerThreadManager function prototypes ----------------------------- */

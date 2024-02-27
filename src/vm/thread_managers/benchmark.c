@@ -5,9 +5,9 @@
 
 #define INST_COUNT_LEN               (2 * NBYTECODES)
 #define INST_IDX(i)                  (2 * (i))
-#define INST_COUNT(self, i)          (self)->instruction_counts[INST_IDX(i)]
+#define INST_COUNT(self, i)          (self)->inst_counts[INST_IDX(i)]
 #define INC_INST_COUNT(self, i)      INST_COUNT(self, i)++
-#define INST_FAIL_COUNT(self, i)     (self)->instruction_counts[INST_IDX(i) + 1]
+#define INST_FAIL_COUNT(self, i)     (self)->inst_counts[INST_IDX(i) + 1]
 #define INC_INST_FAIL_COUNT(self, i) INST_FAIL_COUNT(self, i)++
 #define CURR_INST(t)                 *(t)->pc
 #define INC_CURR_INST(self, t)       INC_INST_COUNT(self, CURR_INST(t))
@@ -17,16 +17,16 @@
             INST_FAIL_COUNT(self, i))
 
 typedef struct {
-    FILE *logfile;
+    FILE *logfile; /**< the log file stream to print benchmark information to */
 
     // TODO: use pointers to facilitate shared counting when cloning
-    size_t spawn_count;
-    size_t instruction_counts[INST_COUNT_LEN];
+    size_t spawn_count;                 /**< the number of spawned threads    */
+    size_t inst_counts[INST_COUNT_LEN]; /**< instruction execution counts     */
 
-    ThreadManager *__manager;
+    ThreadManager *__manager; /**< the thread manager being wrapped           */
 } BenchmarkThreadManager;
 
-/* --- ThreadManager function prototypes ------------------------------------ */
+/* --- BenchmarkThreadManager function prototypes --------------------------- */
 
 static void benchmark_thread_manager_reset(void *impl);
 static void benchmark_thread_manager_free(void *impl);
@@ -65,7 +65,7 @@ static const char *const *
 benchmark_thread_captures(void *impl, const Thread *t, len_t *ncaptures);
 static void benchmark_thread_set_capture(void *impl, Thread *t, len_t idx);
 
-/* --- API Routine ---------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
 ThreadManager *benchmark_thread_manager_new(ThreadManager *thread_manager,
                                             FILE          *logfile)
@@ -75,7 +75,7 @@ ThreadManager *benchmark_thread_manager_new(ThreadManager *thread_manager,
 
     btm->logfile     = logfile ? logfile : stderr;
     btm->spawn_count = 0;
-    memset(btm->instruction_counts, 0, sizeof(btm->instruction_counts));
+    memset(btm->inst_counts, 0, sizeof(btm->inst_counts));
     btm->__manager = thread_manager;
 
     THREAD_MANAGER_SET_ALL_FUNCS(tm, benchmark);
@@ -84,7 +84,7 @@ ThreadManager *benchmark_thread_manager_new(ThreadManager *thread_manager,
     return tm;
 }
 
-/* --- ThreadManager functions ---------------------------------------------- */
+/* --- BenchmarkThreadManager function defintions --------------------------- */
 
 static void benchmark_thread_manager_reset(void *impl)
 {
@@ -92,7 +92,7 @@ static void benchmark_thread_manager_reset(void *impl)
     thread_manager_reset(self->__manager);
     // TODO: reset benchmark instrumentation?
     // self->spawn_count = 0;
-    // memset(self->instruction_counts, 0, sizeof(self->instruction_counts));
+    // memset(self->inst_counts, 0, sizeof(self->inst_counts));
 }
 
 static void benchmark_thread_manager_free(void *impl)

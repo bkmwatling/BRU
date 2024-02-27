@@ -19,10 +19,10 @@
  * underlying thread manager.
  */
 
-/* --- Preprocessor Directives ---------------------------------------------- */
-
 #include "../../types.h"
 #include "../program.h"
+
+/* --- Preprocessor directives ---------------------------------------------- */
 
 #define thread_manager_reset(manager) (manager)->reset((manager)->impl)
 #define thread_manager_free(manager)      \
@@ -108,7 +108,7 @@
         (manager)->set_capture = prefix##_thread_set_capture; \
     } while (0)
 
-/* --- Data Structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 // the basic thread represent a state in the VM:
 // some pointer into the instruction stream, and a pointer into the matching
@@ -116,16 +116,14 @@
 //
 // Any extensions of this (captures, counters, etc) can happen, but the datatype
 // must adhere to this spec.
-//
-// Note: this may require reworking lockstep.
 typedef struct {
-    const byte *pc;
-    const char *sp;
+    const byte *pc; /**< the program counter of the thread                    */
+    const char *sp; /**< the string pointer of the thread                     */
 } Thread;
 
 typedef struct thread_manager {
     void (*reset)(void *thread_manager_impl);
-    void (*free)(void *thread_manager_impl); /*<< free the thread manager */
+    void (*free)(void *thread_manager_impl); /**< free the thread manager     */
 
     // below functions manipulate thread execution
     Thread *(*spawn_thread)(void       *thread_manager_impl,
@@ -138,7 +136,7 @@ typedef struct thread_manager {
     Thread *(*clone_thread)(void *thread_manager_impl, const Thread *thread);
     void    (*kill_thread)(void *thread_manager_impl, Thread *thread);
 
-    // below functions manipulate thread memory
+    // functions that manipulate thread memory
     const byte *(*pc)(void *thread_manager_impl, const Thread *thread);
     void (*set_pc)(void *thread_manager_impl, Thread *thread, const byte *pc);
     const char *(*sp)(void *thread_manager_impl, const Thread *thread);
@@ -168,14 +166,14 @@ typedef struct thread_manager {
                                    len_t        *ncaptures);
     void (*set_capture)(void *thread_manager_impl, Thread *thread, len_t idx);
 
-    void *impl; /*<< the implementation */
+    void *impl; /**< the underlying implementation                            */
 } ThreadManager;
 
-/* --- Thread Manager NO-OP Routines ---------------------------------------- */
+/* --- Thread manager NO-OP functions --------------------------------------- */
 
-// below routines can be used as placeholders for interface routines where
+// the below functions can be used as placeholders for interface routines where
 // nothing should happen. Sensical return values are used -- NULL for pointers,
-// TRUE for memoisation, and 0 for counter values.
+// truthy values for memoisation, and 0 for counter values.
 
 void thread_manager_init_memoisation_noop(void       *thread_manager_impl,
                                           size_t      nmemo_insts,

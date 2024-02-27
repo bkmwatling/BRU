@@ -1,7 +1,7 @@
 #include "thread_manager.h"
 #include "../../utils.h"
 
-/* --- Thread Manager NO-OP Routines ---------------------------------------- */
+/* --- Thread manager NO-OP functions --------------------------------------- */
 
 void thread_manager_init_memoisation_noop(void       *thread_manager_impl,
                                           size_t      nmemo_insts,

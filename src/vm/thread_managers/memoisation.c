@@ -4,14 +4,14 @@
 #include "memoisation.h"
 
 typedef struct {
-    byte       *memoisation_memory;
-    const char *text;
-    size_t      text_len;
+    byte       *memoisation_memory; /**< memory used for memoisation          */
+    const char *text;               /**< input string being matched against   */
+    size_t      text_len;           /**< length of the input string           */
 
-    ThreadManager *__manager;
+    ThreadManager *__manager; /**< the thread manager being wrapped           */
 } MemoisedThreadManager;
 
-/* --- ThreadManager function prototypes ------------------------------------ */
+/* --- MemoisedThreadManager function prototypes ---------------------------- */
 
 static void memoised_thread_manager_reset(void *impl);
 static void memoised_thread_manager_free(void *impl);
@@ -50,7 +50,7 @@ static const char *const *
 memoised_thread_captures(void *impl, const Thread *t, len_t *ncaptures);
 static void memoised_thread_set_capture(void *impl, Thread *t, len_t idx);
 
-/* --- API Routine ---------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
 ThreadManager *memoised_thread_manager_new(ThreadManager *thread_manager)
 {
@@ -68,7 +68,7 @@ ThreadManager *memoised_thread_manager_new(ThreadManager *thread_manager)
     return tm;
 }
 
-/* --- ThreadManager functions ---------------------------------------------- */
+/* --- MemoisedThreadManager function definitions --------------------------- */
 
 static void memoised_thread_manager_reset(void *impl)
 {

@@ -17,7 +17,7 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts);
 static const byte *
 inst_print(FILE *stream, const byte *pc, const Program *prog);
 
-/* --- Program -------------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
 Program *program_new(const char *regex,
                      size_t      insts_len,
@@ -27,7 +27,7 @@ Program *program_new(const char *regex,
                      size_t      thread_mem_len,
                      size_t      ncaptures)
 {
-    Program *prog = calloc(1, sizeof(Program));
+    Program *prog = calloc(1, sizeof(*prog));
 
     prog->regex = regex;
     stc_vec_init(prog->insts, insts_len);
@@ -46,7 +46,7 @@ Program *program_new(const char *regex,
 
 Program *program_default(const char *regex)
 {
-    Program *prog = calloc(1, sizeof(Program));
+    Program *prog = calloc(1, sizeof(*prog));
 
     prog->regex = regex;
     stc_vec_default_init(prog->insts);
