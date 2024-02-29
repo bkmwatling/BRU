@@ -383,7 +383,7 @@ static ParseResult parse_quantifier(const Parser *self,
             break;
 
         /* NOTE: unsupported */
-        case '+': return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+        case '+': return PARSE_RES(PARSE_UNSUPPORTED_POSSESSIVE, ps->ch);
 
         default: greedy = TRUE;
     }
@@ -478,27 +478,40 @@ static ParseResult parse_paren(const Parser *self,
     ps->ch++;
 
     switch (*ps->ch) {
-        case '*': return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+        case '*': return PARSE_RES(PARSE_UNSUPPORTED_CONTROL_VERB, ps->ch);
 
         case '?':
             switch (*++ps->ch) {
                 case '<':
-                case '>':
-                case '\'':
+                    return PARSE_RES(PARSE_UNSUPPORTED_LOOKBEHIND, ps->ch);
                 case 'P':
-                case 'R':
-                case '+':
+                case '\'':
+                    return PARSE_RES(PARSE_UNSUPPORTED_NAMED_GROUP, ps->ch);
                 case '-':
+                case '+':
+                    return PARSE_RES(PARSE_UNSUPPORTED_RELATIVE_GROUP, ps->ch);
+                case '>':
+                    return PARSE_RES(PARSE_UNSUPPORTED_ATOMIC_GROUP, ps->ch);
+                case 'R':
+                    return PARSE_RES(PARSE_UNSUPPORTED_PATTERN_RECURSION,
+                                     ps->ch);
                 case '(':
-                case 'C': return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    return PARSE_RES(PARSE_UNSUPPORTED_LOOKAHEAD_CONDITIONAL,
+                                     ps->ch);
+                case 'C': return PARSE_RES(PARSE_UNSUPPORTED_CALLOUT, ps->ch);
 
-                case '=': pos = TRUE; /* fallthrough */
-                case '!': is_lookahead = TRUE; break;
+                // TODO: support lookaheads
+                case '=': // pos = TRUE; /* fallthrough */
+                case '!':
+                    // is_lookahead = TRUE; break;
+                    return PARSE_RES(PARSE_UNSUPPORTED_LOOKAHEAD, ps->ch);
 
-                case '|': break;
+                case '|':
+                    return PARSE_RES(PARSE_UNSUPPORTED_GROUP_RESET, ps->ch);
                 default:
                     if (isdigit(*ps->ch))
-                        return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                        return PARSE_RES(PARSE_UNSUPPORTED_GROUP_RECURSION,
+                                         ps->ch);
                     res = parse_opt_set_flag(ps);
                     if (ERRORED(res.code)) return res;
                     if (*ps->ch != ':')
@@ -554,7 +567,7 @@ static ParseResult parse_opt_set_flag(ParseState *ps)
         case 'm':
         case 's':
         case 'U':
-        case 'x': return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+        case 'x': return PARSE_RES(PARSE_UNSUPPORTED_FLAGS, ps->ch);
         default: return PARSE_RES(PARSE_NO_MATCH, ps->ch);
     }
 }
@@ -750,30 +763,33 @@ static ParseResult parse_escape(ParseState *ps,
     res.code = PARSE_SUCCESS;
     ch       = ps->ch++;
     switch (*ps->ch) {
-        case 'b':
         case 'B':
-        case 'A':
+        case 'b': res.code = PARSE_UNSUPPORTED_WORD_BOUNDARY; break;
+        case 'A': res.code = PARSE_UNSUPPORTED_START_BOUNDARY; break;
         case 'z':
-        case 'Z':
-        case 'G':
+        case 'Z': res.code = PARSE_UNSUPPORTED_END_BOUNDARY; break;
+        case 'G': res.code = PARSE_UNSUPPORTED_FIRST_MATCH_BOUNDARY; break;
         case 'g':
-        case 'k':
-        case 'K':
-        case 'Q':
-        case 'E':
+        case 'k': res.code = PARSE_UNSUPPORTED_BACKREF; break;
+        case 'K': res.code = PARSE_UNSUPPORTED_RESET_MATCH_START; break;
+        case 'E': // NOTE: \E only has special meaning if \Q was already seen
+        case 'Q': res.code = PARSE_UNSUPPORTED_QUOTING; break;
         case 'p':
-        case 'P':
-        case 'R': res.code = PARSE_UNSUPPORTED; break;
+        case 'P': res.code = PARSE_UNSUPPORTED_UNICODE_PROPERTY; break;
+        case 'R': res.code = PARSE_UNSUPPORTED_NEWLINE_SEQUENCE; break;
 
         default:
             if (isdigit(*ps->ch)) {
-                k = *ps->ch - '0';
-                if (k < ps->ncaptures) {
-                    *re = regex_backreference(k);
-                    SET_RID(*re, ps);
-                } else {
-                    res.code = PARSE_NON_EXISTENT_REF;
-                }
+                // TODO: support backreferences
+                // k = *ps->ch - '0';
+                // if (k < ps->ncaptures) {
+                //     *re = regex_backreference(k);
+                //     SET_RID(*re, ps);
+                // } else {
+                //     res.code = PARSE_NON_EXISTENT_REF;
+                // }
+                res.code = PARSE_UNSUPPORTED_BACKREF;
+                break;
             } else {
                 res.code = PARSE_INVALID_ESCAPE;
             }
@@ -814,12 +830,12 @@ static ParseResult parse_escape_char(ParseState  *ps,
              *  -?: *ps->ch + 64
              * [-`: *ps->ch - 64
              * {-~: *ps->ch - 64 */
-            res.code = PARSE_UNSUPPORTED;
+            res.code = PARSE_UNSUPPORTED_CONTROL_CODE;
             break;
 
-        case 'o':
-        case 'x':
-        case 'u': res.code = PARSE_UNSUPPORTED; break;
+        case 'o': res.code = PARSE_UNSUPPORTED_OCTAL; break;
+        case 'x': res.code = PARSE_UNSUPPORTED_HEX; break;
+        case 'u': res.code = PARSE_UNSUPPORTED_UNICODE; break;
 
         default:
             if (ispunct(*next_ch))
@@ -892,7 +908,7 @@ static ParseResult parse_escape_cc(ParseState   *ps,
             break;
 
         case 'C':
-        case 'X': res.code = PARSE_UNSUPPORTED; break;
+        case 'X': res.code = PARSE_INVALID_ESCAPE; break;
 
         default: res.code = PARSE_NO_MATCH; break;
     }
