@@ -11,7 +11,7 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 0, 0, 1 })
+#define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 0, 0, 1, 0, stderr })
 
 #define SET_RID(node, ps) \
     if (node) (node)->rid = (ps)->next_rid++
@@ -34,7 +34,50 @@
         (item)->interval = (intrvl);                   \
     } while (0)
 
+#define SKIP_UNTIL(pred, res, parse_state)        \
+    do {                                          \
+        while (!(pred)) {                         \
+            if (*(parse_state)->ch == '\0') {     \
+                (res).code = PARSE_END_OF_STRING; \
+                break;                            \
+            }                                     \
+            (parse_state)->ch++;                  \
+        }                                         \
+    } while (0)
+
+#define FLAG_UNSUPPORTED(code, ps) ((*(ps)->unsupported_features)[code] = TRUE)
+
 /* --- Type definitions ----------------------------------------------------- */
+
+typedef enum {
+    UNSUPPORTED_BACKREF,
+    UNSUPPORTED_LOOKAHEAD,
+    UNSUPPORTED_OCTAL,
+    UNSUPPORTED_HEX,
+    UNSUPPORTED_UNICODE,
+    UNSUPPORTED_POSSESSIVE,
+    UNSUPPORTED_CONTROL_VERB,
+    UNSUPPORTED_FLAGS,
+    UNSUPPORTED_CONTROL_CODE,
+    UNSUPPORTED_LOOKBEHIND,
+    UNSUPPORTED_NAMED_GROUP,
+    UNSUPPORTED_RELATIVE_GROUP,
+    UNSUPPORTED_ATOMIC_GROUP,
+    UNSUPPORTED_PATTERN_RECURSION,
+    UNSUPPORTED_LOOKAHEAD_CONDITIONAL,
+    UNSUPPORTED_CALLOUT,
+    UNSUPPORTED_GROUP_RESET,
+    UNSUPPORTED_GROUP_RECURSION,
+    UNSUPPORTED_WORD_BOUNDARY,
+    UNSUPPORTED_START_BOUNDARY,
+    UNSUPPORTED_END_BOUNDARY,
+    UNSUPPORTED_FIRST_MATCH_BOUNDARY,
+    UNSUPPORTED_RESET_MATCH_START,
+    UNSUPPORTED_QUOTING,
+    UNSUPPORTED_UNICODE_PROPERTY,
+    UNSUPPORTED_NEWLINE_SEQUENCE,
+    NUM_UNSUPPORTED_CODES
+} UnsupportedFeatureCode;
 
 typedef struct interval_list_item IntervalListItem;
 
@@ -50,11 +93,12 @@ typedef struct {
 } IntervalList;
 
 typedef struct {
-    const char *ch;
-    int         in_group;
-    int         in_lookahead;
-    len_t       ncaptures;
-    regex_id    next_rid;
+    UnsupportedFeatureCode (*unsupported_features)[NUM_UNSUPPORTED_CODES];
+    const char            *ch;
+    int                    in_group;
+    int                    in_lookahead;
+    len_t                  ncaptures;
+    regex_id               next_rid;
 } ParseState;
 
 /* --- Helper function prototypes ------------------------------------------- */
@@ -112,6 +156,10 @@ static ParseResult parse_posix_cc(ParseState   *ps,
 
 static ParseResult skip_comment(ParseState *ps);
 
+static void find_matching_closing_parenthesis(ParseState *ps);
+
+static void print_unsupported_feature(unsigned int feature_idx, FILE *stream);
+
 static RegexNode *parser_regex_counter(RegexNode  *child,
                                        byte        greedy,
                                        cntr_t      min,
@@ -140,10 +188,16 @@ void parser_free(Parser *self) { free(self); }
 
 ParseResult parser_parse(const Parser *self, Regex *re)
 {
-    RegexNode *r  = NULL;
-    ParseState ps = { self->regex, 0, 0, self->opts.whole_match_capture ? 1 : 0,
-                      0 };
-    ParseResult res = parse_alt(self, &ps, &r);
+    RegexNode             *r                                           = NULL;
+    UnsupportedFeatureCode unsupported_features[NUM_UNSUPPORTED_CODES] = { 0 };
+    ParseState             ps  = { &unsupported_features,
+                                   self->regex,
+                                   0,
+                                   0,
+                      self->opts.whole_match_capture ? 1 : 0,
+                                   0 };
+    ParseResult            res = parse_alt(self, &ps, &r);
+    unsigned int           i;
 
     if (SUCCEEDED(res.code)) {
         if (self->opts.whole_match_capture) {
@@ -154,6 +208,16 @@ ParseResult parser_parse(const Parser *self, Regex *re)
         if (re) *re = (Regex){ self->regex, r };
     } else if (r) {
         regex_node_free(r);
+    }
+
+    if (self->opts.log_unsupported && res.code == PARSE_UNSUPPORTED) {
+        fprintf(self->opts.logfile,
+                "------------ UNSUPPORTED FEATURE CODES ------------\n");
+        for (i = 0; i < NUM_UNSUPPORTED_CODES; i++)
+            if (unsupported_features[i])
+                print_unsupported_feature(i, self->opts.logfile);
+        fprintf(self->opts.logfile,
+                "------------ UNSUPPORTED FEATURE CODES ------------\n");
     }
 
     return res;
@@ -176,14 +240,20 @@ static ParseResult parse_alt(const Parser *self,
                              RegexNode   **re /**< out parameter */)
 {
     RegexNode  *r;
-    ParseResult res;
+    ParseResult res, prev_res;
 
     res = parse_expr(self, ps, re);
     if (FAILED(res.code)) return res;
     while (*ps->ch == '|') {
         ps->ch++;
-        r   = NULL;
-        res = parse_expr(self, ps, &r);
+        r        = NULL;
+        prev_res = res;
+        res      = parse_expr(self, ps, &r);
+        // NOTE: prev_res must be SUCCESS-ish, hence, this will never
+        // overwrite a failure code in res.
+        if (FAILED(res.code))
+            fprintf(self->opts.logfile, "RHS of | failed code %d\n", res.code);
+        if (prev_res.code > res.code) res.code = prev_res.code;
         if (FAILED(res.code)) {
             if (r) regex_node_free(r);
             return res;
@@ -200,7 +270,7 @@ static ParseResult parse_expr(const Parser *self,
                               RegexNode   **re /**< out parameter */)
 {
     RegexNode  *r;
-    ParseResult res;
+    ParseResult res, prev_res;
 
     res = parse_elem(self, ps, re);
     if (NOT_MATCHED(res.code)) {
@@ -211,16 +281,21 @@ static ParseResult parse_expr(const Parser *self,
         return res;
     }
     while (*ps->ch) {
-        r   = NULL;
-        res = parse_elem(self, ps, &r);
+        r        = NULL;
+        prev_res = res;
+        res      = parse_elem(self, ps, &r);
+
+        // NOTE: prev_res must be SUCCESS-ish, hence, this will never
+        // overwrite a failure code in res.
         if (NOT_MATCHED(res.code)) {
             if (r) regex_node_free(r);
-            res.code = PARSE_SUCCESS;
+            res.code = prev_res.code;
             break;
         } else if (ERRORED(res.code)) {
             if (r) regex_node_free(r);
             break;
-        }
+        } else if (prev_res.code > res.code)
+            res.code = prev_res.code;
 
         *re = regex_branch(CONCAT, *re, r);
         SET_RID(*re, ps);
@@ -233,12 +308,14 @@ static ParseResult parse_elem(const Parser *self,
                               ParseState   *ps,
                               RegexNode   **re /**< out parameter */)
 {
-    ParseResult res;
+    ParseResult     res;
+    ParseResultCode prev_code;
 
     res = parse_atom(self, ps, re);
     if (FAILED(res.code)) return res;
-    res = parse_quantifier(self, ps, re);
-    if (NOT_MATCHED(res.code)) res.code = PARSE_SUCCESS;
+    prev_code = res.code;
+    res       = parse_quantifier(self, ps, re);
+    if (NOT_MATCHED(res.code)) res.code = prev_code;
 
     return res;
 }
@@ -247,7 +324,8 @@ static ParseResult parse_atom(const Parser *self,
                               ParseState   *ps,
                               RegexNode   **re /**< out parameter */)
 {
-    ParseResult res;
+    ParseResult     res;
+    ParseResultCode prev_code;
 
     res = skip_comment(ps);
     if (ERRORED(res.code)) return res;
@@ -314,7 +392,11 @@ static ParseResult parse_atom(const Parser *self,
             break;
     }
 
-    if (SUCCEEDED(res.code)) res = skip_comment(ps);
+    if (SUCCEEDED(res.code)) {
+        prev_code = res.code;
+        res       = skip_comment(ps);
+        if (SUCCEEDED(res.code)) res.code = prev_code;
+    }
 
     return res;
 }
@@ -324,7 +406,7 @@ static ParseResult parse_quantifier(const Parser *self,
                                     RegexNode   **re /**< in,out parameter */)
 {
     RegexNode  *tmp;
-    ParseResult res;
+    ParseResult res = { PARSE_SUCCESS, NULL };
     byte        greedy;
     cntr_t      min, max;
 
@@ -383,18 +465,26 @@ static ParseResult parse_quantifier(const Parser *self,
             break;
 
         /* NOTE: unsupported */
-        case '+': return PARSE_RES(PARSE_UNSUPPORTED_POSSESSIVE, ps->ch);
+        case '+':
+            FLAG_UNSUPPORTED(UNSUPPORTED_POSSESSIVE, ps);
+            ps->ch++;
+            res.code = PARSE_UNSUPPORTED;
+            break;
 
         default: greedy = TRUE;
     }
 
     /* check for single or zero repitition */
-    if (min == 1 && max == 1) return PARSE_RES(PARSE_SUCCESS, ps->ch);
+    if (min == 1 && max == 1) {
+        res.ch = ps->ch;
+        return res;
+    }
     if (min == 0 && max == 0) {
         regex_node_free(*re);
         *re = regex_new(EPSILON);
         SET_RID(*re, ps);
-        return PARSE_RES(PARSE_SUCCESS, ps->ch);
+        res.ch = ps->ch;
+        return res;
     }
 
     /* apply quantifier */
@@ -424,7 +514,8 @@ static ParseResult parse_quantifier(const Parser *self,
         SET_RID(*re, ps);
     }
 
-    return PARSE_RES(PARSE_SUCCESS, ps->ch);
+    res.ch = ps->ch;
+    return res;
 }
 
 static ParseResult parse_curly(ParseState *ps,
@@ -478,40 +569,118 @@ static ParseResult parse_paren(const Parser *self,
     ps->ch++;
 
     switch (*ps->ch) {
-        case '*': return PARSE_RES(PARSE_UNSUPPORTED_CONTROL_VERB, ps->ch);
+        case '*':
+            FLAG_UNSUPPORTED(UNSUPPORTED_CONTROL_VERB, ps);
+            find_matching_closing_parenthesis(ps);
+            if (*ps->ch != ')')
+                return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+            break;
 
         case '?':
             switch (*++ps->ch) {
                 case '<':
-                    return PARSE_RES(PARSE_UNSUPPORTED_LOOKBEHIND, ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_LOOKBEHIND, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
                 case 'P':
                 case '\'':
-                    return PARSE_RES(PARSE_UNSUPPORTED_NAMED_GROUP, ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_NAMED_GROUP, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
                 case '-':
                 case '+':
-                    return PARSE_RES(PARSE_UNSUPPORTED_RELATIVE_GROUP, ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_RELATIVE_GROUP, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
                 case '>':
-                    return PARSE_RES(PARSE_UNSUPPORTED_ATOMIC_GROUP, ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_ATOMIC_GROUP, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
                 case 'R':
-                    return PARSE_RES(PARSE_UNSUPPORTED_PATTERN_RECURSION,
-                                     ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_PATTERN_RECURSION, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
                 case '(':
-                    return PARSE_RES(PARSE_UNSUPPORTED_LOOKAHEAD_CONDITIONAL,
-                                     ps->ch);
-                case 'C': return PARSE_RES(PARSE_UNSUPPORTED_CALLOUT, ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_LOOKAHEAD_CONDITIONAL, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
+                case 'C':
+                    FLAG_UNSUPPORTED(UNSUPPORTED_CALLOUT, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
 
                 // TODO: support lookaheads
                 case '=': // pos = TRUE; /* fallthrough */
                 case '!':
                     // is_lookahead = TRUE; break;
-                    return PARSE_RES(PARSE_UNSUPPORTED_LOOKAHEAD, ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_LOOKAHEAD, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
 
                 case '|':
-                    return PARSE_RES(PARSE_UNSUPPORTED_GROUP_RESET, ps->ch);
+                    FLAG_UNSUPPORTED(UNSUPPORTED_GROUP_RESET, ps);
+                    find_matching_closing_parenthesis(ps);
+                    if (*ps->ch != ')')
+                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                    *re = regex_new(EPSILON);
+                    SET_RID(*re, ps);
+                    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                    goto done;
                 default:
-                    if (isdigit(*ps->ch))
-                        return PARSE_RES(PARSE_UNSUPPORTED_GROUP_RECURSION,
-                                         ps->ch);
+                    if (isdigit(*ps->ch)) {
+                        FLAG_UNSUPPORTED(UNSUPPORTED_GROUP_RECURSION, ps);
+                        find_matching_closing_parenthesis(ps);
+                        if (*ps->ch != ')')
+                            return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE,
+                                             ch);
+                        *re = regex_new(EPSILON);
+                        SET_RID(*re, ps);
+                        res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+                        goto done;
+                    }
                     res = parse_opt_set_flag(ps);
                     if (ERRORED(res.code)) return res;
                     if (*ps->ch != ':')
@@ -519,9 +688,10 @@ static ParseResult parse_paren(const Parser *self,
                     break;
             }
             ps->ch++;
-            ps_tmp =
-                (ParseState){ ps->ch, TRUE, ps->in_lookahead || is_lookahead,
-                              ps->ncaptures, ps->next_rid };
+            ps_tmp = (ParseState){
+                ps->unsupported_features,         ps->ch,        TRUE,
+                ps->in_lookahead || is_lookahead, ps->ncaptures, ps->next_rid
+            };
             res           = parse_alt(self, &ps_tmp, re);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
@@ -538,8 +708,10 @@ static ParseResult parse_paren(const Parser *self,
 
         default:
             if (!ps->in_lookahead) ncaptures = ps->ncaptures++;
-            ps_tmp        = (ParseState){ ps->ch, TRUE, ps->in_lookahead,
-                                          ps->ncaptures, ps->next_rid };
+            ps_tmp = (ParseState){
+                ps->unsupported_features, ps->ch,        TRUE,
+                ps->in_lookahead,         ps->ncaptures, ps->next_rid
+            };
             res           = parse_alt(self, &ps_tmp, re);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
@@ -555,6 +727,7 @@ static ParseResult parse_paren(const Parser *self,
             break;
     }
 
+done:
     ps->ch++;
     return res;
 }
@@ -567,7 +740,9 @@ static ParseResult parse_opt_set_flag(ParseState *ps)
         case 'm':
         case 's':
         case 'U':
-        case 'x': return PARSE_RES(PARSE_UNSUPPORTED_FLAGS, ps->ch);
+        case 'x':
+            FLAG_UNSUPPORTED(UNSUPPORTED_FLAGS, ps);
+            return PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
         default: return PARSE_RES(PARSE_NO_MATCH, ps->ch);
     }
 }
@@ -765,19 +940,87 @@ static ParseResult parse_escape(ParseState *ps,
     ch       = ps->ch++;
     switch (*ps->ch) {
         case 'B':
-        case 'b': res.code = PARSE_UNSUPPORTED_WORD_BOUNDARY; break;
-        case 'A': res.code = PARSE_UNSUPPORTED_START_BOUNDARY; break;
+        case 'b':
+            FLAG_UNSUPPORTED(UNSUPPORTED_WORD_BOUNDARY, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
+        case 'A':
+            FLAG_UNSUPPORTED(UNSUPPORTED_START_BOUNDARY, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
         case 'z':
-        case 'Z': res.code = PARSE_UNSUPPORTED_END_BOUNDARY; break;
-        case 'G': res.code = PARSE_UNSUPPORTED_FIRST_MATCH_BOUNDARY; break;
+        case 'Z':
+            FLAG_UNSUPPORTED(UNSUPPORTED_END_BOUNDARY, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
+        case 'G':
+            FLAG_UNSUPPORTED(UNSUPPORTED_FIRST_MATCH_BOUNDARY, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
         case 'g':
-        case 'k': res.code = PARSE_UNSUPPORTED_BACKREF; break;
-        case 'K': res.code = PARSE_UNSUPPORTED_RESET_MATCH_START; break;
+            if (ps->ch[1] == '{') {
+                SKIP_UNTIL(*ps->ch == '}', res, ps);
+            } else {
+                SKIP_UNTIL(!isdigit(*ps->ch), res, ps);
+                if (SUCCEEDED(res.code)) ps->ch--;
+            }
+            FLAG_UNSUPPORTED(UNSUPPORTED_BACKREF, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
+        case 'k':
+            switch (ps->ch[1]) {
+                case '<': SKIP_UNTIL(*ps->ch == '>', res, ps); break;
+                case '\\': SKIP_UNTIL(*ps->ch == '\\', res, ps); break;
+                case '{': SKIP_UNTIL(*ps->ch == '}', res, ps); break;
+                default: break;
+            }
+            FLAG_UNSUPPORTED(UNSUPPORTED_BACKREF, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
+        case 'K':
+            FLAG_UNSUPPORTED(UNSUPPORTED_RESET_MATCH_START, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
+
+        // technically will stop at '\\E' as well, but since the semantics of
+        // \Q ... \E is to treat characters as is, this is fine (i.e. the second
+        // \ is not escaped)
+        case 'Q': SKIP_UNTIL(*ps->ch == 'E' && ps->ch[-1] == '\\', res, ps);
         case 'E': // NOTE: \E only has special meaning if \Q was already seen
-        case 'Q': res.code = PARSE_UNSUPPORTED_QUOTING; break;
+            FLAG_UNSUPPORTED(UNSUPPORTED_QUOTING, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
         case 'p':
-        case 'P': res.code = PARSE_UNSUPPORTED_UNICODE_PROPERTY; break;
-        case 'R': res.code = PARSE_UNSUPPORTED_NEWLINE_SEQUENCE; break;
+        case 'P':
+            ps->ch++;
+            if (*ps->ch == '{') SKIP_UNTIL(*ps->ch == '}', res, ps);
+            FLAG_UNSUPPORTED(UNSUPPORTED_UNICODE_PROPERTY, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
+        case 'R':
+            FLAG_UNSUPPORTED(UNSUPPORTED_NEWLINE_SEQUENCE, ps);
+            *re = regex_new(EPSILON);
+            SET_RID(*re, ps);
+            res.code = PARSE_UNSUPPORTED;
+            break;
 
         default:
             if (isdigit(*ps->ch)) {
@@ -789,7 +1032,10 @@ static ParseResult parse_escape(ParseState *ps,
                 // } else {
                 //     res.code = PARSE_NON_EXISTENT_REF;
                 // }
-                res.code = PARSE_UNSUPPORTED_BACKREF;
+                FLAG_UNSUPPORTED(UNSUPPORTED_BACKREF, ps);
+                *re = regex_new(EPSILON);
+                SET_RID(*re, ps);
+                res.code = PARSE_UNSUPPORTED;
                 break;
             } else {
                 res.code = PARSE_INVALID_ESCAPE;
@@ -831,12 +1077,68 @@ static ParseResult parse_escape_char(ParseState  *ps,
              *  -?: *ps->ch + 64
              * [-`: *ps->ch - 64
              * {-~: *ps->ch - 64 */
-            res.code = PARSE_UNSUPPORTED_CONTROL_CODE;
+            FLAG_UNSUPPORTED(UNSUPPORTED_CONTROL_CODE, ps);
+            *ch      = "";
+            res.code = PARSE_UNSUPPORTED;
             break;
 
-        case 'o': res.code = PARSE_UNSUPPORTED_OCTAL; break;
-        case 'x': res.code = PARSE_UNSUPPORTED_HEX; break;
-        case 'u': res.code = PARSE_UNSUPPORTED_UNICODE; break;
+        case 'o':
+            FLAG_UNSUPPORTED(UNSUPPORTED_OCTAL, ps);
+            *ch = "";
+            if (*next_ch == '{') {
+                while (*next_ch != '}') {
+                    if (*next_ch == '\0') {
+                        res.code = PARSE_END_OF_STRING;
+                        break;
+                    }
+                    next_ch++;
+                }
+            } else {
+                // TODO: technically should be of length 1 <= n <= 3
+                while (*next_ch < '8' && isdigit(*next_ch++))
+                    ;
+                next_ch--;
+            }
+            res.code = PARSE_UNSUPPORTED;
+            break;
+        case 'x':
+            FLAG_UNSUPPORTED(UNSUPPORTED_HEX, ps);
+            *ch = "";
+            if (*next_ch == '{') {
+                while (*next_ch != '}') {
+                    if (*next_ch == '\0') {
+                        res.code = PARSE_END_OF_STRING;
+                        break;
+                    }
+                    next_ch++;
+                }
+            } else {
+                // TODO: technically should be of length 1 <= n <= 2
+                while (isxdigit(*next_ch++))
+                    ;
+                next_ch--;
+            }
+            res.code = PARSE_UNSUPPORTED;
+            break;
+        case 'u':
+            FLAG_UNSUPPORTED(UNSUPPORTED_UNICODE, ps);
+            *ch = "";
+            if (*next_ch == '{') {
+                while (*next_ch != '}') {
+                    if (*next_ch == '\0') {
+                        res.code = PARSE_END_OF_STRING;
+                        break;
+                    }
+                    next_ch++;
+                }
+            } else {
+                // TODO: technically should be of length 1 <= n <= 4
+                while (isxdigit(*next_ch++))
+                    ;
+                next_ch--;
+            }
+            res.code = PARSE_UNSUPPORTED;
+            break;
 
         default:
             if (ispunct(*next_ch))
@@ -1011,6 +1313,60 @@ check_for_comment:
     }
 
     return PARSE_RES(PARSE_SUCCESS, ps->ch);
+}
+
+static void find_matching_closing_parenthesis(ParseState *ps)
+{
+    size_t nparen = 1;
+    char   ch;
+    while ((ch = *ps->ch)) {
+        switch (ch) {
+            case ')':
+                if (!(--nparen))
+                    return;
+                else
+                    break;
+            case '(': nparen++; break;
+            case '\\': ps->ch++; break;
+            default: break;
+        }
+        ps->ch++;
+    }
+}
+
+static void print_unsupported_feature(unsigned int feature_idx, FILE *stream)
+{
+    static const char *feature_strings[NUM_UNSUPPORTED_CODES] = {
+        "UNSUPPORTED_BACKREF",
+        "UNSUPPORTED_LOOKAHEAD",
+        "UNSUPPORTED_OCTAL",
+        "UNSUPPORTED_HEX",
+        "UNSUPPORTED_UNICODE",
+        "UNSUPPORTED_POSSESSIVE",
+        "UNSUPPORTED_CONTROL_VERB",
+        "UNSUPPORTED_FLAGS",
+        "UNSUPPORTED_CONTROL_CODE",
+        "UNSUPPORTED_LOOKBEHIND",
+        "UNSUPPORTED_NAMED_GROUP",
+        "UNSUPPORTED_RELATIVE_GROUP",
+        "UNSUPPORTED_ATOMIC_GROUP",
+        "UNSUPPORTED_PATTERN_RECURSION",
+        "UNSUPPORTED_LOOKAHEAD_CONDITIONAL",
+        "UNSUPPORTED_CALLOUT",
+        "UNSUPPORTED_GROUP_RESET",
+        "UNSUPPORTED_GROUP_RECURSION",
+        "UNSUPPORTED_WORD_BOUNDARY",
+        "UNSUPPORTED_START_BOUNDARY",
+        "UNSUPPORTED_END_BOUNDARY",
+        "UNSUPPORTED_FIRST_MATCH_BOUNDARY",
+        "UNSUPPORTED_RESET_MATCH_START",
+        "UNSUPPORTED_QUOTING",
+        "UNSUPPORTED_UNICODE_PROPERTY",
+        "UNSUPPORTED_NEWLINE_SEQUENCE",
+    };
+
+    if (feature_idx >= NUM_UNSUPPORTED_CODES) return;
+    fprintf(stream, "%d: %s\n", feature_idx, feature_strings[feature_idx]);
 }
 
 static RegexNode *parser_regex_counter(RegexNode  *child,

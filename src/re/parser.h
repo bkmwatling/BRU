@@ -6,8 +6,10 @@
 typedef struct {
     int only_counters;       /**< whether to convert *, +, and ? to counters  */
     int unbounded_counters;  /**< whether to allow counters to be unbounded   */
-    int expand_counters;     /**< whether to exapnd counters                  */
+    int expand_counters;     /**< whether to expand counters                  */
     int whole_match_capture; /**< whether to save entire match into capture 0 */
+    int log_unsupported; /**< whether to log unsupported features in the expr */
+    FILE *logfile;       /**< the file for logging                            */
 } ParserOpts;
 
 typedef struct {
@@ -17,7 +19,9 @@ typedef struct {
 
 typedef enum {
     PARSE_SUCCESS,
+    PARSE_UNSUPPORTED,
     PARSE_NO_MATCH,
+    // errors
     PARSE_UNMATCHED_PAREN,
     PARSE_UNQUANTIFIABLE,
     PARSE_INCOMPLETE_GROUP_STRUCTURE,
@@ -27,32 +31,6 @@ typedef enum {
     PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ,
     PARSE_NON_EXISTENT_REF,
     PARSE_END_OF_STRING,
-    PARSE_UNSUPPORTED_BACKREF,
-    PARSE_UNSUPPORTED_LOOKAHEAD,
-    PARSE_UNSUPPORTED_OCTAL,
-    PARSE_UNSUPPORTED_HEX,
-    PARSE_UNSUPPORTED_UNICODE,
-    PARSE_UNSUPPORTED_POSSESSIVE,
-    PARSE_UNSUPPORTED_CONTROL_VERB,
-    PARSE_UNSUPPORTED_FLAGS,
-    PARSE_UNSUPPORTED_CONTROL_CODE,
-    PARSE_UNSUPPORTED_LOOKBEHIND,
-    PARSE_UNSUPPORTED_NAMED_GROUP,
-    PARSE_UNSUPPORTED_RELATIVE_GROUP,
-    PARSE_UNSUPPORTED_ATOMIC_GROUP,
-    PARSE_UNSUPPORTED_PATTERN_RECURSION,
-    PARSE_UNSUPPORTED_LOOKAHEAD_CONDITIONAL,
-    PARSE_UNSUPPORTED_CALLOUT,
-    PARSE_UNSUPPORTED_GROUP_RESET,
-    PARSE_UNSUPPORTED_GROUP_RECURSION,
-    PARSE_UNSUPPORTED_WORD_BOUNDARY,
-    PARSE_UNSUPPORTED_START_BOUNDARY,
-    PARSE_UNSUPPORTED_END_BOUNDARY,
-    PARSE_UNSUPPORTED_FIRST_MATCH_BOUNDARY,
-    PARSE_UNSUPPORTED_RESET_MATCH_START,
-    PARSE_UNSUPPORTED_QUOTING,
-    PARSE_UNSUPPORTED_UNICODE_PROPERTY,
-    PARSE_UNSUPPORTED_NEWLINE_SEQUENCE,
 } ParseResultCode;
 
 typedef struct {

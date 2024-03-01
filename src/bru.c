@@ -137,6 +137,10 @@ static void add_parsing_args(StcArgParser *ap, BruOptions *options)
         ap, "-w", "--whole-match-capture",
         "whether to have the whole regex match be the 0th capture",
         &options->parser_opts.whole_match_capture, FALSE);
+    stc_argparser_add_bool_option(
+        ap, NULL, "--log-unsupported",
+        "whether to log unsupported features in the regex",
+        &options->parser_opts.log_unsupported, FALSE);
 }
 
 static void add_compilation_args(StcArgParser *ap, BruOptions *options)
@@ -236,10 +240,11 @@ int main(int argc, const char **argv)
     stc_argparser_parse(argparser, argc, argv);
     stc_argparser_free(argparser);
 
+    options.parser_opts.logfile = options.logfile;
     if (strcmp(options.cmd, "parse") == 0) {
         p   = parser_new(sdup(options.regex), options.parser_opts);
         res = parser_parse(p, &re);
-        if (res.code == PARSE_SUCCESS) {
+        if (res.code < PARSE_NO_MATCH) {
             regex_print_tree(re.root, options.outfile);
             regex_node_free(re.root);
         } else {
