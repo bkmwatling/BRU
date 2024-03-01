@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "stc/fatp/string_view.h"
-#include "stc/util/args.h"
+#include "stc/util/argparser.h"
 #include "stc/util/utf.h"
 
 #include "re/parser.h"
@@ -17,9 +17,20 @@
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
-typedef enum { CMD_PARSE, CMD_COMPILE, CMD_MATCH } Subcommand;
-
 typedef enum { SCH_SPENCER, SCH_LOCKSTEP } SchedulerType;
+
+typedef struct {
+    const char   *regex;
+    const char   *text;
+    const char   *cmd;
+    int           benchmark;
+    int           all_matches;
+    FILE         *outfile;
+    FILE         *logfile;
+    SchedulerType scheduler_type;
+    CompilerOpts  compiler_opts;
+    ParserOpts    parser_opts;
+} BruOptions;
 
 static char *sdup(const char *s)
 {
@@ -30,22 +41,6 @@ static char *sdup(const char *s)
     memcpy(str, s, len * sizeof(char));
 
     return str;
-}
-
-static StcArgConvertResult convert_subcommand(const char *arg, void *out)
-{
-    Subcommand *cmd = out;
-
-    if (strcmp(arg, "parse") == 0)
-        *cmd = CMD_PARSE;
-    else if (strcmp(arg, "compile") == 0)
-        *cmd = CMD_COMPILE;
-    else if (strcmp(arg, "match") == 0)
-        *cmd = CMD_MATCH;
-    else
-        return STC_ARG_CR_FAILURE;
-
-    return STC_ARG_CR_SUCCESS;
 }
 
 static StcArgConvertResult convert_filepath(const char *arg, void *out)
@@ -122,144 +117,183 @@ static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
     return STC_ARG_CR_SUCCESS;
 }
 
+static void add_parsing_args(StcArgParser *ap, BruOptions *options)
+{
+    stc_argparser_add_str_argument(ap, "<regex>", "the regex to work with",
+                                   &options->regex);
+    stc_argparser_add_bool_option(
+        ap, NULL, "--only-counters",
+        "whether to use just counters and treat *, +, and ? as counters",
+        &options->parser_opts.only_counters, FALSE);
+    stc_argparser_add_bool_option(
+        ap, "-u", "--unbounded-counters",
+        "whether to permit unbounded counters or substitute with *",
+        &options->parser_opts.unbounded_counters, FALSE);
+    stc_argparser_add_bool_option(
+        ap, "-e", "--expand-counters",
+        "whether to expand counters with concatenation and nested ?",
+        &options->parser_opts.expand_counters, FALSE);
+    stc_argparser_add_bool_option(
+        ap, "-w", "--whole-match-capture",
+        "whether to have the whole regex match be the 0th capture",
+        &options->parser_opts.whole_match_capture, FALSE);
+}
+
+static void add_compilation_args(StcArgParser *ap, BruOptions *options)
+{
+    stc_argparser_add_custom_option(
+        ap, "-c", "--construction", "thompson | glushkov",
+        "whether to compile using thompson or glushkov",
+        &options->compiler_opts.construction, "thompson", convert_construction);
+    stc_argparser_add_bool_option(
+        ap, NULL, "--only-std-split",
+        "whether to use standard `split` instruction only",
+        &options->compiler_opts.only_std_split, FALSE);
+    stc_argparser_add_custom_option(
+        ap, NULL, "--capture-semantics", "pcre | re2",
+        "which type of capturing semantics to compile with",
+        &options->compiler_opts.capture_semantics, "pcre",
+        convert_capture_semantics);
+    stc_argparser_add_custom_option(
+        ap, "-m", "--memo-scheme", "none | cn | in | iar",
+        "which memoisation scheme to apply",
+        &options->compiler_opts.memo_scheme, "none", convert_memo_scheme);
+}
+
+static void add_matching_args(StcArgParser *ap, BruOptions *options)
+{
+    stc_argparser_add_custom_option(
+        ap, "-s", "--scheduler", "spencer | lockstep | thompson",
+        "which scheduler to use for execution", &options->scheduler_type,
+        "spencer", convert_scheduler_type);
+    stc_argparser_add_bool_option(ap, "-b", "--benchmark",
+                                  "whether to benchmark SRVM execution",
+                                  &options->benchmark, FALSE);
+    stc_argparser_add_bool_option(ap, NULL, "--all-matches",
+                                  "whether to report all matches",
+                                  &options->all_matches, FALSE);
+    stc_argparser_add_str_argument(
+        ap, "<input>", "the input string to match against the regex",
+        &options->text);
+}
+
+static StcArgParser *setup_argparser(BruOptions *options)
+{
+    StcSubArgParsers *saps;
+    StcArgParser     *parse, *compile, *match;
+    StcArgParser     *ap = stc_argparser_new(NULL);
+
+    stc_argparser_add_custom_option(
+        ap, "-o", "--outfile", "filepath | stdout | stderr",
+        "the file for normal output", &options->outfile, "stdout",
+        convert_filepath);
+    stc_argparser_add_custom_option(
+        ap, "-l", "--logfile", "filepath | stdout | stderr",
+        "the file for logging output", &options->logfile, "stderr",
+        convert_filepath);
+
+    saps = stc_argparser_add_subparsers(ap, "<subcommand>", &options->cmd);
+
+    // parse
+    parse = stc_subargparsers_add_argparser(
+        saps, "parse", "parse the regex into a regex abstract syntax tree",
+        NULL);
+    add_parsing_args(parse, options);
+
+    // compile
+    compile = stc_subargparsers_add_argparser(
+        saps, "compile", "compile the regex into a regex program", NULL);
+    add_parsing_args(compile, options);
+    add_compilation_args(compile, options);
+
+    // match
+    match = stc_subargparsers_add_argparser(
+        saps, "match", "match the regex against an input string", NULL);
+    add_parsing_args(match, options);
+    add_compilation_args(match, options);
+    add_matching_args(match, options);
+
+    return ap;
+}
+
 int main(int argc, const char **argv)
 {
-    int            arg_idx, exit_code = EXIT_SUCCESS;
-    int            benchmark, matched, all_matches;
-    char          *regex, *text;
-    FILE          *outfile, *logfile;
-    Subcommand     cmd;
-    SchedulerType  scheduler_type;
+    int            matched, exit_code = EXIT_SUCCESS;
     Parser        *p;
     Compiler      *c;
     Regex          re;
     ParseResult    res;
     const Program *prog;
-    CompilerOpts   compiler_opts;
-    ParserOpts     parser_opts;
     ThreadManager *thread_manager = NULL;
     SRVM          *srvm;
     StcStringView  capture, *captures;
     len_t          i, ncaptures;
     size_t         ncodepoints;
-    StcArg         args[] = {
-        { STC_ARG_CUSTOM, "<subcommand>", NULL, &cmd, NULL,
-                  "the subcommand to run (parse, compile, or match)", NULL,
-                  convert_subcommand },
-        { STC_ARG_STR, "<regex>", NULL, &regex, NULL, "the regex to work with",
-                  NULL, NULL },
-        { STC_ARG_CUSTOM, "-o", "--outfile", &outfile,
-                  "filepath | stdout | stderr", "the file for normal output", "stdout",
-                  convert_filepath },
-        { STC_ARG_CUSTOM, "-l", "--logfile", &logfile,
-                  "filepath | stdout | stderr", "the file for logging output", "stderr",
-                  convert_filepath },
-        { STC_ARG_BOOL, NULL, "--only-counters", &parser_opts.only_counters,
-                  NULL,
-                  "whether to use just counters and treat *, +, and ? as counters",
-                  NULL, NULL },
-        { STC_ARG_BOOL, "-u", "--unbounded-counters",
-                  &parser_opts.unbounded_counters, NULL,
-                  "whether to permit unbounded counters or substitute with *", NULL,
-                  NULL },
-        { STC_ARG_BOOL, "-e", "--expand-counters", &parser_opts.expand_counters,
-                  NULL, "whether to expand counters with concatenation and nested ?",
-                  NULL, NULL },
-        { STC_ARG_BOOL, "-w", "--whole-match-capture",
-                  &parser_opts.whole_match_capture, NULL,
-                  "whether to have the whole regex match be the 0th capture", NULL,
-                  NULL },
-        { STC_ARG_CUSTOM, "-c", "--construction", &compiler_opts.construction,
-                  "thompson | glushkov",
-                  "whether to compile using thompson or glushkov", "thompson",
-                  convert_construction },
-        { STC_ARG_BOOL, NULL, "--only-std-split", &compiler_opts.only_std_split,
-                  NULL, "whether to use standard `split` instruction only", NULL,
-                  NULL },
-        { STC_ARG_CUSTOM, NULL, "--capture-semantics",
-                  &compiler_opts.capture_semantics, "pcre | re2",
-                  "which type of capturing semantics to compile with", "pcre",
-                  convert_capture_semantics },
-        { STC_ARG_CUSTOM, "-m", "--memo-scheme", &compiler_opts.memo_scheme,
-                  "none | cn | in | iar", "which memoisation scheme to apply", "none",
-                  convert_memo_scheme },
-        { STC_ARG_CUSTOM, "-s", "--scheduler", &scheduler_type,
-                  "spencer | lockstep | thompson",
-                  "which scheduler to use for execution", "spencer",
-                  convert_scheduler_type },
-        { STC_ARG_BOOL, "-b", "--benchmark", &benchmark, NULL,
-                  "whether to benchmark SRVM execution", NULL, NULL },
-        { STC_ARG_BOOL, NULL, "--all-matches", &all_matches, NULL,
-                  "whether to report all matches", NULL, NULL },
-        { STC_ARG_STR, "<input>", NULL, &text, NULL,
-                  "the input string to match against the regex", NULL, NULL }
-    };
+    BruOptions     options = { 0 };
+    StcArgParser  *argparser;
 
-    arg_idx  = stc_args_parse(argc, argv, args, 1, NULL);
-    argc    -= arg_idx - 1;
-    argv    += arg_idx - 1;
+    argparser = setup_argparser(&options);
+    stc_argparser_parse(argparser, argc, argv);
+    stc_argparser_free(argparser);
 
-    if (cmd == CMD_PARSE) {
-        stc_args_parse_exact(argc, argv, args + 1, 7, NULL);
-
-        p   = parser_new(sdup(regex), parser_opts);
+    if (strcmp(options.cmd, "parse") == 0) {
+        p   = parser_new(sdup(options.regex), options.parser_opts);
         res = parser_parse(p, &re);
         if (res.code == PARSE_SUCCESS) {
-            regex_print_tree(re.root, outfile);
+            regex_print_tree(re.root, options.outfile);
             regex_node_free(re.root);
         } else {
-            fprintf(logfile, "ERROR %d: Invalidation of regex from %s\n",
-                    res.code, res.ch);
+            fprintf(options.logfile,
+                    "ERROR %d: Invalidation of regex from %s\n", res.code,
+                    res.ch);
             exit_code = res.code;
         }
         free((char *) p->regex);
         parser_free(p);
-    } else if (cmd == CMD_COMPILE) {
-        stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 5, NULL);
-
-        c = compiler_new(parser_new(sdup(regex), parser_opts), compiler_opts);
+    } else if (strcmp(options.cmd, "compile") == 0) {
+        c = compiler_new(parser_new(sdup(options.regex), options.parser_opts),
+                         options.compiler_opts);
         prog = compiler_compile(c);
-        program_print(prog, outfile);
+        program_print(prog, options.outfile);
 
         compiler_free(c);
         program_free((Program *) prog);
-    } else if (cmd == CMD_MATCH) {
-        stc_args_parse_exact(argc, argv, args + 1, ARR_LEN(args) - 1, NULL);
-
-        c = compiler_new(parser_new(sdup(regex), parser_opts), compiler_opts);
+    } else if (strcmp(options.cmd, "match") == 0) {
+        c = compiler_new(parser_new(sdup(options.regex), options.parser_opts),
+                         options.compiler_opts);
         prog = compiler_compile(c);
-        if (scheduler_type == SCH_SPENCER) {
+        if (options.scheduler_type == SCH_SPENCER)
             thread_manager = spencer_thread_manager_new(0, prog->thread_mem_len,
                                                         prog->ncaptures);
-            if (compiler_opts.memo_scheme != MS_NONE)
-                thread_manager = memoised_thread_manager_new(thread_manager);
-        } else if (scheduler_type == SCH_LOCKSTEP) {
+        else if (options.scheduler_type == SCH_LOCKSTEP)
             thread_manager = thompson_thread_manager_new(
                 0, prog->thread_mem_len, prog->ncaptures);
-        }
 
-        if (benchmark)
+        if (options.compiler_opts.memo_scheme != MS_NONE)
+            thread_manager = memoised_thread_manager_new(thread_manager);
+        if (options.benchmark)
             thread_manager =
-                benchmark_thread_manager_new(thread_manager, logfile);
-        if (all_matches)
-            thread_manager =
-                all_matches_thread_manager_new(thread_manager, logfile, text);
+                benchmark_thread_manager_new(thread_manager, options.logfile);
+        if (options.all_matches)
+            thread_manager = all_matches_thread_manager_new(
+                thread_manager, options.logfile, options.text);
+
         srvm = srvm_new(thread_manager, prog);
-        while ((matched = srvm_find(srvm, text)) != MATCHES_EXHAUSTED) {
-            fprintf(outfile, "matched = %d\n", matched);
-            fprintf(outfile, "captures:\n");
+        while ((matched = srvm_find(srvm, options.text)) != MATCHES_EXHAUSTED) {
+            fprintf(options.outfile, "matched = %d\n", matched);
+            fprintf(options.outfile, "captures:\n");
             captures = srvm_captures(srvm, &ncaptures);
-            fprintf(outfile, "  input: '%s'\n", text);
+            fprintf(options.outfile, "  input: '%s'\n", options.text);
             for (i = 0; i < ncaptures; i++) {
                 capture = captures[i];
-                fprintf(outfile, "%7hu: ", i);
+                fprintf(options.outfile, "%7hu: ", i);
                 if (capture.str) {
-                    ncodepoints = stc_utf8_str_ncodepoints(text) -
+                    ncodepoints = stc_utf8_str_ncodepoints(options.text) -
                                   stc_utf8_str_ncodepoints(capture.str);
-                    fprintf(outfile, "%*s'" STC_SV_FMT "'\n", (int) ncodepoints,
-                            "", STC_SV_ARG(capture));
+                    fprintf(options.outfile, "%*s'" STC_SV_FMT "'\n",
+                            (int) ncodepoints, "", STC_SV_ARG(capture));
                 } else {
-                    fprintf(outfile, "not captured\n");
+                    fprintf(options.outfile, "not captured\n");
                 }
             }
             free(captures);
@@ -270,8 +304,12 @@ int main(int argc, const char **argv)
         srvm_free(srvm);
     }
 
-    if (logfile && logfile != stderr && logfile != stdout) fclose(logfile);
-    if (outfile && outfile != stderr && outfile != stdout) fclose(outfile);
+    if (options.logfile && options.logfile != stderr &&
+        options.logfile != stdout)
+        fclose(options.logfile);
+    if (options.outfile && options.outfile != stderr &&
+        options.outfile != stdout)
+        fclose(options.outfile);
 
     return exit_code;
 }

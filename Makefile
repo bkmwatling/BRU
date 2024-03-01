@@ -35,9 +35,11 @@ EXE       := $(BRU_EXE)
 BRU_SRC   := $(SRCDIR)/$(BRU_EXE).c
 EXE_SRC   := $(BRU_SRC)
 
-STC_SRC   := $(STCDIR)/fatp/slice.c $(STCDIR)/fatp/vec.c \
-             $(STCDIR)/util/args.c $(STCDIR)/util/utf.c \
-             $(STCDIR)/fatp/string_view.c
+FATP_SRC  := slice.c string_view.c vec.c
+UTIL_SRC  := argparser.c utf.c
+STC_SRC   := $(addprefix $(STCDIR)/fatp/, $(FATP_SRC)) \
+			 $(addprefix $(STCDIR)/util/, $(UTIL_SRC))
+
 RE_SRC    := $(wildcard $(REDIR)/*.c) \
              $(wildcard $(REDIR)/walkers/*.c) \
              $(wildcard $(REDIR)/walkers/thompson/*.c) \
@@ -47,6 +49,7 @@ FA_SRC    := $(wildcard $(FADIR)/*.c) \
              $(wildcard $(FADIR)/transformers/*.c)
 VM_SRC    := $(wildcard $(VMDIR)/*.c) \
 		     $(wildcard $(VMDIR)/thread_managers/*.c)
+
 SRC       := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
 		     $(STC_SRC) $(RE_SRC) $(FA_SRC) $(VM_SRC)
 OBJ       := $(SRC:.c=.o)
