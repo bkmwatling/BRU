@@ -732,8 +732,9 @@ static ParseResult parse_escape(ParseState *ps,
     IntervalListItem *item, *next;
     Interval         *intervals;
     const char       *ch;
-    len_t             k;
     size_t            i;
+    // TODO: use for backreferences
+    // len_t             k;
 
     if (*ps->ch != '\\') return PARSE_RES(PARSE_NO_MATCH, ps->ch);
 
