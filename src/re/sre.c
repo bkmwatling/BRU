@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,23 +13,6 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
-static uint utf8_str_to_num(const char *codepoint)
-{
-    short i, nbytes;
-    uint  num = 0;
-
-    for (i = 0, nbytes = stc_utf8_nbytes(codepoint); i < nbytes; i++)
-        num += (uint) codepoint[i] << (8 * (nbytes - i - 1));
-
-    return num;
-}
-
-static int utf8_isprint(const char *codepoint)
-{
-    /* TODO: check for more than just ASCII isprint */
-    return *codepoint > 127 || isprint(*codepoint);
-}
-
 Interval interval(int neg, const char *lbound, const char *ubound)
 {
     return (Interval){ neg, lbound, ubound };
@@ -38,25 +20,27 @@ Interval interval(int neg, const char *lbound, const char *ubound)
 
 char *interval_to_str(const Interval *self)
 {
-    char  *s   = malloc(INTERVAL_MAX_BUF * sizeof(*s));
-    size_t len = 0;
+    char  *s = malloc(INTERVAL_MAX_BUF * sizeof(*s));
+    size_t codepoint, len = 0;
 
     if (self->neg) s[len++] = '^';
-    if (utf8_isprint(self->lbound))
+
+    codepoint = stc_utf8_to_codepoint(self->lbound);
+    if (stc_unicode_isprint(codepoint))
         len += snprintf(s + len, INTERVAL_MAX_BUF - len, "(%.*s, ",
                         stc_utf8_nbytes(self->lbound), self->lbound);
     else
-        len += snprintf(s + len, INTERVAL_MAX_BUF - len, "(\\u%0*x, ",
-                        2 * stc_utf8_nbytes(self->lbound),
-                        utf8_str_to_num(self->lbound));
+        len += snprintf(s + len, INTERVAL_MAX_BUF - len,
+                        "(" STC_UNICODE_ESCAPE_FMT ", ",
+                        STC_UNICODE_ESCAPE_ARG(codepoint));
 
-    if (utf8_isprint(self->ubound))
+    codepoint = stc_utf8_to_codepoint(self->ubound);
+    if (stc_unicode_isprint(codepoint))
         snprintf(s + len, INTERVAL_MAX_BUF - len, "%.*s)",
                  stc_utf8_nbytes(self->ubound), self->ubound);
     else
-        snprintf(s + len, INTERVAL_MAX_BUF - len, "\\u%0*x)",
-                 2 * stc_utf8_nbytes(self->ubound),
-                 utf8_str_to_num(self->ubound));
+        snprintf(s + len, INTERVAL_MAX_BUF - len, STC_UNICODE_ESCAPE_FMT ")",
+                 STC_UNICODE_ESCAPE_ARG(codepoint));
 
     return s;
 }

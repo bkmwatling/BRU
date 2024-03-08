@@ -196,7 +196,8 @@ static StcArgParser *setup_argparser(BruOptions *options)
         "the file for logging output", &options->logfile, "stderr",
         convert_filepath);
 
-    saps = stc_argparser_add_subparsers(ap, "<subcommand>", &options->cmd);
+    saps =
+        stc_argparser_add_subparsers(ap, "<subcommand>", &options->cmd, NULL);
 
     // parse
     parse = stc_subargparsers_add_argparser(
