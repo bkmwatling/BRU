@@ -63,7 +63,7 @@ void compiler_free(Compiler *self);
 /**
  * Compile the regex tree obtained from the parser into a program.
  *
- * @param[in]  self the compiler to compile
+ * @param[in] self the compiler to compile
  *
  * @return the program compiled from the regex tree obtained from the parser
  */

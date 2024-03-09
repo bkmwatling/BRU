@@ -22,7 +22,7 @@ typedef enum { SCH_SPENCER, SCH_LOCKSTEP } SchedulerType;
 typedef struct {
     const char   *regex;
     const char   *text;
-    const char   *cmd;
+    size_t        cmd;
     int           benchmark;
     int           all_matches;
     FILE         *outfile;
@@ -42,6 +42,8 @@ static char *sdup(const char *s)
 
     return str;
 }
+
+/* --- Command-line argument functions -------------------------------------- */
 
 static StcArgConvertResult convert_filepath(const char *arg, void *out)
 {
@@ -197,7 +199,7 @@ static StcArgParser *setup_argparser(BruOptions *options)
         convert_filepath);
 
     saps =
-        stc_argparser_add_subparsers(ap, "<subcommand>", &options->cmd, NULL);
+        stc_argparser_add_subparsers(ap, "<subcommand>", NULL, &options->cmd);
 
     // parse
     parse = stc_subargparsers_add_argparser(
@@ -221,94 +223,132 @@ static StcArgParser *setup_argparser(BruOptions *options)
     return ap;
 }
 
-int main(int argc, const char **argv)
+/* --- Subcommand execution functions --------------------------------------- */
+
+static int parse(BruOptions *options)
 {
-    int            matched, exit_code = EXIT_SUCCESS;
-    Parser        *p;
+    Parser     *p;
+    ParseResult res;
+    Regex       re;
+    int         exit_code = 0;
+
+    p   = parser_new(sdup(options->regex), options->parser_opts);
+    res = parser_parse(p, &re);
+    if (res.code < PARSE_NO_MATCH) {
+        regex_print_tree(re.root, options->outfile);
+        regex_node_free(re.root);
+    } else {
+        fprintf(options->logfile, "ERROR %d: Invalidation of regex from %s\n",
+                res.code, res.ch);
+        exit_code = res.code;
+    }
+    free((char *) p->regex);
+    parser_free(p);
+
+    return exit_code;
+}
+
+static int compile(BruOptions *options)
+{
     Compiler      *c;
-    Regex          re;
-    ParseResult    res;
+    const Program *prog;
+    int            exit_code = EXIT_SUCCESS;
+
+    c    = compiler_new(parser_new(sdup(options->regex), options->parser_opts),
+                        options->compiler_opts);
+    prog = compiler_compile(c);
+    if (prog) {
+        program_print(prog, options->outfile);
+        program_free((Program *) prog);
+    } else {
+        fputs("ERROR: compilation failed\n", stderr);
+        exit_code = EXIT_FAILURE;
+    }
+
+    compiler_free(c);
+
+    return exit_code;
+}
+
+static int match(BruOptions *options)
+{
+    Compiler      *c;
     const Program *prog;
     ThreadManager *thread_manager = NULL;
     SRVM          *srvm;
     StcStringView  capture, *captures;
     len_t          i, ncaptures;
     size_t         ncodepoints;
-    BruOptions     options = { 0 };
-    StcArgParser  *argparser;
+    int            matched, exit_code = EXIT_SUCCESS;
+
+    c    = compiler_new(parser_new(sdup(options->regex), options->parser_opts),
+                        options->compiler_opts);
+    prog = compiler_compile(c);
+    if (prog == NULL) {
+        fputs("ERROR: compilation failed\n", stderr);
+        exit_code = EXIT_FAILURE;
+        goto done;
+    }
+
+    if (options->scheduler_type == SCH_SPENCER)
+        thread_manager = spencer_thread_manager_new(0, prog->thread_mem_len,
+                                                    prog->ncaptures);
+    else if (options->scheduler_type == SCH_LOCKSTEP)
+        thread_manager = thompson_thread_manager_new(0, prog->thread_mem_len,
+                                                     prog->ncaptures);
+
+    if (options->compiler_opts.memo_scheme != MS_NONE)
+        thread_manager = memoised_thread_manager_new(thread_manager);
+    if (options->benchmark)
+        thread_manager =
+            benchmark_thread_manager_new(thread_manager, options->logfile);
+    if (options->all_matches)
+        thread_manager = all_matches_thread_manager_new(
+            thread_manager, options->logfile, options->text);
+
+    srvm = srvm_new(thread_manager, prog);
+    while ((matched = srvm_find(srvm, options->text)) != MATCHES_EXHAUSTED) {
+        fprintf(options->outfile, "matched = %d\n", matched);
+        fprintf(options->outfile, "captures:\n");
+        captures = srvm_captures(srvm, &ncaptures);
+        fprintf(options->outfile, "  input: '%s'\n", options->text);
+        for (i = 0; i < ncaptures; i++) {
+            capture = captures[i];
+            fprintf(options->outfile, "%7hu: ", i);
+            if (capture.str) {
+                ncodepoints = stc_utf8_str_ncodepoints(options->text) -
+                              stc_utf8_str_ncodepoints(capture.str);
+                fprintf(options->outfile, "%*s'" STC_SV_FMT "'\n",
+                        (int) ncodepoints, "", STC_SV_ARG(capture));
+            } else {
+                fprintf(options->outfile, "not captured\n");
+            }
+        }
+        free(captures);
+    }
+    printf("matched = %d\n", matched);
+    program_free((Program *) prog);
+    srvm_free(srvm);
+
+done:
+    compiler_free(c);
+
+    return exit_code;
+}
+
+int main(int argc, const char **argv)
+{
+    int           exit_code;
+    StcArgParser *argparser;
+    BruOptions    options                        = { 0 };
+    static int    (*subcommands[])(BruOptions *) = { parse, compile, match };
 
     argparser = setup_argparser(&options);
     stc_argparser_parse(argparser, argc, argv);
     stc_argparser_free(argparser);
 
     options.parser_opts.logfile = options.logfile;
-    if (strcmp(options.cmd, "parse") == 0) {
-        p   = parser_new(sdup(options.regex), options.parser_opts);
-        res = parser_parse(p, &re);
-        if (res.code < PARSE_NO_MATCH) {
-            regex_print_tree(re.root, options.outfile);
-            regex_node_free(re.root);
-        } else {
-            fprintf(options.logfile,
-                    "ERROR %d: Invalidation of regex from %s\n", res.code,
-                    res.ch);
-            exit_code = res.code;
-        }
-        free((char *) p->regex);
-        parser_free(p);
-    } else if (strcmp(options.cmd, "compile") == 0) {
-        c = compiler_new(parser_new(sdup(options.regex), options.parser_opts),
-                         options.compiler_opts);
-        prog = compiler_compile(c);
-        program_print(prog, options.outfile);
-
-        compiler_free(c);
-        program_free((Program *) prog);
-    } else if (strcmp(options.cmd, "match") == 0) {
-        c = compiler_new(parser_new(sdup(options.regex), options.parser_opts),
-                         options.compiler_opts);
-        prog = compiler_compile(c);
-        if (options.scheduler_type == SCH_SPENCER)
-            thread_manager = spencer_thread_manager_new(0, prog->thread_mem_len,
-                                                        prog->ncaptures);
-        else if (options.scheduler_type == SCH_LOCKSTEP)
-            thread_manager = thompson_thread_manager_new(
-                0, prog->thread_mem_len, prog->ncaptures);
-
-        if (options.compiler_opts.memo_scheme != MS_NONE)
-            thread_manager = memoised_thread_manager_new(thread_manager);
-        if (options.benchmark)
-            thread_manager =
-                benchmark_thread_manager_new(thread_manager, options.logfile);
-        if (options.all_matches)
-            thread_manager = all_matches_thread_manager_new(
-                thread_manager, options.logfile, options.text);
-
-        srvm = srvm_new(thread_manager, prog);
-        while ((matched = srvm_find(srvm, options.text)) != MATCHES_EXHAUSTED) {
-            fprintf(options.outfile, "matched = %d\n", matched);
-            fprintf(options.outfile, "captures:\n");
-            captures = srvm_captures(srvm, &ncaptures);
-            fprintf(options.outfile, "  input: '%s'\n", options.text);
-            for (i = 0; i < ncaptures; i++) {
-                capture = captures[i];
-                fprintf(options.outfile, "%7hu: ", i);
-                if (capture.str) {
-                    ncodepoints = stc_utf8_str_ncodepoints(options.text) -
-                                  stc_utf8_str_ncodepoints(capture.str);
-                    fprintf(options.outfile, "%*s'" STC_SV_FMT "'\n",
-                            (int) ncodepoints, "", STC_SV_ARG(capture));
-                } else {
-                    fprintf(options.outfile, "not captured\n");
-                }
-            }
-            free(captures);
-        }
-
-        compiler_free(c);
-        program_free((Program *) prog);
-        srvm_free(srvm);
-    }
+    exit_code                   = subcommands[options.cmd](&options);
 
     if (options.logfile && options.logfile != stderr &&
         options.logfile != stdout)

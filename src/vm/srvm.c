@@ -26,7 +26,7 @@ static void srvm_init(SRVM *self);
 
 SRVM *srvm_new(ThreadManager *thread_manager, const Program *prog)
 {
-    SRVM *srvm = malloc(sizeof(SRVM));
+    SRVM *srvm = malloc(sizeof(*srvm));
 
     srvm->thread_manager    = thread_manager;
     srvm->program           = prog;
