@@ -28,6 +28,8 @@
 
 #define DOT_NINTERVALS 2
 
+#define UNICODE_END "\U0010ffff"
+
 #define INTERVAL_LIST_ITEM_INIT(item, intrvl)          \
     do {                                               \
         (item)           = calloc(1, sizeof(*(item))); \
@@ -88,6 +90,7 @@ struct interval_list_item {
 };
 
 typedef struct {
+    int               neg;
     size_t            len;
     IntervalListItem *sentinel;
 } IntervalList;
@@ -137,7 +140,6 @@ static ParseResult parse_cc(ParseState *ps,
                             RegexNode **re /**< out parameter */);
 
 static ParseResult parse_cc_atom(ParseState   *ps,
-                                 int           neg,
                                  IntervalList *list /**< out parameter */);
 
 static ParseResult parse_escape(ParseState *ps,
@@ -147,11 +149,9 @@ static ParseResult parse_escape_char(ParseState  *ps,
                                      const char **ch /**< out parameter */);
 
 static ParseResult parse_escape_cc(ParseState   *ps,
-                                   int           neg,
                                    IntervalList *list /**< out parameter */);
 
 static ParseResult parse_posix_cc(ParseState   *ps,
-                                  int           neg,
                                   IntervalList *list /**< out parameter */);
 
 static ParseResult skip_comment(ParseState *ps);
@@ -225,12 +225,12 @@ ParseResult parser_parse(const Parser *self, Regex *re)
 
 /* --- Helper function definitions ------------------------------------------ */
 
-static Interval *dot(void)
+static Intervals *dot(void)
 {
-    Interval *dot = malloc(DOT_NINTERVALS * sizeof(Interval));
+    Intervals *dot = intervals_new(TRUE, DOT_NINTERVALS);
 
-    dot[0] = interval(1, "\0", "\0");
-    dot[1] = interval(1, "\n", "\n");
+    dot->intervals[0] = interval("\0", "\0");
+    dot->intervals[1] = interval("\n", "\n");
 
     return dot;
 }
@@ -356,7 +356,7 @@ static ParseResult parse_atom(const Parser *self,
             break;
 
         case '.':
-            *re = regex_cc(dot(), DOT_NINTERVALS);
+            *re = regex_cc(dot());
             SET_RID(*re, ps);
             res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
             break;
@@ -751,7 +751,7 @@ static ParseResult parse_cc(ParseState *ps,
     ParseResult       res;
     IntervalList      list = { 0 };
     IntervalListItem *item, *next;
-    Interval         *intervals;
+    Intervals        *intervals;
     const char       *ch;
     size_t            i;
     int               neg = FALSE;
@@ -765,7 +765,7 @@ static ParseResult parse_cc(ParseState *ps,
 
     DLL_INIT(list.sentinel);
     do {
-        res = parse_cc_atom(ps, neg, &list);
+        res = parse_cc_atom(ps, &list);
         if (ERRORED(res.code)) {
             if (res.code == PARSE_MISSING_CLOSING_BRACKET) res.ch = ch;
             goto done;
@@ -773,13 +773,13 @@ static ParseResult parse_cc(ParseState *ps,
     } while (*ps->ch != ']');
     ps->ch++;
 
-    intervals = malloc(list.len * sizeof(*intervals));
+    intervals = intervals_new(neg, list.len);
     for (i = 0, item = list.sentinel->next; item != list.sentinel;
          i++, item   = item->next) {
-        intervals[i] = item->interval;
+        intervals->intervals[i] = item->interval;
     }
 
-    *re = regex_cc(intervals, list.len);
+    *re = regex_cc(intervals);
     SET_RID(*re, ps);
 
 done:
@@ -787,8 +787,8 @@ done:
     return res;
 }
 
-static ParseResult
-parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
+static ParseResult parse_cc_atom(ParseState   *ps,
+                                 IntervalList *list /**< out parameter */)
 {
     ParseResult       res;
     IntervalListItem *item;
@@ -796,7 +796,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
 
     switch (*ps->ch) {
         case '[':
-            res = parse_posix_cc(ps, neg, list);
+            res = parse_posix_cc(ps, list);
             if (NOT_MATCHED(res.code)) {
                 ch_start = "[";
                 res.code = PARSE_SUCCESS;
@@ -807,7 +807,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
         case '\\':
             res = parse_escape_char(ps, &ch_start);
             if (NOT_MATCHED(res.code)) {
-                res = parse_escape_cc(ps, neg, list);
+                res = parse_escape_cc(ps, list);
                 if (NOT_MATCHED(res.code))
                     res = PARSE_RES(PARSE_INVALID_ESCAPE, ps->ch);
             }
@@ -827,7 +827,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
 
     if (*(ch = ps->ch) != '-') {
         if (ch_start) {
-            INTERVAL_LIST_ITEM_INIT(item, interval(neg, ch_start, ch_start));
+            INTERVAL_LIST_ITEM_INIT(item, interval(ch_start, ch_start));
             DLL_PUSH_BACK(list->sentinel, item);
             list->len++;
         }
@@ -839,7 +839,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
 
     switch (*++ps->ch) {
         case '[':
-            res = parse_posix_cc(ps, neg, list);
+            res = parse_posix_cc(ps, list);
             if (NOT_MATCHED(res.code)) {
                 ch_end   = "[";
                 res.code = PARSE_SUCCESS;
@@ -852,7 +852,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
         case '\\':
             res = parse_escape_char(ps, &ch_end);
             if (NOT_MATCHED(res.code)) {
-                res = parse_escape_cc(ps, neg, list);
+                res = parse_escape_cc(ps, list);
                 if (NOT_MATCHED(res.code))
                     res = PARSE_RES(PARSE_INVALID_ESCAPE, ps->ch);
                 else if (SUCCEEDED(res.code))
@@ -863,12 +863,11 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
 
         case ']':
             if (ch_start) {
-                INTERVAL_LIST_ITEM_INIT(item,
-                                        interval(neg, ch_start, ch_start));
+                INTERVAL_LIST_ITEM_INIT(item, interval(ch_start, ch_start));
                 DLL_PUSH_BACK(list->sentinel, item);
                 list->len++;
             }
-            INTERVAL_LIST_ITEM_INIT(item, interval(neg, "-", "-"));
+            INTERVAL_LIST_ITEM_INIT(item, interval("-", "-"));
             DLL_PUSH_BACK(list->sentinel, item);
             list->len++;
             res = PARSE_RES(PARSE_SUCCESS, ps->ch);
@@ -887,7 +886,7 @@ parse_cc_atom(ParseState *ps, int neg, IntervalList *list /**< out parameter */)
     if (ERRORED(res.code) || !ch_end) return res;
 
     if (stc_utf8_cmp(ch_start, ch_end) <= 0) {
-        INTERVAL_LIST_ITEM_INIT(item, interval(neg, ch_start, ch_end));
+        INTERVAL_LIST_ITEM_INIT(item, interval(ch_start, ch_end));
         DLL_PUSH_BACK(list->sentinel, item);
         list->len++;
     } else {
@@ -903,7 +902,7 @@ static ParseResult parse_escape(ParseState *ps,
     ParseResult       res;
     IntervalList      list = { 0 };
     IntervalListItem *item, *next;
-    Interval         *intervals;
+    Intervals        *intervals;
     const char       *ch;
     size_t            i;
     // TODO: use for backreferences
@@ -920,16 +919,16 @@ static ParseResult parse_escape(ParseState *ps,
     }
 
     DLL_INIT(list.sentinel);
-    res = parse_escape_cc(ps, FALSE, &list);
+    res = parse_escape_cc(ps, &list);
     if (ERRORED(res.code)) goto done;
     if (SUCCEEDED(res.code)) {
-        intervals = malloc(list.len * sizeof(*intervals));
+        intervals = intervals_new(FALSE, list.len);
         for (i = 0, item = list.sentinel->next; item != list.sentinel;
              i++, item   = item->next) {
-            intervals[i] = item->interval;
+            intervals->intervals[i] = item->interval;
         }
 
-        *re = regex_cc(intervals, list.len);
+        *re = regex_cc(intervals);
         SET_RID(*re, ps);
         goto done;
     }
@@ -1158,15 +1157,14 @@ static ParseResult parse_escape_char(ParseState  *ps,
     return res;
 }
 
-#define PUSH_INTERVAL(start, end)                                 \
-    INTERVAL_LIST_ITEM_INIT(item, interval(neg, (start), (end))); \
-    DLL_PUSH_BACK(list->sentinel, item);                          \
+#define PUSH_INTERVAL(start, end)                            \
+    INTERVAL_LIST_ITEM_INIT(item, interval((start), (end))); \
+    DLL_PUSH_BACK(list->sentinel, item);                     \
     list->len++
 
 #define PUSH_CHAR(ch) PUSH_INTERVAL(ch, ch);
 
 static ParseResult parse_escape_cc(ParseState   *ps,
-                                   int           neg,
                                    IntervalList *list /**< out parameter */)
 {
     IntervalListItem *item;
@@ -1176,44 +1174,61 @@ static ParseResult parse_escape_cc(ParseState   *ps,
     if (*(next_ch = ps->ch) != '\\') return PARSE_RES(PARSE_NO_MATCH, ps->ch);
 
     switch (*++next_ch) {
-        case 'D': neg = !neg;
+        case 'D':
+            PUSH_INTERVAL("\x00", "\x2f");
+            PUSH_INTERVAL("\x3a", UNICODE_END);
+            break;
+
         case 'd': PUSH_INTERVAL("0", "9"); break;
 
         case 'N':
-            neg = !neg;
-            PUSH_CHAR("\n");
+            PUSH_INTERVAL("\x00", "\x09");
+            PUSH_INTERVAL("\x0b", UNICODE_END);
             break;
 
-        case 'H': neg = !neg;
+        case 'H':
+            PUSH_INTERVAL("\x00", "\x08");
+            PUSH_INTERVAL("\x10", "\x1f");
+            PUSH_INTERVAL("\x21", UNICODE_END);
+            break;
+
         case 'h':
-            PUSH_CHAR(" ");
             PUSH_CHAR("\t");
+            PUSH_CHAR(" ");
             break;
 
-        case 'V': neg = !neg;
-        case 'v':
-            PUSH_CHAR("\f");
-            PUSH_CHAR("\n");
-            PUSH_CHAR("\r");
-            PUSH_CHAR("\v");
+        case 'V':
+            PUSH_INTERVAL("\x00", "\x09");
+            PUSH_INTERVAL("\x0e", UNICODE_END);
             break;
 
-        case 'S': neg = !neg;
+        case 'v': PUSH_INTERVAL("\x0a", "\x0d"); break;
+
+        case 'S':
+            PUSH_INTERVAL("\x00", "\x08");
+            PUSH_INTERVAL("\x0e", "\x1f");
+            PUSH_INTERVAL("\x21", UNICODE_END);
+            break;
+
         case 's':
-            PUSH_CHAR(" ");
             PUSH_CHAR("\t");
-            PUSH_CHAR("\f");
-            PUSH_CHAR("\n");
-            PUSH_CHAR("\r");
-            PUSH_CHAR("\v");
+            PUSH_INTERVAL("\x0a", "\x0d");
+            PUSH_CHAR(" ");
             break;
 
-        case 'W': neg = !neg;
+        case 'W':
+            PUSH_INTERVAL("\x00", "\x2f");
+            PUSH_INTERVAL("\x3a", "\x40");
+            PUSH_INTERVAL("\x5b", "\x5e");
+            PUSH_CHAR("\x60");
+            PUSH_INTERVAL("\x7b", UNICODE_END);
+            break;
+
         case 'w':
-            PUSH_INTERVAL("A", "Z");
-            PUSH_INTERVAL("a", "z");
             PUSH_INTERVAL("0", "9");
+            PUSH_INTERVAL("A", "Z");
             PUSH_CHAR("_");
+            PUSH_INTERVAL("a", "z");
             break;
 
         case 'C':
@@ -1228,7 +1243,6 @@ static ParseResult parse_escape_cc(ParseState   *ps,
 }
 
 static ParseResult parse_posix_cc(ParseState   *ps,
-                                  int           neg,
                                   IntervalList *list /**< out parameter */)
 {
     IntervalListItem *item;

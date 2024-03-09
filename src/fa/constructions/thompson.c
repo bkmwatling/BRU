@@ -85,8 +85,7 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
             state_ids.initial = state_ids.final = smir_add_state(sm);
             smir_state_append_action(
                 sm, state_ids.final,
-                smir_action_predicate(
-                    intervals_clone(re->intervals, re->cc_len), re->cc_len));
+                smir_action_predicate(intervals_clone(re->intervals)));
             break;
 
         case ALT:

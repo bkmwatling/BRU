@@ -13,17 +13,15 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent);
 
 /* --- Interval ------------------------------------------------------------- */
 
-Interval interval(int neg, const char *lbound, const char *ubound)
+Interval interval(const char *lbound, const char *ubound)
 {
-    return (Interval){ neg, lbound, ubound };
+    return (Interval){ lbound, ubound };
 }
 
 char *interval_to_str(const Interval *self)
 {
     char  *s = malloc(INTERVAL_MAX_BUF * sizeof(*s));
     size_t codepoint, len = 0;
-
-    if (self->neg) s[len++] = '^';
 
     codepoint = stc_utf8_to_codepoint(self->lbound);
     if (stc_unicode_isprint(codepoint))
@@ -45,39 +43,51 @@ char *interval_to_str(const Interval *self)
     return s;
 }
 
-Interval *intervals_clone(const Interval *intervals, size_t len)
+Intervals *intervals_new(int neg, size_t len)
 {
-    Interval *clone;
+    Intervals *intervals =
+        malloc(sizeof(*intervals) + len * sizeof(*intervals->intervals));
 
-    clone = malloc(sizeof(*clone) * len);
-    memcpy(clone, intervals, sizeof(*clone) * len);
+    intervals->neg = neg ? TRUE : FALSE;
+    intervals->len = len;
+
+    return intervals;
+}
+
+void intervals_free(Intervals *self) { free(self); }
+
+Intervals *intervals_clone(const Intervals *self)
+{
+    Intervals *clone = intervals_new(self->neg, self->len);
+
+    memcpy(clone->intervals, self->intervals,
+           self->len * sizeof(*self->intervals));
 
     return clone;
 }
 
-int intervals_predicate(const Interval *intervals,
-                        size_t          len,
-                        const char     *codepoint)
+int intervals_predicate(const Intervals *self, const char *ch)
 {
     size_t i;
     int    pred = 0;
 
-    for (i = 0; i < len; i++)
-        if ((pred = interval_predicate(intervals[i], codepoint))) break;
+    for (i = 0; i < self->len; i++)
+        if ((pred = interval_predicate(self->intervals[i], ch))) break;
 
-    return pred;
+    return pred != self->neg;
 }
 
-char *intervals_to_str(const Interval *intervals, size_t len)
+char *intervals_to_str(const Intervals *self)
 {
-    size_t i, slen = 0, alloc = 3 + 2 * INTERVAL_MAX_BUF;
+    size_t i, slen = 0, alloc = 4 + 2 * INTERVAL_MAX_BUF;
     char  *s = malloc(alloc * sizeof(*s)), *p;
 
+    if (self->neg) s[slen++] = '^';
     s[slen++] = '[';
-    for (i = 0; i < len; ++i) {
-        p = interval_to_str(intervals + i);
+    for (i = 0; i < self->len; ++i) {
+        p = interval_to_str(self->intervals + i);
         ENSURE_SPACE(s, slen + INTERVAL_MAX_BUF + 3, alloc, sizeof(char));
-        if (i < len - 1)
+        if (i < self->len - 1)
             slen += snprintf(s + slen, alloc - slen, "%s, ", p);
         else
             slen += snprintf(s + slen, alloc - slen, "%s", p);
@@ -114,13 +124,12 @@ RegexNode *regex_literal(const char *ch)
     return re;
 }
 
-RegexNode *regex_cc(Interval *intervals, len_t len)
+RegexNode *regex_cc(Intervals *intervals)
 {
     RegexNode *re = malloc(sizeof(*re));
 
     re->type      = CC;
     re->intervals = intervals;
-    re->cc_len    = len;
 
     return re;
 }
@@ -206,7 +215,7 @@ void regex_node_free(RegexNode *self)
         case LITERAL: /* fallthrough */
         case BACKREFERENCE: break;
 
-        case CC: free(self->intervals); break;
+        case CC: intervals_free(self->intervals); break;
 
         case ALT: /* fallthrough */
         case CONCAT:
@@ -239,11 +248,7 @@ RegexNode *regex_clone(RegexNode *self)
         case LITERAL: /* fallthrough */
         case BACKREFERENCE: break;
 
-        case CC:
-            re->intervals = malloc(re->cc_len * sizeof(*re->intervals));
-            memcpy(re->intervals, self->intervals,
-                   re->cc_len * sizeof(*re->intervals));
-            break;
+        case CC: re->intervals = intervals_clone(self->intervals); break;
 
         case ALT: /* fallthrough */
         case CONCAT:
@@ -290,7 +295,7 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
             break;
 
         case CC:
-            p = intervals_to_str(re->intervals, re->cc_len);
+            p = intervals_to_str(re->intervals);
             fprintf(stream, "CharClass(%s)", p);
             free(p);
             break;

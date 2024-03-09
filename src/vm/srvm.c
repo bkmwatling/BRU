@@ -115,10 +115,10 @@ static int srvm_run(SRVM *self, const char *text)
     void          *thread, *t;
     const byte    *pc;
     const char    *sp, *codepoint, *matched_sp;
-    len_t          ncaptures, intervals_len, k;
+    len_t          ncaptures, k;
     offset_t       x, y;
     cntr_t         cval, n;
-    Interval      *intervals;
+    Intervals     *intervals;
 
     if (self->matching_finished) return MATCHES_EXHAUSTED;
 
@@ -189,11 +189,9 @@ static int srvm_run(SRVM *self, const char *text)
                     break;
 
                 case PRED:
-                    MEMREAD(intervals_len, pc, len_t);
                     MEMREAD(k, pc, len_t);
-                    intervals = (Interval *) (prog->aux + k);
-                    if (*sp &&
-                        intervals_predicate(intervals, intervals_len, sp)) {
+                    intervals = (Intervals *) (prog->aux + k);
+                    if (*sp && intervals_predicate(intervals, sp)) {
                         thread_manager_set_pc(tm, thread, pc);
                         thread_manager_inc_sp(tm, thread);
                         thread_manager_schedule_thread(tm, thread);
