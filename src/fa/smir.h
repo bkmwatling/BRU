@@ -371,11 +371,10 @@ const Action *smir_action_char(const char *ch);
  * Create an action for matching against a predicate.
  *
  * @param[in] pred     the predicate
- * @param[in] pred_len the length of the predicate
  *
  * @return the action
  */
-const Action *smir_action_predicate(Interval *pred, len_t pred_len);
+const Action *smir_action_predicate(const Intervals *pred);
 
 /**
  * Create an action which require relative pointers into memory.
@@ -477,8 +476,6 @@ void smir_action_list_clear(ActionList *self);
  * @param[in] self the list of actions
  */
 void smir_action_list_free(ActionList *self);
-
-ActionListIterator *smir_action_list_iter(const ActionList *self);
 
 /**
  * Push an action to the back of a list of actions.

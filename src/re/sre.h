@@ -11,10 +11,15 @@
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
-    int         neg;    /**< whether to negate interval                       */
     const char *lbound; /**< lower bound for interval                         */
     const char *ubound; /**< upper bound for interval                         */
 } Interval;
+
+typedef struct {
+    int      neg;         /**< whether to negate the collection of intervals  */
+    size_t   len;         /**< number of intervals                            */
+    Interval intervals[]; /**< array of underlying intervals                  */
+} Intervals;
 
 typedef enum {
     EPSILON,
@@ -48,15 +53,14 @@ struct regex_node {
     RegexType type; /**< the type of the regex node                           */
 
     union {
-        const char *ch;        /**< UTF-8 encoded codepoint for literals      */
-        Interval   *intervals; /**< array of intervals for character classes  */
+        const char *ch;        /**< UTF-8 encoded "character" for literals    */
+        Intervals  *intervals; /**< intervals for character classes           */
         RegexNode  *left;      /**< left or only child for operators          */
     };
 
     union {
         byte       greedy;   /**< whether the repetition operator is greedy   */
         byte       positive; /**< whether lookahead is positive or negative   */
-        len_t      cc_len;   /**< number of intervals in character class      */
         len_t      capture_idx; /**< index for captures and backreferences    */
         RegexNode *right;       /**< right child for binary operators         */
     };
@@ -74,20 +78,19 @@ struct regex_node {
 
 /* --- Interval function prototypes ----------------------------------------- */
 
-#define interval_predicate(interval, codepoint)            \
-    ((stc_utf8_cmp((interval).lbound, (codepoint)) <= 0 && \
-      stc_utf8_cmp((codepoint), (interval).ubound) <= 0) != (interval).neg)
+#define interval_predicate(interval, ch)           \
+    (stc_utf8_cmp((interval).lbound, (ch)) <= 0 && \
+     stc_utf8_cmp((ch), (interval).ubound) <= 0)
 
 /**
- * Construct an interval from bounds and negation.
+ * Construct an interval from bounds.
  *
- * @param[in] neg    whether the interval should be negated
  * @param[in] lbound the lower bound of the interval
  * @param[in] ubound the upper bound of the interval
  *
  * @return the constructed interval
  */
-Interval interval(int neg, const char *lbound, const char *ubound);
+Interval interval(const char *lbound, const char *ubound);
 
 /**
  * Get the string representation of an interval.
@@ -99,37 +102,52 @@ Interval interval(int neg, const char *lbound, const char *ubound);
 char *interval_to_str(const Interval *self);
 
 /**
- * Clone an array of intervals.
+ * Construct a collection of empty intervals with specified number of intervals
+ * to allocate.
  *
- * @param[in] intervals the array of intervals to clone
- * @param[in] len       the length of the array of intervals
+ * @param[in] neg whether the collection of intervals should be negated
+ * @param[in] len number of intervals to allocate space for
  *
- * @return the cloned array of intervals
+ * @return a collection of intervals with specified number of intervals
+ *         allocated and specified negation
  */
-Interval *intervals_clone(const Interval *intervals, size_t len);
+Intervals *intervals_new(int neg, size_t len);
 
 /**
- * Evaluate the predicate represented by an array of intervals.
+ * Free the memory allocated for the collection of intervals.
  *
- * @param[in] intervals the array of intervals to evaluate
- * @param[in] len       the length of the array of intervals
- * @param[in] codepoint the UTF-8 encoded codepoint to evaluate against
- *
- * @return whether the codepoint is contained in the array of intervals
+ * @param[in] self the collection of intervals to free
  */
-int intervals_predicate(const Interval *intervals,
-                        size_t          len,
-                        const char     *codepoint);
+void intervals_free(Intervals *self);
 
 /**
- * Get the string representation of an array of intervals.
+ * Clone a collection of intervals.
  *
- * @param[in] intervals the array of intervals
- * @param[in] len       the length of the array of intervals
+ * @param[in] self the collection of intervals to clone
  *
- * @return the string representation of the array of intervals
+ * @return the cloned collection of intervals
  */
-char *intervals_to_str(const Interval *intervals, size_t len);
+Intervals *intervals_clone(const Intervals *self);
+
+/**
+ * Evaluate the predicate represented by a collection of intervals.
+ *
+ * @param[in] self the collection of intervals to evaluate
+ * @param[in] ch   the UTF-8 encoded "character" to evaluate against
+ *
+ * @return truthy value if the UTF-8 "character" is contained in the
+ *         collection of intervals; else 0
+ */
+int intervals_predicate(const Intervals *self, const char *ch);
+
+/**
+ * Get the string representation of a collection of intervals.
+ *
+ * @param[in] self the collection of intervals
+ *
+ * @return the string representation of the collection of intervals
+ */
+char *intervals_to_str(const Intervals *self);
 
 /* --- Regex function prototypes -------------------------------------------- */
 
@@ -154,12 +172,11 @@ RegexNode *regex_literal(const char *ch);
 /**
  * Construct a regex character class node.
  *
- * @param[in] intervals the intervals for the character class
- * @param[in] len       the number of intervals
+ * @param[in] intervals the collection of intervals for the character class
  *
  * @return the regex character class node
  */
-RegexNode *regex_cc(Interval *intervals, len_t len);
+RegexNode *regex_cc(Intervals *intervals);
 
 /**
  * Construct a regex branch node with given type (ALT or CONCAT) and given

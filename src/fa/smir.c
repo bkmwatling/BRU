@@ -29,12 +29,8 @@ struct action {
     ActionType type;
 
     union {
-        const char     *ch;   /**< type = ACT_CHAR                            */
-        const Interval *pred; /**< type = ACT_PRED                            */
-    };
-
-    union {
-        len_t pred_len; /**< type = ACT_PRED                                  */
+        const char      *ch;   /**< type = ACT_CHAR                           */
+        const Intervals *pred; /**< type = ACT_PRED                           */
         size_t k; /**< type = ACT_MEMO | ACT_SAVE | ACT_EPSCHK | ACT_EPSSET   */
     };
 };
@@ -455,13 +451,12 @@ const Action *smir_action_char(const char *ch)
     return act;
 }
 
-const Action *smir_action_predicate(Interval *pred, len_t pred_len)
+const Action *smir_action_predicate(const Intervals *pred)
 {
     Action *act = malloc(sizeof(*act));
 
-    act->type     = ACT_PRED;
-    act->pred     = pred;
-    act->pred_len = pred_len;
+    act->type = ACT_PRED;
+    act->pred = pred;
 
     return act;
 }
@@ -483,18 +478,17 @@ const Action *smir_action_clone(const Action *self)
     if (!self) return NULL;
 
     switch (self->type) {
-        case ACT_BEGIN:
+        case ACT_BEGIN: /* fallthrough */
         case ACT_END: clone = smir_action_zwa(self->type); break;
 
-        case ACT_CHAR: clone = smir_action_char(self->ch);
+        case ACT_CHAR: clone = smir_action_char(self->ch); break;
         case ACT_PRED:
-            clone = smir_action_predicate(
-                intervals_clone(self->pred, self->pred_len), self->pred_len);
+            clone = smir_action_predicate(intervals_clone(self->pred));
             break;
 
-        case ACT_MEMO:
-        case ACT_SAVE:
-        case ACT_EPSCHK:
+        case ACT_MEMO:   /* fallthrough */
+        case ACT_SAVE:   /* fallthrough */
+        case ACT_EPSCHK: /* fallthrough */
         case ACT_EPSSET: clone = smir_action_num(self->type, self->k); break;
     }
 
@@ -505,7 +499,7 @@ void smir_action_free(const Action *self)
 {
     if (!self) return;
 
-    if (self->type == ACT_PRED) free((Interval *) self->pred);
+    if (self->type == ACT_PRED) intervals_free((Intervals *) self->pred);
     free((Action *) self);
 }
 
@@ -527,7 +521,7 @@ void smir_action_print(const Action *self, FILE *stream)
             fprintf(stream, "char %.*s", stc_utf8_nbytes(self->ch), self->ch);
             break;
         case ACT_PRED:
-            s = intervals_to_str(self->pred, self->pred_len);
+            s = intervals_to_str(self->pred);
             fprintf(stream, "pred %s", s);
             free(s);
             break;
@@ -804,7 +798,6 @@ static size_t count_bytes_actions(const ActionList *acts)
             case ACT_PRED:
                 size++;
                 size += sizeof(len_t);
-                size += sizeof(len_t);
                 break;
 
             case ACT_MEMO:
@@ -868,10 +861,11 @@ static byte *compile_actions(byte             *pc,
 
             case ACT_PRED:
                 BCWRITE(pc, PRED);
-                MEMWRITE(pc, len_t, n->act->pred_len);
                 MEMWRITE(pc, len_t, stc_vec_len_unsafe(prog->aux));
                 MEMCPY(prog->aux, n->act->pred,
-                       n->act->pred_len * sizeof(Interval));
+                       sizeof(*n->act->pred) +
+                           n->act->pred->len *
+                               sizeof(*n->act->pred->intervals));
                 break;
 
             case ACT_MEMO:

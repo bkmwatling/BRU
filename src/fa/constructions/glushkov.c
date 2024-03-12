@@ -369,8 +369,8 @@ static void rfa_construct(Rfa                *self,
 
         case LITERAL: APPEND_POSITION(smir_action_char(re->ch)); break;
         case CC:
-            APPEND_POSITION(smir_action_predicate(
-                intervals_clone(re->intervals, re->cc_len), re->cc_len));
+            APPEND_POSITION(
+                smir_action_predicate(intervals_clone(re->intervals)));
             break;
 
         case ALT:

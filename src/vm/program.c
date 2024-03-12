@@ -98,7 +98,7 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
             case MEMO:  /* fallthrough */
             case END: break;
             case CHAR: insts += sizeof(char *); break;
-            case PRED: insts += 2 * sizeof(len_t); break;
+            case PRED: insts += sizeof(len_t); break;
             case SAVE: insts += sizeof(len_t); break;
             case JMP:    /* fallthrough */
             case GSPLIT: /* fallthrough */
@@ -150,10 +150,8 @@ static const byte *inst_print(FILE *stream, const byte *pc, const Program *prog)
             break;
 
         case PRED:
-            MEMREAD(n, pc, len_t);
             MEMREAD(i, pc, len_t);
-
-            p = intervals_to_str((Interval *) (prog->aux + i), n);
+            p = intervals_to_str((Intervals *) (prog->aux + i));
             fprintf(stream, "pred %s", p);
             free(p);
             break;
