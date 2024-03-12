@@ -5,6 +5,16 @@ bin/
 
 # benchmark reproducible benchmark files
 
-benchmarks/**/*.jpg
-benchmarks/**/*.json
-!benchmarks/*.json
+benchmark/**/*.jpg
+benchmark/**/*.jsonl
+
+# experiments
+__pycache__/
+experiments/data-build/*
+experiments/data/*
+!.gitkeep
+.venv
+.mypy_cache/
+logs/
+
+tags
