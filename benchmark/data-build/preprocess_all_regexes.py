@@ -4,7 +4,7 @@ import logging
 import re
 import string
 from pathlib import Path
-from typing import (Any, Optional, )
+from typing import (Any, Optional, Callable, )
 
 import timeout_decorator  # type: ignore
 import jsonlines  # type: ignore
@@ -28,91 +28,66 @@ def get_xeger_instance() -> xeger.Xeger:
     return xeger_instance
 
 
+@timeout_decorator.timeout(1, timeout_exception=TimeOutException)
 def get_positive_input(
     pattern: str,
     xeger_instance: xeger.Xeger,
-) -> Optional[str]:
-
-    def is_printable(letters: str) -> bool:
-        return all(c in string.printable for c in letters)
-
-    @timeout_decorator.timeout(1, timeout_exception=TimeOutException)
-    def _get_positive_input(
-        pattern: str,
-        xeger_instance: xeger.Xeger,
-    ) -> str:
-        while True:
-            positive_input_candidate = xeger_instance.xeger(pattern)
-            if not re.fullmatch(pattern, positive_input_candidate):
-                continue
-            if not is_printable(positive_input_candidate):
-                continue
-            return positive_input_candidate
-
-    try:
-        positive_input = _get_positive_input(pattern, xeger_instance)
-        return positive_input
-    except TimeOutException:
-        logging.debug("Timeout for negative input")
-    except Exception as e:
-        logging.debug(e)
-    return None
+) -> str:
+    while True:
+        positive_input_candidate = xeger_instance.xeger(pattern)
+        if not re.fullmatch(pattern, positive_input_candidate):
+            continue
+        return positive_input_candidate
 
 
+@timeout_decorator.timeout(1, timeout_exception=TimeOutException)
 def get_negative_input(
     pattern: str,
     xeger_instance: xeger.Xeger,
-) -> Optional[str]:
+) -> str:
+    def add_noise(s: str) -> str:
+        noise = random.choice(list(string.printable) + [""])
+        index = random.randint(0, len(s))
+        return s[:index] + noise + s[index+1:]
 
-    @timeout_decorator.timeout(1, timeout_exception=TimeOutException)
-    def _get_negative_input(
-        pattern: str,
-        xeger_instance: xeger.Xeger,
-    ) -> str:
-        def add_noise(s: str) -> str:
-            noise = random.choice(list(string.printable) + [""])
-            index = random.randint(0, len(s))
-            return s[:index] + noise + s[index+1:]
-
-        positive_input_candidate = xeger_instance.xeger(pattern)
-        if not re.fullmatch(pattern, positive_input_candidate):
-            negative_input = positive_input_candidate
-            return negative_input
-
-        while True:
-            negative_input = add_noise(positive_input_candidate)
-            if not re.fullmatch(pattern, negative_input):
-                return negative_input
-
-    try:
-        negative_input = _get_negative_input(pattern, xeger_instance)
+    positive_input_candidate = xeger_instance.xeger(pattern)
+    if not re.fullmatch(pattern, positive_input_candidate):
+        negative_input = positive_input_candidate
         return negative_input
-    except TimeOutException:
-        logging.debug("Timeout for negative input")
-    except Exception as e:
-        logging.debug(e)
-    return None
+
+    while True:
+        negative_input = add_noise(positive_input_candidate)
+        if not re.fullmatch(pattern, negative_input):
+            return negative_input
 
 
 def preprocess_data(
     data: dict[str, Any],
     num_of_positive_inputs: int,
     num_of_negative_inputs: int
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any]:
     pattern = data["pattern"]
     xeger_instance = get_xeger_instance()
-    positive_inputs = [
-        get_positive_input(pattern, xeger_instance)
-        for _ in range(num_of_positive_inputs)
-    ]
-    negative_inputs = [
-        get_negative_input(pattern, xeger_instance)
-        for _ in range(num_of_negative_inputs)
-    ]
-    if not all(string is not None for string in positive_inputs):
-        return None
-    if not all(string is not None for string in negative_inputs):
-        return None
+
+    def generate_inputs(generator: Callable[[], str], num_of_inputs: int):
+        inputs = []
+        for _ in range(num_of_positive_inputs):
+            try:
+                inputs.append(generator())
+            except Exception:
+                continue
+        return inputs
+
+    positive_inputs = generate_inputs(
+        lambda: get_positive_input(pattern, xeger_instance),
+        num_of_positive_inputs
+    )
+    negative_inputs = generate_inputs(
+        lambda: get_negative_input(pattern, xeger_instance),
+        num_of_negative_inputs
+    )
+    if len(positive_inputs) == 0 or len(negative_inputs) == 0:
+        raise ValueError("Failed to generate any input for the pattern.")
     return {
         "pattern": pattern,
         "positive_inputs": positive_inputs,
@@ -125,18 +100,27 @@ def write_preprocessed_dataset(
     num_of_positive_inputs: int, num_of_negative_inputs: int
 ) -> None:
     regex_dataset = jsonlines.open(input_path, mode='r')
+
+    def safe_preprocess_data(data: dict[str, Any]) -> Optional[dict[str, Any]]:
+        try:
+            return preprocess_data(
+                data, num_of_positive_inputs, num_of_negative_inputs)
+        except Exception as e:
+            logging.debug(f"Failed to preprocess {data['pattern']}: {e}")
+            return None
+
     with mp.ProcessPool() as pool:
         optional_preprocessed_dataset = pool.imap(
-            lambda e:
-                preprocess_data(
-                    e, num_of_negative_inputs, num_of_positive_inputs),
-            regex_dataset
-        )
+            safe_preprocess_data, regex_dataset)
 
     preprocessed_dataset = (
         data for data in optional_preprocessed_dataset if data is not None)
     output_file = jsonlines.open(output_path, "w")
-    output_file.write_all(preprocessed_dataset)
+    for data in preprocessed_dataset:
+        try:
+            output_file.write(data)
+        except UnicodeEncodeError:
+            continue
     output_file.close()
     regex_dataset.close()
 
