@@ -3,7 +3,7 @@
 2. Place `data-build/{all_regexes,sl_regexes}.jsonl`
 3. Run `make preprocess`
   1. `dataset-build/intermediate/{all_regexes,sl_regexes}.jsonl` contains the
-  regexes which bru can compile.
+  regexes which bru can compile within 10 seconds.
   2. `data/polyglot/{all_regexes,sl_regexes}.jsonl` contains the regexes and
   inputs.
 
