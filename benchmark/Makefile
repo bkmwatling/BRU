@@ -14,7 +14,7 @@ COMPILABLE_REGEX_DATASET := \
 	$(INTERMEDIATE_DATASET_DIR)/compilable_all_regexes.jsonl
 COMPILABLE_SL_REGEX_DATASET := \
 	$(INTERMEDIATE_DATASET_DIR)/compilable_sl_regexes.jsonl
-DATASET_DIR := data
+DATASET_DIR := data/polyglot
 REGEX_DATASET := $(DATASET_DIR)/all_regexes.jsonl
 SL_REGEX_DATASET := $(DATASET_DIR)/sl_regexes.jsonl
 DIRS := \
