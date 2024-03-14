@@ -1,0 +1,173 @@
+import argparse
+import logging
+import subprocess
+from typing import (TypedDict, Any, Optional, )
+from enum import Enum
+from pathlib import Path
+
+import jsonlines  # type: ignore
+
+
+class ConstructionOption(Enum):
+    THOMPOSON = "thompson"
+    GLUSHKOV = "glushkov"
+
+
+class MemoSchemeOption(Enum):
+    NONE = "none"
+    CLOSURE_NODE = "cn"  # have a back-edge coming in that forms a loop
+    IN_DEGREE = "in"  # state that have an in-degree > 1
+
+
+class SchedulerOption(Enum):
+    SPENCER = "spencer"
+    LOCKSTEP = "lockstep"
+
+
+class RegexType(Enum):
+    ALL = "all"
+    SUPER_LINEAR = "sl"  # super-linear
+
+
+BruArgs = TypedDict("BruArgs", {
+    "memo-scheme": MemoSchemeOption,
+    "construction": ConstructionOption,
+    "scheduler": SchedulerOption
+}, total=False)
+
+
+def benchmark(
+    pattern: str,
+    string: str,
+    bru_args: BruArgs,
+    timeout: int = 10
+) -> dict[str, str]:
+    construction = bru_args["construction"]
+    memo_scheme = bru_args["memo-scheme"]
+    scheduler = bru_args["scheduler"]
+
+    if scheduler == SchedulerOption.LOCKSTEP:
+        if memo_scheme != MemoSchemeOption.NONE:
+            raise ValueError(
+                "Lockstep scheduler can only be used with no memoization")
+
+    args = [
+        'bru', 'match',
+        '-c', construction.value,
+        '-m', memo_scheme.value,
+        '-s', scheduler.value,
+        pattern, string
+    ]
+    completed = subprocess.run(
+        args, check=True, timeout=10,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    stdout = completed.stdout.decode("utf-8")
+    stderr = completed.stderr.decode("utf-8")
+    return {"stdout": stdout, "stderr": stderr}
+
+
+def benchmark_sl_data(
+    data: dict[str, Any],
+    bru_args: BruArgs
+) -> dict[str, Any]:
+    pattern = data["pattern"]
+    evil_inputs = data["evil_inputs"]
+
+    def safe_benchmark(string: str) -> Optional[dict[str, str]]:
+        try:
+            benchmark_result = benchmark(pattern, string, bru_args)
+            return benchmark_result
+        except subprocess.TimeoutExpired:
+            pass
+        except (subprocess.CalledProcessError, ValueError) as e:
+            logging.error(f"Engine error for {pattern} and {string}")
+            logging.error(e)
+        return None
+
+    outputs: list[Optional[dict[str, str]]] = []
+    timed_out = False
+    for evil_input in evil_inputs:
+        if timed_out:
+            outputs.append(None)
+            continue
+        result = safe_benchmark(evil_input)
+        if result is None:
+            timed_out = True
+        outputs.append(result)
+    data["outputs"] = outputs
+    return data
+
+
+def benchmark_all_data(
+    data: dict[str, Any],
+    bru_args: BruArgs
+) -> dict[str, Any]:
+    pattern = data["pattern"]
+    positive_inputs = data["positive_inputs"]
+    negative_inputs = data["negative_inputs"]
+
+    def safe_benchmark(string: str) -> Optional[dict[str, str]]:
+        try:
+            benchmark_result = benchmark(pattern, string, bru_args)
+            return benchmark_result
+        except subprocess.TimeoutExpired:
+            pass
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Engine error for {pattern} and {string}")
+            logging.error(e.stderr)
+        return None
+
+    positive_outputs = list(map(safe_benchmark, positive_inputs))
+    negative_outputs = list(map(safe_benchmark, negative_inputs))
+    data["positive_outputs"] = positive_outputs
+    data["negative_outputs"] = negative_outputs
+    return data
+
+
+def benchmark_dataset(
+    input_path: Path,
+    output_path: Path,
+    bru_args: BruArgs,
+    regex_type: RegexType
+) -> None:
+    regex_dataset = jsonlines.open(input_path, mode='r')
+    if regex_type == RegexType.ALL:
+        benchmarked_dataset = (
+            benchmark_all_data(data, bru_args) for data in regex_dataset)
+    elif regex_type == RegexType.SUPER_LINEAR:
+        benchmarked_dataset = (
+            benchmark_sl_data(data, bru_args) for data in regex_dataset)
+    output_file = jsonlines.open(output_path, "w")
+    output_file.write_all(benchmarked_dataset)
+    output_file.close()
+    regex_dataset.close()
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
+    parser = argparse.ArgumentParser(
+        description="Measure the matching step of the sl-regexes")
+    parser.add_argument(
+        "-t", "--regex-type", type=RegexType, choices=list(RegexType))
+    parser.add_argument(
+        "-c", "--construction",
+        type=ConstructionOption, choices=list(ConstructionOption))
+    parser.add_argument(
+        "-s", "--scheduler",
+        type=SchedulerOption, choices=list(SchedulerOption))
+    parser.add_argument(
+        "-m", "--memo-scheme",
+        type=MemoSchemeOption, choices=list(MemoSchemeOption))
+
+    parser.add_argument("input", type=Path, help="Input file")
+    parser.add_argument("output", type=Path, help="Output file")
+    args = parser.parse_args()
+
+    bru_args = BruArgs({
+        "memo-scheme": args.memo_scheme,
+        "construction": args.construction,
+        "scheduler": args.scheduler
+    })
+    benchmark_dataset(args.input, args.output, bru_args, args.regex_type)

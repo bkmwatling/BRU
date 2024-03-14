@@ -6,57 +6,125 @@ export PATH := $(PATH):$(BRU_PATH)
 LOGS_DIR := logs
 TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 
+DATA_DIR := data
 RAW_DATASET_DIR := data-build
 INTERMEDIATE_DATASET_DIR := $(RAW_DATASET_DIR)/intermediate
-RAW_REGEX_DATASET := $(RAW_DATASET_DIR)/all_regexes.jsonl
+RAW_ALL_REGEX_DATASET := $(RAW_DATASET_DIR)/all_regexes.jsonl
 RAW_SL_REGEX_DATASET := $(RAW_DATASET_DIR)/sl_regexes.jsonl
-COMPILABLE_REGEX_DATASET := \
+COMPILABLE_ALL_REGEX_DATASET := \
 	$(INTERMEDIATE_DATASET_DIR)/compilable_all_regexes.jsonl
 COMPILABLE_SL_REGEX_DATASET := \
 	$(INTERMEDIATE_DATASET_DIR)/compilable_sl_regexes.jsonl
-DATASET_DIR := data/polyglot
-REGEX_DATASET := $(DATASET_DIR)/all_regexes.jsonl
+DATASET_DIR := $(DATA_DIR)/polyglot
+ALL_REGEX_DATASET := $(DATASET_DIR)/all_regexes.jsonl
 SL_REGEX_DATASET := $(DATASET_DIR)/sl_regexes.jsonl
+
+BENCHMARK_DIR := $(DATA_DIR)/benchmark
+
 DIRS := \
+	$(DATA_DIR) \
 	$(DATASET_DIR) \
 	$(RAW_DATASET_DIR) \
 	$(LOGS_DIR) \
-	$(INTERMEDIATE_DATASET_DIR)
+	$(INTERMEDIATE_DATASET_DIR) \
+	$(BENCHMARK_DIR)
 
 .DEFAULT:
+
+
+# Preprocessing
 
 .PHONY: preprocess
 preprocess: preprocess-regexes preprocess-sl-regexes
 
 .PHONY: preprocess-regexes
-preprocess-regexes: $(REGEX_DATASET)
+preprocess-regexes: $(ALL_REGEX_DATASET)
 
 .PHONY: preprocess-sl-regexes
 preprocess-sl-regexes: $(SL_REGEX_DATASET)
 
-$(DIRS):
-	mkdir -p $@
-
-# Preprocessing
-$(COMPILABLE_REGEX_DATASET): $(RAW_REGEX_DATASET) | $(VENV) $(DIRS)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))
+$(COMPILABLE_ALL_REGEX_DATASET): $(RAW_ALL_REGEX_DATASET) | $(VENV) $(DIRS)
+	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
 	$(PYTHON) $(RAW_DATASET_DIR)/filter_compilable.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))/log.log
+		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
 
 $(COMPILABLE_SL_REGEX_DATASET): $(RAW_SL_REGEX_DATASET) | $(VENV) $(DIRS)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))
+	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
 	$(PYTHON) $(RAW_DATASET_DIR)/filter_compilable.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))/log.log
+		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
 
-$(REGEX_DATASET): $(COMPILABLE_REGEX_DATASET) | $(VENV) $(DIRS)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))
+$(ALL_REGEX_DATASET): $(COMPILABLE_ALL_REGEX_DATASET) | $(VENV) $(DIRS)
+	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
 	$(PYTHON) $(RAW_DATASET_DIR)/preprocess_all_regexes.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))/log.log
+		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
 
 $(SL_REGEX_DATASET): $(COMPILABLE_SL_REGEX_DATASET) | $(VENV) $(DIRS)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))
+	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
 	$(PYTHON) $(RAW_DATASET_DIR)/preprocess_sl_regexes.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(notdir $(basename $@))/log.log
+		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
+
+
+REGEX_TYPES := all sl
+CONSTRUCTIONS := thompson glushkov
+MEMO_SCHEMES := none cn in
+SCHEDULERS := spencer lockstep
+
+define target_variables_template
+$(foreach construction,$(CONSTRUCTIONS),\
+	$(foreach memo_scheme,$(MEMO_SCHEMES),\
+		$(1)/$(2)-$(3)-$(construction)-$(memo_scheme)-spencer.jsonl\
+	)\
+) \
+$(foreach construction,$(CONSTRUCTIONS),\
+	$(1)/$(2)-$(3)-$(construction)-none-lockstep.jsonl\
+)
+endef
+
+define eval_template
+$(foreach regex_type,$(REGEX_TYPES),\
+	$(foreach construction,$(CONSTRUCTIONS),\
+		$(foreach memo_scheme,$(MEMO_SCHEMES),\
+			$(eval $(call $(1),$(regex_type),$(construction),$(memo_scheme),spencer))\
+		)\
+	)\
+) \
+$(foreach regex_type,$(REGEX_TYPES),\
+	$(foreach construction,$(CONSTRUCTIONS),\
+		$(eval $(call $(1),$(regex_type),$(construction),none,lockstep))\
+	)\
+)
+endef
+
+
+# Benchmarking
+define benchmark_template
+$(BENCHMARK_DIR)/benchmark-$(1)-$(2)-$(3)-$(4).jsonl: $(REGEX_DATASET) | $(BENCHMARK_DIR) $(VENV)
+	make $(LOGS_DIR)/$(TIMESTAMP)-$$(basename $$(notdir $$@))
+	$(PYTHON) src/benchmark.py \
+		--regex-type $(1) \
+		--construction $(2) \
+		--memo-scheme $(3) \
+		--scheduler $(4) \
+		$(DATASET_DIR)/$(1)_regexes.jsonl $$@ \
+		2> $(LOGS_DIR)/$(TIMESTAMP)-$$(basename $$(notdir $$@))/log.log
+endef
+
+$(call eval_template,benchmark_template)  # generate benchmark target recipes
+
+BENCHMARK_SL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,sl)
+BENCHMARK_ALL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,all)
+
+.PHONY: benchmark
+benchmark: benchmark-all benchmark-sl
+
+.PHONY: benchmark-sl
+benchmark-sl: $(BENCHMARK_SL)
+
+.PHONY: benchmark-all
+benchmark-all: $(BENCHMARK_ALL)
+
+
+# Misc
 
 $(LOGS_DIR)/%: | $(LOGS_DIR)
 	@mkdir -p $@
@@ -66,6 +134,10 @@ $(VENV): requirements.txt
 	touch $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
+
+
+$(DIRS):
+	mkdir -p $@
 
 
 .PHONY: clean
