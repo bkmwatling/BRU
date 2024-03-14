@@ -3,10 +3,13 @@ bin/
 
 *.o
 
-# benchmark reproducible benchmark files
+# reproducible benchmark files
 
 benchmark/**/*.jpg
 benchmark/**/*.jsonl
+benchmark/**/*.tar.gz
+benchmark/**/*.zip
+benchmark/**/*.tar
 
 # experiments
 __pycache__/

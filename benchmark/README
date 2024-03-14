@@ -1,0 +1,9 @@
+1. Make sure `../bin` contains the executable `bru`
+  1. Or, you can use `BRU_PATH={dir-contains-bru}`.
+2. Place `data-build/{all_regexes,sl_regexes}.jsonl`
+3. Run `make preprocess`
+  1. `dataset-build/intermediate/{all_regexes,sl_regexes}.jsonl` contains the
+  regexes which bru can compile.
+  2. `data/polyglot/{all_regexes,sl_regexes}.jsonl` contains the regexes and
+  inputs.
+
