@@ -69,12 +69,12 @@ emit(StateMachine *sm, const RegexNode *re, const CompilerOpts *opts)
                                      smir_action_zwa(ACT_END));
             break;
 
-        case MEMOISE:
-            state_ids.initial = state_ids.final = smir_add_state(sm);
-            smir_state_append_action(sm, state_ids.final,
-                                     smir_action_num(ACT_MEMO, re->rid));
-            break;
-
+        // case MEMOISE:
+        //     state_ids.initial = state_ids.final = smir_add_state(sm);
+        //     smir_state_append_action(sm, state_ids.final,
+        //                              smir_action_num(ACT_MEMO, re->rid));
+        //     break;
+        //
         case LITERAL:
             state_ids.initial = state_ids.final = smir_add_state(sm);
             smir_state_append_action(sm, state_ids.final,
