@@ -1,7 +1,7 @@
 import argparse
 import logging
 import subprocess
-from typing import (TypedDict, Any, Optional, )
+from typing import (TypedDict, Any, Optional, Callable, )
 from enum import Enum
 from pathlib import Path
 
@@ -53,6 +53,8 @@ def benchmark(
 
     args = [
         'bru', 'match',
+        '-b',  # benchmark
+        '-e',  # expand counter
         '-c', construction.value,
         '-m', memo_scheme.value,
         '-s', scheduler.value,
@@ -67,6 +69,23 @@ def benchmark(
     return {"stdout": stdout, "stderr": stderr}
 
 
+def get_safe_benchmark(
+    pattern: str,
+    bru_args: BruArgs
+) -> Callable[[str], Optional[dict[str, str]]]:
+    def safe_benchmark(string: str) -> Optional[dict[str, str]]:
+        try:
+            benchmark_result = benchmark(pattern, string, bru_args)
+            return benchmark_result
+        except subprocess.TimeoutExpired:
+            pass
+        except Exception as e:
+            logging.error(f"Engine error for {pattern} and {string}")
+            logging.error(e)
+        return None
+    return safe_benchmark
+
+
 def benchmark_sl_data(
     data: dict[str, Any],
     bru_args: BruArgs
@@ -74,17 +93,7 @@ def benchmark_sl_data(
     pattern = data["pattern"]
     evil_inputs = data["evil_inputs"]
 
-    def safe_benchmark(string: str) -> Optional[dict[str, str]]:
-        try:
-            benchmark_result = benchmark(pattern, string, bru_args)
-            return benchmark_result
-        except subprocess.TimeoutExpired:
-            pass
-        except (subprocess.CalledProcessError, ValueError) as e:
-            logging.error(f"Engine error for {pattern} and {string}")
-            logging.error(e)
-        return None
-
+    safe_benchmark = get_safe_benchmark(pattern, bru_args)
     outputs: list[Optional[dict[str, str]]] = []
     timed_out = False
     for evil_input in evil_inputs:
@@ -107,17 +116,7 @@ def benchmark_all_data(
     positive_inputs = data["positive_inputs"]
     negative_inputs = data["negative_inputs"]
 
-    def safe_benchmark(string: str) -> Optional[dict[str, str]]:
-        try:
-            benchmark_result = benchmark(pattern, string, bru_args)
-            return benchmark_result
-        except subprocess.TimeoutExpired:
-            pass
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Engine error for {pattern} and {string}")
-            logging.error(e.stderr)
-        return None
-
+    safe_benchmark = get_safe_benchmark(pattern, bru_args)
     positive_outputs = list(map(safe_benchmark, positive_inputs))
     negative_outputs = list(map(safe_benchmark, negative_inputs))
     data["positive_outputs"] = positive_outputs

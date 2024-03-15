@@ -19,16 +19,6 @@ DATASET_DIR := $(DATA_DIR)/polyglot
 ALL_REGEX_DATASET := $(DATASET_DIR)/all_regexes.jsonl
 SL_REGEX_DATASET := $(DATASET_DIR)/sl_regexes.jsonl
 
-BENCHMARK_DIR := $(DATA_DIR)/benchmark
-
-DIRS := \
-	$(DATA_DIR) \
-	$(DATASET_DIR) \
-	$(RAW_DATASET_DIR) \
-	$(LOGS_DIR) \
-	$(INTERMEDIATE_DATASET_DIR) \
-	$(BENCHMARK_DIR)
-
 .DEFAULT:
 
 
@@ -72,11 +62,11 @@ SCHEDULERS := spencer lockstep
 define target_variables_template
 $(foreach construction,$(CONSTRUCTIONS),\
 	$(foreach memo_scheme,$(MEMO_SCHEMES),\
-		$(1)/$(2)-$(3)-$(construction)-$(memo_scheme)-spencer.jsonl\
+		$(1)/$(2)-$(3)-$(construction)-$(memo_scheme)-spencer.$(4)\
 	)\
 ) \
 $(foreach construction,$(CONSTRUCTIONS),\
-	$(1)/$(2)-$(3)-$(construction)-none-lockstep.jsonl\
+	$(1)/$(2)-$(3)-$(construction)-none-lockstep.$(4)\
 )
 endef
 
@@ -97,6 +87,8 @@ endef
 
 
 # Benchmarking
+BENCHMARK_DIR := $(DATA_DIR)/benchmark
+
 define benchmark_template
 $(BENCHMARK_DIR)/benchmark-$(1)-$(2)-$(3)-$(4).jsonl: $(REGEX_DATASET) | $(BENCHMARK_DIR) $(VENV)
 	make $(LOGS_DIR)/$(TIMESTAMP)-$$(basename $$(notdir $$@))
@@ -111,8 +103,8 @@ endef
 
 $(call eval_template,benchmark_template)  # generate benchmark target recipes
 
-BENCHMARK_SL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,sl)
-BENCHMARK_ALL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,all)
+BENCHMARK_SL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,sl,json)
+BENCHMARK_ALL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,all,json)
 
 .PHONY: benchmark
 benchmark: benchmark-all benchmark-sl
@@ -123,6 +115,24 @@ benchmark-sl: $(BENCHMARK_SL)
 .PHONY: benchmark-all
 benchmark-all: $(BENCHMARK_ALL)
 
+
+# Analysis
+ANALYSIS_DIR := $(DATA_DIR)/analysis
+
+STEPS_SL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,tex)
+STEPS_ALL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,tex)
+
+
+$(ANALYSIS_DIR)/steps-%.tex: $(BENCHMARK_DIR)/benchmark-%.jsonl | $(ANALYSIS_DIR) $(VENV)
+	$(PYTHON) src/analysis_steps.py \
+		--regex-type $(word 1,$(subst -, ,$*)) $< > $@ || rm $@
+
+analysis-steps-all: $(STEPS_ALL)
+
+analysis-steps-sl: $(STEPS_SL)
+
+.PHONY: analysis-steps
+analysis-steps: analysis-steps-all analysis-steps-sl
 
 # Misc
 
@@ -135,6 +145,15 @@ $(VENV): requirements.txt
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
 
+
+DIRS := \
+	$(DATA_DIR) \
+	$(DATASET_DIR) \
+	$(RAW_DATASET_DIR) \
+	$(LOGS_DIR) \
+	$(INTERMEDIATE_DATASET_DIR) \
+	$(BENCHMARK_DIR) \
+	$(ANALYSIS_DIR)
 
 $(DIRS):
 	mkdir -p $@

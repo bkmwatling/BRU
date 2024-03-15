@@ -1,136 +1,140 @@
-import json
-import subprocess
-from typing import (TypedDict, Iterable, Optional, )
-from pathlib import Path
+import re
+import numpy as np  # type: ignore
+from functools import total_ordering
+from typing import (Optional, )
 from enum import Enum
 
 
-RegexData = TypedDict("RegexData", {
-    "pattern": str,
-    "supportedLangs": list[str],
-    "type": str,
-    "useCount_IStype_to_nPosts": dict[str, int],
-}, total=False)
+class BenchmarkResult():
+    def __init__(self, stderr: str):
+        parsed: list[tuple[int, int]] = []
+        pattern = re.compile(r"[A-Z]+: (\d+) \(FAILED: (\d+)\)")
+        for line in stderr.strip().split("\n"):
+            match = pattern.match(line)
+            assert match is not None
+            parsed.append((int(match.group(1)), int(match.group(2))))
+        self.match, self.match_failed = parsed[0]
+        self.memo, self.memo_failed = parsed[1]
+        self.char, self.char_failed = parsed[2]
+        self.pred, self.pred_failed = parsed[3]
 
-PumpPair = TypedDict("PumpPair", {"prefix": str, "pump": str})
+    @property
+    def steps(self) -> int:
+        return self.match + self.memo + self.char + self.pred
 
-EvilInput = TypedDict("EvilInput", {"pumpPairs": list[PumpPair], "type": str})
-
-SlRegexData = TypedDict(
-    "SlRegexData", {"pattern": str, "evilInputs": list[EvilInput]})
-
-
-def open_regex_dataset(path: Path) -> Iterable[RegexData]:
-    with open(path, "r") as file:
-        for line in file:
-            yield json.loads(line)
-
-
-def open_sl_regex_dataset(path: Path) -> Iterable[SlRegexData]:
-    with open(path, "r") as file:
-        for line in file:
-            yield json.loads(line)
-
-
-def run_bru_match(args: list[str], timeout=10) -> None:
-    subprocess.run(
-        ['bru', 'match'] + args, check=True, timeout=timeout,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    @property
+    def steps_failed(self) -> int:
+        return (
+            self.match_failed
+            + self.memo_failed
+            + self.char_failed
+            + self.pred_failed
+        )
 
 
-class ConstructionOption(Enum):
-    THOMPOSON = "thompson"
-    GLUSHKOV = "glushkov"
-
-
-class MemoSchemeOption(Enum):
-    CLOSURE_NODE = "cn"  # have a back-edge coming in that forms a loop
-    IN_DEGREE = "in"  # state that have an in-degree > 1
-    iar = "iar"  # TODO: What is it?
-
-
-class SchedulerOption(Enum):
-    SPENCER = "cn"
-    LOCKSTEP = "thompson"
-
-
-BruArgs = TypedDict("BruArgs", {
-    "memo": MemoSchemeOption,
-    "construction": ConstructionOption,
-    "scheduler": SchedulerOption
-}, total=False)
-
-
-def run_benchmark(
-    pattern: str,
-    string: str,
-    bru_args: BruArgs,
-    timeout: int = 10
-) -> None:
-    args = [
-        'bru', 'match',
-        '-m', bru_args["memo"].value,
-        '-m', bru_args["construction"].value,
-        '-m', bru_args["scheduler"].value,
-        pattern, string
-    ]
-    subprocess.run(
-        args, check=True, timeout=10,
-        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
-    )
-
-
+@total_ordering
 class DegreeOfVulnerability():
     class Type(Enum):
-        CONSTANT = "constant"
-        LINEAR = "linear"
         POLYNOMIAL = "polynomial"
         EXPONENTIAL = "exponential"
         UNKNOWN = "unknown"
 
-    def __init__(self, _type: Type, k: Optional[int] = None):
-
-        if _type == DegreeOfVulnerability.Type.POLYNOMIAL:
-            if k == 0:
-                self.type = DegreeOfVulnerability.Type.CONSTANT
-                self.degree = None
-                return
-            if k == 1:
-                self.type = DegreeOfVulnerability.Type.LINEAR
-                self.degree = None
-                return
-
+    def __init__(self, _type: Type, degree: Optional[int] = None) -> None:
+        if (_type == self.Type.UNKNOWN) != (degree is None):
+            raise ValueError("Invalid parameters")
         self.type = _type
-        # If type is polynomial, the degree denotes the order.
-        # If type is exponential, the degree denotes the base.
-        self.degree = k
+        self.degree = degree
 
+    def is_vulnerable(self) -> bool:
+        if self.is_unknown() or self.is_linear() or self.is_constant():
+            return False
+        return True
 
-def get_expontential_vulnerability(steps: list[int]):
-    if len(steps) < 2:
-        return DegreeOfVulnerability(DegreeOfVulnerability.Type.UNKNOWN)
+    def is_polynomial(self) -> bool:
+        return self.type == DegreeOfVulnerability.Type.POLYNOMIAL
 
-    # Assuming step[n] = a*(k^n)+b, and return k.
-    deltas = [steps[i] - steps[i+1] for i in range(len(steps)-1)]
-    assert len(deltas) > 1
-    degree = deltas[-1] // deltas[-2]
-    return DegreeOfVulnerability(
-        DegreeOfVulnerability.Type.EXPONENTIAL, degree)
+    def is_exponential(self) -> bool:
+        return self.type == DegreeOfVulnerability.Type.EXPONENTIAL
 
+    def is_unknown(self) -> bool:
+        return self.type == DegreeOfVulnerability.Type.UNKNOWN
 
-def get_vulnerablility(steps: list[int]):
-    if len(steps) < 1:
-        return DegreeOfVulnerability(DegreeOfVulnerability.Type.UNKNOWN)
+    def is_linear(self) -> bool:
+        if not self.is_polynomial():
+            return False
+        return self.degree == 1
 
-    deltas = [steps[i] - steps[i+1] for i in range(len(steps)-1)]
-    degree = 0
+    def is_constant(self) -> bool:
+        if not self.is_polynomial():
+            return False
+        return self.degree == 0
 
-    while deltas[-1] != 0:
-        degree += 1
-        if len(deltas) == 1:
-            get_expontential_vulnerability(steps)
-        deltas = [deltas[i] - deltas[i+1] for i in range(len(deltas)-1)]
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DegreeOfVulnerability):
+            return False
+        return self.type == other.type and self.degree == other.degree
 
-    # Assuming step[n] = a*(n^k)+b, and return k.
-    return DegreeOfVulnerability(DegreeOfVulnerability.Type.POLYNOMIAL, degree)
+    def __le__(self, other: object) -> bool:
+        if not isinstance(other, DegreeOfVulnerability):
+            return False
+        if self.is_unknown():
+            return False
+        if self.is_exponential():
+            if other.is_unknown():
+                return True
+            if other.is_exponential():
+                assert self.degree is not None
+                assert other.degree is not None
+                return self.degree <= other.degree
+            return False
+        if other.is_polynomial():
+            assert self.degree is not None
+            assert other.degree is not None
+            return self.degree <= other.degree
+        return True
+
+    def __str__(self):
+        if self.is_unknown():
+            return "UNK"
+        if self.is_constant():
+            return "O(1)"
+        if self.is_linear():
+            return "O(n)"
+        if self.is_polynomial():
+            return f"O(n^{self.degree})"
+        if self.is_exponential():
+            return f"O({self.degree}^n)"
+        assert False
+
+    def __hash__(self):
+        return hash(str(self))
+
+    @classmethod
+    def _exponential_vulnerability_from_steps(cls, steps: list[int]):
+        if len(steps) < 3:
+            return cls(cls.Type.UNKNOWN)
+
+        # Assuming step[i] = a*(k^i)+b, and return k.
+        deltas = [steps[i] - steps[i+1] for i in range(len(steps)-1)]
+        # deltas[i] = a*(k^(i+1))+b - a*(k^i)+b = a*(k^i)*(k-1)
+        assert len(deltas) > 1
+        # deltas[i] // deltas[i-1] = k
+        degree = round(deltas[-1] / deltas[-2])
+        if degree < 2:
+            return cls(cls.Type.UNKNOWN)
+        return cls(cls.Type.EXPONENTIAL, degree)
+
+    @classmethod
+    def from_steps(cls, steps: list[int]):
+        if len(steps) < 2:
+            return cls(cls.Type.UNKNOWN)
+
+        n = len(steps)
+        # assume steps[i] = sum_{j in n} c_j * i^j
+        # then we solve equation for c_j
+        a = [[i**j for j in range(n)] for i in range(n)]
+        c = np.rint(np.linalg.solve(a, steps)).astype(int).tolist()
+        if c[-1] != 0:
+            return cls._exponential_vulnerability_from_steps(steps)
+        degree = len(c) - [e != 0 for e in reversed(c)].index(True)
+        return cls(cls.Type.POLYNOMIAL, degree)
