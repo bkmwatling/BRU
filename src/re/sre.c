@@ -107,7 +107,7 @@ RegexNode *regex_new(RegexType type)
     RegexNode *re = malloc(sizeof(*re));
 
     /* check `type` to make sure correct node type */
-    assert(type == CARET || type == DOLLAR || type == MEMOISE ||
+    assert(type == CARET || type == DOLLAR || /* type == MEMOISE || */
            type == EPSILON);
     re->type = type;
 
@@ -211,7 +211,7 @@ void regex_node_free(RegexNode *self)
         case EPSILON: /* fallthrough */
         case CARET:   /* fallthrough */
         case DOLLAR:  /* fallthrough */
-        case MEMOISE: /* fallthrough */
+        // case MEMOISE: /* fallthrough */
         case LITERAL: /* fallthrough */
         case BACKREFERENCE: break;
 
@@ -244,7 +244,7 @@ RegexNode *regex_clone(RegexNode *self)
         case EPSILON: /* fallthrough */
         case CARET:   /* fallthrough */
         case DOLLAR:  /* fallthrough */
-        case MEMOISE: /* fallthrough */
+        // case MEMOISE: /* fallthrough */
         case LITERAL: /* fallthrough */
         case BACKREFERENCE: break;
 
@@ -287,8 +287,10 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
     switch (re->type) {
         case EPSILON: fputs("Epsilon", stream); break;
         case CARET: fputs("Caret", stream); break;
-        case DOLLAR: fputs("Dollar", stream); break;
-        case MEMOISE: fputs("Memoise", stream); break;
+        case DOLLAR:
+            fputs("Dollar", stream);
+            break;
+            // case MEMOISE: fputs("Memoise", stream); break;
 
         case LITERAL:
             fprintf(stream, "Literal(%.*s)", stc_utf8_nbytes(re->ch), re->ch);

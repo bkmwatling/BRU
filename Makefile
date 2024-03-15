@@ -40,10 +40,7 @@ UTIL_SRC  := argparser.c utf.c
 STC_SRC   := $(addprefix $(STCDIR)/fatp/, $(FATP_SRC)) \
 			 $(addprefix $(STCDIR)/util/, $(UTIL_SRC))
 
-RE_SRC    := $(wildcard $(REDIR)/*.c) \
-             $(wildcard $(REDIR)/walkers/*.c) \
-             $(wildcard $(REDIR)/walkers/thompson/*.c) \
-             $(wildcard $(REDIR)/walkers/glushkov/*.c)
+RE_SRC    := $(wildcard $(REDIR)/*.c)
 FA_SRC    := $(wildcard $(FADIR)/*.c) \
              $(wildcard $(FADIR)/constructions/*.c) \
              $(wildcard $(FADIR)/transformers/*.c)
