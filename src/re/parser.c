@@ -349,12 +349,12 @@ static ParseResult parse_atom(const Parser *self,
             res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
             break;
 
-        case '#':
-            *re = regex_new(MEMOISE);
-            SET_RID(*re, ps);
-            res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
-            break;
-
+        // case '#':
+        //     *re = regex_new(MEMOISE);
+        //     SET_RID(*re, ps);
+        //     res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
+        //     break;
+        //
         case '.':
             *re = regex_cc(dot());
             SET_RID(*re, ps);
@@ -439,8 +439,8 @@ static ParseResult parse_quantifier(const Parser *self,
     switch ((*re)->type) {
         case EPSILON:
         case CARET:
-        case DOLLAR:
-        case MEMOISE: return PARSE_RES(PARSE_UNQUANTIFIABLE, ps->ch);
+        /* case MEMOISE: */
+        case DOLLAR: return PARSE_RES(PARSE_UNQUANTIFIABLE, ps->ch);
 
         case LITERAL:
         case CC:
