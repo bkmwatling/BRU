@@ -95,10 +95,10 @@ offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
             case NOOP:  /* fallthrough */
             case MATCH: /* fallthrough */
             case BEGIN: /* fallthrough */
-            case MEMO:  /* fallthrough */
             case END: break;
+            case MEMO: insts += sizeof(len_t); break;
             case CHAR: insts += sizeof(char *); break;
-            case PRED: insts += sizeof(len_t); break;
+            case PRED: /* fallthrough */
             case SAVE: insts += sizeof(len_t); break;
             case JMP:    /* fallthrough */
             case GSPLIT: /* fallthrough */
