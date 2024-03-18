@@ -25,7 +25,7 @@ typedef enum {
     EPSILON,
     CARET,
     DOLLAR,
-    MEMOISE,
+    // MEMOISE,
     LITERAL,
     CC,
     ALT,

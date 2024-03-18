@@ -133,7 +133,7 @@ void smir_free(StateMachine *self)
     if (!self) return;
 
     if (self->states) {
-        nstates = stc_vec_len(self->states);
+        nstates = stc_vec_len_unsafe(self->states);
         while (nstates) state_free(&self->states[--nstates]);
         stc_vec_free(self->states);
     }
@@ -162,7 +162,7 @@ state_id smir_add_state(StateMachine *self)
 
 size_t smir_get_num_states(StateMachine *self)
 {
-    return stc_vec_len_unsafe(self->states);
+    return stc_vec_len(self->states);
 }
 
 const char *smir_get_regex(StateMachine *self) { return self->regex; }
@@ -258,10 +258,9 @@ void smir_state_prepend_action(StateMachine *self,
 
 void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts)
 {
-    ActionList *al = malloc(sizeof(*al));
-    State      *state;
+    State *state;
 
-    if (!sid || !acts) return;
+    if (!(sid && acts)) return;
 
     state = &self->states[sid - 1];
     smir_action_list_free(state->actions_sentinel);
@@ -287,8 +286,8 @@ state_id smir_get_src(StateMachine *self, trans_id tid)
 state_id smir_get_dst(StateMachine *self, trans_id tid)
 {
     Trans   *transition, *transitions;
-    uint32_t idx = trans_id_idx(tid);
     state_id sid = trans_id_sid(tid);
+    uint32_t idx = trans_id_idx(tid);
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
@@ -300,8 +299,8 @@ state_id smir_get_dst(StateMachine *self, trans_id tid)
 void smir_set_dst(StateMachine *self, trans_id tid, state_id dst)
 {
     Trans   *transition, *transitions;
-    uint32_t idx = trans_id_idx(tid);
     state_id sid = trans_id_sid(tid);
+    uint32_t idx = trans_id_idx(tid);
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
@@ -312,8 +311,8 @@ void smir_set_dst(StateMachine *self, trans_id tid, state_id dst)
 size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid)
 {
     Trans   *transition, *transitions;
-    uint32_t idx = trans_id_idx(tid);
     state_id sid = trans_id_sid(tid);
+    uint32_t idx = trans_id_idx(tid);
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
@@ -325,8 +324,8 @@ size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid)
 const ActionList *smir_trans_get_actions(StateMachine *self, trans_id tid)
 {
     Trans   *transition, *transitions;
-    uint32_t idx = trans_id_idx(tid);
     state_id sid = trans_id_sid(tid);
+    uint32_t idx = trans_id_idx(tid);
 
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
                       : self->initial_functions_sentinel;
@@ -341,8 +340,8 @@ void smir_trans_append_action(StateMachine *self,
 {
     Trans      *transition, *transitions;
     ActionList *al  = malloc(sizeof(*al));
-    uint32_t    idx = trans_id_idx(tid);
     state_id    sid = trans_id_sid(tid);
+    uint32_t    idx = trans_id_idx(tid);
 
     al->act     = act;
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
@@ -358,8 +357,8 @@ void smir_trans_prepend_action(StateMachine *self,
 {
     Trans      *transition, *transitions;
     ActionList *al  = malloc(sizeof(*al));
-    uint32_t    idx = trans_id_idx(tid);
     state_id    sid = trans_id_sid(tid);
+    uint32_t    idx = trans_id_idx(tid);
 
     al->act     = act;
     transitions = sid ? self->states[sid - 1].out_transitions_sentinel
@@ -372,8 +371,8 @@ void smir_trans_prepend_action(StateMachine *self,
 void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts)
 {
     Trans   *transition, *transitions;
-    uint32_t idx = trans_id_idx(tid);
     state_id sid = trans_id_sid(tid);
+    uint32_t idx = trans_id_idx(tid);
 
     if (!acts) return;
 
@@ -728,11 +727,12 @@ void smir_reorder_states(StateMachine *self, state_id *sid_ordering)
             dst = smir_get_dst(self, out[i]);
             smir_set_dst(self, out[i], dst ? sid_ordering[dst - 1] : 0);
         }
+        free(out);
     }
 
     // reorder the states in the states array
     stc_vec_init(states, nstates);
-    stc_vec_len_unsafe(states) = nstates;
+    if (nstates) stc_vec_len_unsafe(states) = nstates;
     for (sid = 1; sid <= nstates; sid++)
         states[sid_ordering[sid - 1] - 1] = self->states[sid - 1];
 

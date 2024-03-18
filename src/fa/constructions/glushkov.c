@@ -361,12 +361,12 @@ static void rfa_construct(Rfa                *self,
             smir_action_list_push_back(first->gamma->actions,
                                        smir_action_zwa(ACT_END));
             break;
-        case MEMOISE:
-            APPEND_GAMMA(first);
-            smir_action_list_push_back(first->gamma->actions,
-                                       smir_action_zwa(ACT_MEMO));
-            break;
-
+        // case MEMOISE:
+        //     APPEND_GAMMA(first);
+        //     smir_action_list_push_back(first->gamma->actions,
+        //                                smir_action_num(ACT_MEMO, re->rid));
+        //     break;
+        //
         case LITERAL: APPEND_POSITION(smir_action_char(re->ch)); break;
         case CC:
             APPEND_POSITION(
@@ -561,9 +561,9 @@ static size_t count(const RegexNode *re)
     size_t npos = 0;
 
     switch (re->type) {
-        case CARET:   /* fallthrough */
-        case DOLLAR:  /* fallthrough */
-        case MEMOISE: /* fallthrough */
+        case CARET:  /* fallthrough */
+        case DOLLAR: /* fallthrough */
+        // case MEMOISE: /* fallthrough */
         case EPSILON: break;
 
         case LITERAL: /* fallthrough */
