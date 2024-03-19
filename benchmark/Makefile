@@ -158,7 +158,8 @@ STEPS_ALL_FULL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,ful
 STEPS_SL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,partial,tex)
 STEPS_ALL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,partial,tex)
 
-$(ANALYSIS_DIR)/steps-%.tex: $(BENCHMARK_DIR)/benchmark-%.jsonl | $(ANALYSIS_DIR) $(VENV)
+$(ANALYSIS_DIR)/steps-%.tex: $(BENCHMARK_DIR)/benchmark-%.jsonl | $(VENV)
+	@mkdir -p $(ANALYSIS_DIR)
 	$(PYTHON) src/analysis_steps.py \
 		--regex-type $(word 1,$(subst -, ,$*)) $< > $@ || rm $@
 

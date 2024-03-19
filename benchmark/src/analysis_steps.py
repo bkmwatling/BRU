@@ -93,7 +93,7 @@ def print_sl_step_statistics(input_path: Path) -> None:
     dovs = [DoV.from_steps(steps) for steps in stepss]
     trimmed_dovs = [trim_dov(dov) for dov in dovs]
     vulnerablity_dict = dict(Counter(trimmed_dovs))
-    print_vulnerability(vulnerablity_dict, ", ", "\n")
+    print_vulnerability(vulnerablity_dict)
 
 
 def print_all_step_statistics(input_path: Path) -> None:
