@@ -9,7 +9,13 @@ import jsonlines  # type: ignore
 def is_compilable(pattern: str) -> bool:
     try:
         subprocess.run(
-            ['bru', 'compile', '-e', pattern], check=True, timeout=10,
+            ['bru', 'compile', '-e', '-c', 'thompson', '--', pattern],
+            check=True, timeout=10,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+        )
+        subprocess.run(
+            ['bru', 'compile', '-e', '-c', 'glushkov', '--', pattern],
+            check=True, timeout=10,
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
         )
         return True

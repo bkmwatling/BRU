@@ -126,15 +126,29 @@ class DegreeOfVulnerability():
 
     @classmethod
     def from_steps(cls, steps: list[int]):
-        if len(steps) < 2:
+        if len(steps) < 3:
             return cls(cls.Type.UNKNOWN)
 
+        # Find with exact steps
+        delta = steps.copy()
+        degree = -1
+        while len(delta) > 2:
+            if delta[-1] == 0:
+                return cls(cls.Type.POLYNOMIAL, degree)
+            delta = [delta[i] - delta[i+1] for i in range(len(delta)-1)]
+            degree += 1
+
+        # If above method fails, try to find with linear algebra
         n = len(steps)
         # assume steps[i] = sum_{j in n} c_j * i^j
         # then we solve equation for c_j
         a = [[i**j for j in range(n)] for i in range(n)]
         c = np.rint(np.linalg.solve(a, steps)).astype(int).tolist()
+
         if c[-1] != 0:
             return cls._exponential_vulnerability_from_steps(steps)
-        degree = len(c) - [e != 0 for e in reversed(c)].index(True)
+
+        degree = len(c) - [e != 0 for e in reversed(c)].index(True) - 1
+        if degree == len(c):
+            return cls(cls.Type.UNKNOWN)
         return cls(cls.Type.POLYNOMIAL, degree)

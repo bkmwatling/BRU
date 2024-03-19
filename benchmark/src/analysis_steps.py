@@ -15,6 +15,9 @@ def get_step_from_outputs(outputs: Optional[dict[str, str]]) -> Optional[int]:
     if outputs is None:
         logging.debug("No outputs")
         return None
+    if len(outputs["stderr"]) == 0:
+        logging.debug("No stderr")
+        return None
     result = BenchmarkResult(outputs["stderr"])
     return result.steps
 
@@ -27,7 +30,7 @@ def get_steps_from_all_data(
         if e is not None
     ]
     negative_steps = [
-        e for e in map(get_step_from_outputs, data["positive_outputs"])
+        e for e in map(get_step_from_outputs, data["negative_outputs"])
         if e is not None
     ]
     return positive_steps, negative_steps
@@ -41,22 +44,32 @@ def get_steps_from_sl_data(data: dict[str, Any]) -> list[int]:
     return steps
 
 
-def print_statistics(steps: list[float], round_num: int = 2) -> None:
-    print(f"Count: {len(steps)}")
-    print(f"Mean: {round(statistics.mean(steps), 2)}")
-    print(f"Median: {round(statistics.median(steps), 2)}")
-    print(f"Stdev: {round(statistics.stdev(steps), 2)}")
+def print_statistics(
+    steps: list[float],
+    round_num: int = 2,
+    delimiter: str = " & ",
+    end: str = " \\\\ \n"
+) -> None:
+    labels = ["Count", "Mean", "Median", "Stdev"]
+    values = [
+        len(steps),
+        round(statistics.mean(steps), round_num),
+        round(statistics.median(steps), round_num),
+        round(statistics.stdev(steps), round_num)
+    ]
+    print("{}".format(delimiter.join(labels)), end=end)
+    print("{}".format(delimiter.join(map(str, values))), end=end)
 
 
 def print_vulnerability(
     vulnerability_dict: dict[DoV, int],
-    delim: str = " & ",
-    end: str = ""
+    delimiter: str = " & ",
+    end: str = " \\\\ \n"
 ) -> None:
     ordered = OrderedDict(
         sorted(vulnerability_dict.items(), key=lambda x: x[0]))
-    print("{}{}".format(delim.join(map(str, ordered.keys())), end))
-    print("{}{}".format(delim.join(map(str, ordered.values())), end))
+    print("{}".format(delimiter.join(map(str, ordered.keys()))), end=end)
+    print("{}".format(delimiter.join(map(str, ordered.values()))), end=end)
 
 
 def print_sl_step_statistics(input_path: Path) -> None:
@@ -68,13 +81,19 @@ def print_sl_step_statistics(input_path: Path) -> None:
             stepss.append(steps)
             patterns.append(data["pattern"])
 
+    def trim_dov(dov: DoV) -> DoV:
+        if dov.is_polynomial():
+            assert dov.degree is not None
+            if dov.degree > 5:
+                return DoV(DoV.Type.POLYNOMIAL, 5)
+        if dov.is_exponential():
+            return DoV(DoV.Type.EXPONENTIAL, 2)
+        return dov
+
     dovs = [DoV.from_steps(steps) for steps in stepss]
-    for pattern, steps, dov in zip(patterns, stepss, dovs):
-        if dov.is_unknown():
-            logging.debug(f"Pattern {pattern} has unknown DoV.")
-            logging.debug(f"{steps}")
-    vulnerablity_dict = dict(Counter(dovs))
-    print_vulnerability(vulnerablity_dict)
+    trimmed_dovs = [trim_dov(dov) for dov in dovs]
+    vulnerablity_dict = dict(Counter(trimmed_dovs))
+    print_vulnerability(vulnerablity_dict, ", ", "\n")
 
 
 def print_all_step_statistics(input_path: Path) -> None:
@@ -84,13 +103,15 @@ def print_all_step_statistics(input_path: Path) -> None:
         statistics.mean(e) for e, _ in steps_tuples if len(e) > 0]
     negative_average_steps = [
         statistics.mean(e) for _, e in steps_tuples if len(e) > 0]
+    print("Positive")
     print_statistics(positive_average_steps)
+    print("Negative")
     print_statistics(negative_average_steps)
     dataset.close()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    # logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser(
         description="Extract steps from benchmark results")
     parser.add_argument("--regex-type", type=str, choices=["all", "sl"])

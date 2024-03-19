@@ -29,6 +29,11 @@ class RegexType(Enum):
     SUPER_LINEAR = "sl"  # super-linear
 
 
+class MatchingType(Enum):
+    FULL = "full"
+    PARTIAL = "partial"
+
+
 BruArgs = TypedDict("BruArgs", {
     "memo-scheme": MemoSchemeOption,
     "construction": ConstructionOption,
@@ -58,6 +63,7 @@ def benchmark(
         '-c', construction.value,
         '-m', memo_scheme.value,
         '-s', scheduler.value,
+        '--',
         pattern, string
     ]
     completed = subprocess.run(
@@ -88,9 +94,12 @@ def get_safe_benchmark(
 
 def benchmark_sl_data(
     data: dict[str, Any],
-    bru_args: BruArgs
+    bru_args: BruArgs,
+    matching_type: MatchingType,
 ) -> dict[str, Any]:
     pattern = data["pattern"]
+    if matching_type == MatchingType.FULL:
+        pattern = f"^(?:{pattern})$"
     evil_inputs = data["evil_inputs"]
 
     safe_benchmark = get_safe_benchmark(pattern, bru_args)
@@ -110,9 +119,12 @@ def benchmark_sl_data(
 
 def benchmark_all_data(
     data: dict[str, Any],
-    bru_args: BruArgs
+    bru_args: BruArgs,
+    matching_type: MatchingType,
 ) -> dict[str, Any]:
     pattern = data["pattern"]
+    if matching_type == MatchingType.FULL:
+        pattern = f"^(?:{pattern})$"
     positive_inputs = data["positive_inputs"]
     negative_inputs = data["negative_inputs"]
 
@@ -128,15 +140,18 @@ def benchmark_dataset(
     input_path: Path,
     output_path: Path,
     bru_args: BruArgs,
-    regex_type: RegexType
+    regex_type: RegexType,
+    matching_type: MatchingType
 ) -> None:
     regex_dataset = jsonlines.open(input_path, mode='r')
     if regex_type == RegexType.ALL:
-        benchmarked_dataset = (
-            benchmark_all_data(data, bru_args) for data in regex_dataset)
+        benchmark_data = (
+            lambda e: benchmark_all_data(e, bru_args, matching_type))
     elif regex_type == RegexType.SUPER_LINEAR:
-        benchmarked_dataset = (
-            benchmark_sl_data(data, bru_args) for data in regex_dataset)
+        benchmark_data = (
+            lambda e: benchmark_sl_data(e, bru_args, matching_type))
+
+    benchmarked_dataset = map(benchmark_data, regex_dataset)
     output_file = jsonlines.open(output_path, "w")
     output_file.write_all(benchmarked_dataset)
     output_file.close()
@@ -159,6 +174,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-m", "--memo-scheme",
         type=MemoSchemeOption, choices=list(MemoSchemeOption))
+    parser.add_argument(
+        "-f", "--matching_type",
+        type=MatchingType, choices=list(MatchingType))
 
     parser.add_argument("input", type=Path, help="Input file")
     parser.add_argument("output", type=Path, help="Output file")
@@ -169,4 +187,5 @@ if __name__ == "__main__":
         "construction": args.construction,
         "scheduler": args.scheduler
     })
-    benchmark_dataset(args.input, args.output, bru_args, args.regex_type)
+    benchmark_dataset(
+        args.input, args.output, bru_args, args.regex_type, args.matching_type)
