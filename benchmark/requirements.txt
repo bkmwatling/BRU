@@ -3,8 +3,13 @@ dill==0.3.8
 jsonlines==4.0.0
 multiprocess==0.70.16
 numpy==1.26.4
+pandas==2.2.1
 pathos==0.3.2
 pox==0.3.4
 ppft==1.7.6.8
+python-dateutil==2.9.0.post0
+pytz==2024.1
+six==1.16.0
 timeout-decorator==0.5.0
+tzdata==2024.1
 xeger==0.4.0

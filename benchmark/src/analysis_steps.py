@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Optional, Any
 
 import jsonlines  # type: ignore
+
 from utils import BenchmarkResult
 from utils import DegreeOfVulnerability as DoV
+from utils import print_statistics
 
 
 def get_step_from_outputs(outputs: Optional[dict[str, str]]) -> Optional[int]:
@@ -42,23 +44,6 @@ def get_steps_from_sl_data(data: dict[str, Any]) -> list[int]:
         if e is not None
     ]
     return steps
-
-
-def print_statistics(
-    steps: list[float],
-    round_num: int = 2,
-    delimiter: str = " & ",
-    end: str = " \\\\ \n"
-) -> None:
-    labels = ["Count", "Mean", "Median", "Stdev"]
-    values = [
-        len(steps),
-        round(statistics.mean(steps), round_num),
-        round(statistics.median(steps), round_num),
-        round(statistics.stdev(steps), round_num)
-    ]
-    print("{}".format(delimiter.join(labels)), end=end)
-    print("{}".format(delimiter.join(map(str, values))), end=end)
 
 
 def print_vulnerability(

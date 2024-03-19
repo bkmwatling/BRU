@@ -8,6 +8,7 @@ bin/
 benchmark/**/*.jpg
 benchmark/**/*.jsonl
 benchmark/**/*.tar.gz
+benchmark/**/*.tar.xz
 benchmark/**/*.zip
 benchmark/**/*.tar
 

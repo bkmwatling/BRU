@@ -2,37 +2,15 @@ import argparse
 import logging
 import subprocess
 from typing import (TypedDict, Any, Optional, Callable, )
-from enum import Enum
 from pathlib import Path
 
 import jsonlines  # type: ignore
 
-
-class ConstructionOption(Enum):
-    THOMPOSON = "thompson"
-    GLUSHKOV = "glushkov"
-
-
-class MemoSchemeOption(Enum):
-    NONE = "none"
-    CLOSURE_NODE = "cn"  # have a back-edge coming in that forms a loop
-    IN_DEGREE = "in"  # state that have an in-degree > 1
-
-
-class SchedulerOption(Enum):
-    SPENCER = "spencer"
-    LOCKSTEP = "lockstep"
-
-
-class RegexType(Enum):
-    ALL = "all"
-    SUPER_LINEAR = "sl"  # super-linear
-
-
-class MatchingType(Enum):
-    FULL = "full"
-    PARTIAL = "partial"
-
+from utils import ConstructionOption
+from utils import MemoSchemeOption
+from utils import SchedulerOption
+from utils import RegexType
+from utils import MatchingType
 
 BruArgs = TypedDict("BruArgs", {
     "memo-scheme": MemoSchemeOption,

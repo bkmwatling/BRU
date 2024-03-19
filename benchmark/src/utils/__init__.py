@@ -1,8 +1,35 @@
 import re
+import statistics
 import numpy as np  # type: ignore
 from functools import total_ordering
 from typing import (Optional, )
 from enum import Enum
+
+
+class ConstructionOption(Enum):
+    THOMPOSON = "thompson"
+    GLUSHKOV = "glushkov"
+
+
+class MemoSchemeOption(Enum):
+    NONE = "none"
+    CLOSURE_NODE = "cn"  # have a back-edge coming in that forms a loop
+    IN_DEGREE = "in"  # state that have an in-degree > 1
+
+
+class SchedulerOption(Enum):
+    SPENCER = "spencer"
+    LOCKSTEP = "lockstep"
+
+
+class RegexType(Enum):
+    ALL = "all"
+    SUPER_LINEAR = "sl"  # super-linear
+
+
+class MatchingType(Enum):
+    FULL = "full"
+    PARTIAL = "partial"
 
 
 class BenchmarkResult():
@@ -152,3 +179,20 @@ class DegreeOfVulnerability():
         if degree == len(c):
             return cls(cls.Type.UNKNOWN)
         return cls(cls.Type.POLYNOMIAL, degree)
+
+
+def print_statistics(
+    steps: list[float],
+    round_num: int = 2,
+    delimiter: str = " & ",
+    end: str = " \\\\ \n"
+) -> None:
+    labels = ["Count", "Mean", "Median", "Stdev"]
+    values = [
+        len(steps),
+        round(statistics.mean(steps), round_num),
+        round(statistics.median(steps), round_num),
+        round(statistics.stdev(steps), round_num)
+    ]
+    print("{}".format(delimiter.join(labels)), end=end)
+    print("{}".format(delimiter.join(map(str, values))), end=end)
