@@ -28,12 +28,13 @@ typedef struct {
 
 /* --- BenchmarkThreadManager function prototypes --------------------------- */
 
+static void benchmark_thread_manager_init(void       *impl,
+                                          const byte *start_pc,
+                                          const char *start_sp);
 static void benchmark_thread_manager_reset(void *impl);
 static void benchmark_thread_manager_free(void *impl);
+static int  benchmark_thread_manager_done_exec(void *impl);
 
-static Thread *benchmark_thread_manager_spawn_thread(void       *impl,
-                                                     const byte *pc,
-                                                     const char *sp);
 static void    benchmark_thread_manager_schedule_thread(void *impl, Thread *t);
 static void    benchmark_thread_manager_schedule_thread_in_order(void   *impl,
                                                                  Thread *t);
@@ -86,6 +87,14 @@ ThreadManager *benchmark_thread_manager_new(ThreadManager *thread_manager,
 
 /* --- BenchmarkThreadManager function defintions --------------------------- */
 
+static void benchmark_thread_manager_init(void       *impl,
+                                          const byte *start_pc,
+                                          const char *start_sp)
+{
+    thread_manager_init(((BenchmarkThreadManager *) impl)->__manager, start_pc,
+                        start_sp);
+}
+
 static void benchmark_thread_manager_reset(void *impl)
 {
     BenchmarkThreadManager *self = impl;
@@ -108,14 +117,10 @@ static void benchmark_thread_manager_free(void *impl)
     free(impl);
 }
 
-static Thread *benchmark_thread_manager_spawn_thread(void       *impl,
-                                                     const byte *pc,
-                                                     const char *sp)
+static int benchmark_thread_manager_done_exec(void *impl)
 {
-    BenchmarkThreadManager *self = impl;
-
-    self->spawn_count++;
-    return thread_manager_spawn_thread(self->__manager, pc, sp);
+    return thread_manager_done_exec(
+        ((BenchmarkThreadManager *) impl)->__manager);
 }
 
 static void benchmark_thread_manager_schedule_thread(void *impl, Thread *t)

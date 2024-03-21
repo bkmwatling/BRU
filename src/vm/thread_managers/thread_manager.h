@@ -24,14 +24,16 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
+#define thread_manager_init(manager, start_pc, start_sp) \
+    (manager)->init((manager)->impl, (start_pc), (start_sp))
 #define thread_manager_reset(manager) (manager)->reset((manager)->impl)
 #define thread_manager_free(manager)      \
     do {                                  \
         (manager)->free((manager)->impl); \
         free((manager));                  \
     } while (0)
-#define thread_manager_spawn_thread(manager, pc, sp) \
-    (manager)->spawn_thread((manager)->impl, (pc), (sp))
+#define thread_manager_done_exec(manager) (manager)->done_exec((manager)->impl)
+
 #define thread_manager_schedule_thread(manager, thread) \
     (manager)->schedule_thread((manager)->impl, (thread))
 #define thread_manager_schedule_thread_in_order(manager, thread) \
@@ -40,12 +42,11 @@
     (manager)->next_thread((manager)->impl)
 #define thread_manager_notify_thread_match(manager, thread) \
     (manager)->notify_thread_match((manager)->impl, (thread))
-#define thread_manager_init_memoisation(manager, nmemo, text_len) \
-    (manager)->init_memoisation((manager)->impl, (nmemo), (text_len));
 #define thread_manager_clone_thread(manager, thread) \
     (manager)->clone_thread((manager)->impl, (thread))
 #define thread_manager_kill_thread(manager, thread) \
     (manager)->kill_thread((manager)->impl, (thread))
+
 #define thread_manager_pc(manager, thread) \
     (manager)->pc((manager)->impl, (thread))
 #define thread_manager_set_pc(manager, thread, pc) \
@@ -54,6 +55,9 @@
     (manager)->sp((manager)->impl, (thread))
 #define thread_manager_inc_sp(manager, thread) \
     (manager)->inc_sp((manager)->impl, (thread))
+
+#define thread_manager_init_memoisation(manager, nmemo, text_len) \
+    (manager)->init_memoisation((manager)->impl, (nmemo), (text_len));
 #define thread_manager_memoise(manager, thread, idx) \
     (manager)->memoise((manager)->impl, (thread), (idx))
 #define thread_manager_counter(manager, thread, idx) \
@@ -73,10 +77,11 @@
 
 #define THREAD_MANAGER_SET_REQUIRED_FUNCS(manager, prefix)                    \
     do {                                                                      \
-        (manager)->reset = prefix##_thread_manager_reset;                     \
-        (manager)->free  = prefix##_thread_manager_free;                      \
+        (manager)->init      = prefix##_thread_manager_init;                  \
+        (manager)->reset     = prefix##_thread_manager_reset;                 \
+        (manager)->free      = prefix##_thread_manager_free;                  \
+        (manager)->done_exec = prefix##_thread_manager_done_exec;             \
                                                                               \
-        (manager)->spawn_thread    = prefix##_thread_manager_spawn_thread;    \
         (manager)->schedule_thread = prefix##_thread_manager_schedule_thread; \
         (manager)->schedule_thread_in_order =                                 \
             prefix##_thread_manager_schedule_thread_in_order;                 \
@@ -122,14 +127,15 @@ typedef struct {
 } Thread;
 
 typedef struct thread_manager {
+    void (*init)(void       *thread_manager_impl,
+                 const byte *start_pc,
+                 const char *start_sp);
     void (*reset)(void *thread_manager_impl);
     void (*free)(void *thread_manager_impl); /**< free the thread manager     */
+    int  (*done_exec)(void *thread_manager_impl);
 
     // below functions manipulate thread execution
-    Thread *(*spawn_thread)(void       *thread_manager_impl,
-                            const byte *pc,
-                            const char *sp);
-    void    (*schedule_thread)(void *thread_manager_impl, Thread *thread);
+    void (*schedule_thread)(void *thread_manager_impl, Thread *thread);
     void (*schedule_thread_in_order)(void *thread_manager_impl, Thread *thread);
     Thread *(*next_thread)(void *thread_manager_impl);
     void    (*notify_thread_match)(void *thread_manager_impl, Thread *thread);

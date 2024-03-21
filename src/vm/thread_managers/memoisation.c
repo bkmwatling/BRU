@@ -13,12 +13,13 @@ typedef struct {
 
 /* --- MemoisedThreadManager function prototypes ---------------------------- */
 
+static void memoised_thread_manager_init(void       *impl,
+                                         const byte *start_pc,
+                                         const char *start_sp);
 static void memoised_thread_manager_reset(void *impl);
 static void memoised_thread_manager_free(void *impl);
+static int  memoised_thread_manager_done_exec(void *impl);
 
-static Thread *memoised_thread_manager_spawn_thread(void       *impl,
-                                                    const byte *pc,
-                                                    const char *sp);
 static void    memoised_thread_manager_schedule_thread(void *impl, Thread *t);
 static void    memoised_thread_manager_schedule_thread_in_order(void   *impl,
                                                                 Thread *t);
@@ -70,6 +71,14 @@ ThreadManager *memoised_thread_manager_new(ThreadManager *thread_manager)
 
 /* --- MemoisedThreadManager function definitions --------------------------- */
 
+static void memoised_thread_manager_init(void       *impl,
+                                         const byte *start_pc,
+                                         const char *start_sp)
+{
+    thread_manager_init(((MemoisedThreadManager *) impl)->__manager, start_pc,
+                        start_sp);
+}
+
 static void memoised_thread_manager_reset(void *impl)
 {
     MemoisedThreadManager *self = impl;
@@ -87,11 +96,10 @@ static void memoised_thread_manager_free(void *impl)
     free(impl);
 }
 
-static Thread *
-memoised_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp)
+static int memoised_thread_manager_done_exec(void *impl)
 {
-    return thread_manager_spawn_thread(
-        ((MemoisedThreadManager *) impl)->__manager, pc, sp);
+    return thread_manager_done_exec(
+        ((MemoisedThreadManager *) impl)->__manager);
 }
 
 static void memoised_thread_manager_schedule_thread(void *impl, Thread *t)

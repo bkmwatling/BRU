@@ -10,7 +10,7 @@ static byte *memoise_in(StateMachine *sm)
 {
     size_t    i, n, nstates = smir_get_num_states(sm);
     size_t   *in_degrees = calloc(nstates, sizeof(size_t));
-    byte     *memo_sids  = malloc(sizeof(byte) * nstates);
+    byte     *memo_sids  = calloc(nstates, sizeof(byte));
     state_id  sid, dst;
     trans_id *out_transitions;
 
@@ -65,13 +65,17 @@ static byte *memoise_cn(StateMachine *sm)
 {
     size_t nstates   = smir_get_num_states(sm);
     byte  *memo_sids = calloc(nstates, sizeof(byte));
-    byte  *on_path   = calloc(nstates, sizeof(byte));
-    byte  *finished  = calloc(nstates, sizeof(byte));
+    byte  *on_path;
+    byte  *finished;
 
-    cn_dfs(sm, 1, memo_sids, finished, on_path);
+    if (nstates > 0) {
+        on_path  = calloc(nstates, sizeof(byte));
+        finished = calloc(nstates, sizeof(byte));
+        cn_dfs(sm, 1, memo_sids, finished, on_path);
 
-    free(on_path);
-    free(finished);
+        free(on_path);
+        free(finished);
+    }
 
     return memo_sids;
 }
@@ -79,13 +83,13 @@ static byte *memoise_cn(StateMachine *sm)
 static void memoise_states(StateMachine *sm, byte *sids)
 {
     state_id sid;
-    size_t   k = SIZE_MAX;
+    size_t   nstates, k = SIZE_MAX;
     // NOTE: `k` can be any value -- it must only be unique amongst MEMO
     // actions. Of course, if there is already memoisation then there could be
     // overlap. It is expected that starting at the maximum possible value for k
     // and decrementing should give the least overlap.
 
-    for (sid = 1; sid <= smir_get_num_states(sm); sid++)
+    for (sid = 1, nstates = smir_get_num_states(sm); sid <= nstates; sid++)
         if (sids[sid - 1])
             smir_state_prepend_action(sm, sid, smir_action_num(ACT_MEMO, k--));
 }

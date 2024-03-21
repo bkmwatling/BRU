@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,8 +18,7 @@ struct srvm {
 
 /* --- Private function prototypes ------------------------------------------ */
 
-static int  srvm_run(SRVM *self, const char *text);
-static void srvm_init(SRVM *self);
+static int srvm_run(SRVM *self, const char *text);
 
 /* --- API function definitions --------------------------------------------- */
 
@@ -125,7 +123,7 @@ static int srvm_run(SRVM *self, const char *text)
     thread_manager_init_memoisation(self->thread_manager,
                                     self->program->nmemo_insts, text);
     do {
-        srvm_init(self);
+        thread_manager_init(tm, self->program->insts, self->curr_sp);
         while ((thread = thread_manager_next_thread(tm))) {
             if ((sp = thread_manager_sp(tm, thread)) > text && sp[-1] == '\0') {
                 thread_manager_kill_thread(tm, thread);
@@ -140,7 +138,7 @@ static int srvm_run(SRVM *self, const char *text)
                     break;
 
                 case MATCH:
-                    matched_sp = thread_manager_sp(tm, thread);
+                    matched_sp = sp;
                     matched    = 1;
                     if (self->captures)
                         memcpy(self->captures,
@@ -321,7 +319,7 @@ static int srvm_run(SRVM *self, const char *text)
             }
         }
 
-        if (*self->curr_sp == '\0') {
+        if (thread_manager_done_exec(tm)) {
             self->matching_finished = TRUE;
             break;
         }
@@ -331,11 +329,4 @@ static int srvm_run(SRVM *self, const char *text)
     } while (!matched);
 
     return matched;
-}
-
-static void srvm_init(SRVM *self)
-{
-    Thread *t = thread_manager_spawn_thread(
-        self->thread_manager, self->program->insts, self->curr_sp);
-    thread_manager_schedule_thread(self->thread_manager, t);
 }

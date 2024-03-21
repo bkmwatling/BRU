@@ -12,12 +12,13 @@ typedef struct {
 
 /* --- AllMatchesThreadManager function prototypes -------------------------- */
 
+static void all_matches_thread_manager_init(void       *impl,
+                                            const byte *start_pc,
+                                            const char *start_sp);
 static void all_matches_thread_manager_reset(void *impl);
 static void all_matches_thread_manager_free(void *impl);
+static int  all_matches_thread_manager_done_exec(void *impl);
 
-static Thread *all_matches_thread_manager_spawn_thread(void       *impl,
-                                                       const byte *pc,
-                                                       const char *sp);
 static void all_matches_thread_manager_schedule_thread(void *impl, Thread *t);
 static void all_matches_thread_manager_schedule_thread_in_order(void   *impl,
                                                                 Thread *t);
@@ -72,6 +73,14 @@ ThreadManager *all_matches_thread_manager_new(ThreadManager *thread_manager,
 
 /* --- AllMatchesThreadManager function definitions ------------------------- */
 
+static void all_matches_thread_manager_init(void       *impl,
+                                            const byte *start_pc,
+                                            const char *start_sp)
+{
+    thread_manager_init(((AllMatchesThreadManager *) impl)->__manager, start_pc,
+                        start_sp);
+}
+
 static void print_match(AllMatchesThreadManager *self, Thread *t)
 {
     const char  *capture;
@@ -116,13 +125,10 @@ static void all_matches_thread_manager_free(void *impl)
     free(impl);
 }
 
-static Thread *all_matches_thread_manager_spawn_thread(void       *impl,
-                                                       const byte *pc,
-                                                       const char *sp)
+static int all_matches_thread_manager_done_exec(void *impl)
 {
-    AllMatchesThreadManager *self = impl;
-
-    return thread_manager_spawn_thread(self->__manager, pc, sp);
+    return thread_manager_done_exec(
+        ((AllMatchesThreadManager *) impl)->__manager);
 }
 
 static void all_matches_thread_manager_schedule_thread(void *impl, Thread *t)

@@ -26,6 +26,7 @@ typedef struct spencer_scheduler {
 
 typedef struct spencer_thread_manager {
     SpencerScheduler *scheduler; /**< the Spencer scheduler for scheduling    */
+    const char       *sp;        /**< the string pointer for the manager      */
 
     // for spawning threads
     len_t ncounters;  /**< number of counter values to spawn threads with     */
@@ -35,11 +36,13 @@ typedef struct spencer_thread_manager {
 
 /* --- SpencerThreadManager function prototypes ----------------------------- */
 
+static void spencer_thread_manager_init(void       *impl,
+                                        const byte *start_pc,
+                                        const char *start_sp);
 static void spencer_thread_manager_reset(void *impl);
 static void spencer_thread_manager_free(void *impl);
+static int  spencer_thread_manager_done_exec(void *impl);
 
-static Thread *
-spencer_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp);
 static void    spencer_thread_manager_schedule_thread(void *impl, Thread *t);
 static void    spencer_thread_manager_schedule_thread_in_order(void   *impl,
                                                                Thread *t);
@@ -107,13 +110,35 @@ spencer_thread_manager_new(len_t ncounters, len_t memory_len, len_t ncaptures)
     return tm;
 }
 
+static void spencer_thread_manager_init(void       *impl,
+                                        const byte *start_pc,
+                                        const char *start_sp)
+{
+    SpencerThread        *st   = malloc(sizeof(*st));
+    SpencerThreadManager *self = impl;
+
+    self->sp = start_sp;
+
+    st->pc = start_pc;
+    st->sp = start_sp;
+
+    stc_slice_init(st->counters, self->ncounters);
+    memset(st->counters, 0, self->ncounters * sizeof(*st->counters));
+    stc_slice_init(st->memory, self->memory_len);
+    memset(st->memory, 0, self->memory_len * sizeof(*st->memory));
+    stc_slice_init(st->captures, 2 * self->ncaptures);
+    memset(st->captures, 0, 2 * self->ncaptures * sizeof(*st->captures));
+
+    spencer_thread_manager_schedule_thread(impl, (Thread *) st);
+}
+
 static void spencer_thread_manager_reset(void *impl)
 {
     Thread           *t;
     SpencerScheduler *ss = ((SpencerThreadManager *) impl)->scheduler;
 
     ss->in_order_idx = 0;
-    for (t = spencer_scheduler_next(ss); t; t = spencer_scheduler_next(ss))
+    while ((t = spencer_scheduler_next(ss)))
         spencer_thread_manager_kill_thread(impl, t);
 }
 
@@ -124,23 +149,9 @@ static void spencer_thread_manager_free(void *impl)
     free(impl);
 }
 
-static Thread *
-spencer_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp)
+static int spencer_thread_manager_done_exec(void *impl)
 {
-    SpencerThread        *st   = malloc(sizeof(*st));
-    SpencerThreadManager *self = impl;
-
-    st->pc = pc;
-    st->sp = sp;
-
-    stc_slice_init(st->counters, self->ncounters);
-    memset(st->counters, 0, self->ncounters * sizeof(*st->counters));
-    stc_slice_init(st->memory, self->memory_len);
-    memset(st->memory, 0, self->memory_len * sizeof(*st->memory));
-    stc_slice_init(st->captures, 2 * self->ncaptures);
-    memset(st->captures, 0, 2 * self->ncaptures * sizeof(*st->captures));
-
-    return (Thread *) st;
+    return *((SpencerThreadManager *) impl)->sp == '\0';
 }
 
 static void spencer_thread_manager_schedule_thread(void *impl, Thread *t)
