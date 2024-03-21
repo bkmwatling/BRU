@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Append inputs to regexes")
     parser.add_argument("input", type=Path, help="Input file")
     parser.add_argument("output", type=Path, help="Output file")
-    parser.add_argument("--num_of_evil_inputs", "-e", type=int, default=10)
+    parser.add_argument("--num_of_evil_inputs", "-e", type=int, default=50)
     args = parser.parse_args()
     write_preprocessed_dataset(
         args.input, args.output, args.num_of_evil_inputs)
