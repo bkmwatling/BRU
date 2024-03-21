@@ -1,6 +1,6 @@
 import re
 import statistics
-import numpy as np  # type: ignore
+import logging
 from functools import total_ordering
 from typing import (Optional, )
 from enum import Enum
@@ -65,17 +65,24 @@ class DegreeOfVulnerability():
         POLYNOMIAL = "polynomial"
         EXPONENTIAL = "exponential"
         UNKNOWN = "unknown"
+        FAILED = "failed"
 
     def __init__(self, _type: Type, degree: Optional[int] = None) -> None:
-        if (_type == self.Type.UNKNOWN) != (degree is None):
+        if (
+            (_type in {self.Type.UNKNOWN, self.Type.FAILED})
+            != (degree is None)
+        ):
             raise ValueError("Invalid parameters")
         self.type = _type
         self.degree = degree
 
     def is_vulnerable(self) -> bool:
-        if self.is_unknown() or self.is_linear() or self.is_constant():
-            return False
-        return True
+        if self.is_polynomial():
+            if not (self.is_constant() or self.is_linear()):
+                return True
+        if self.is_exponential():
+            return True
+        return False
 
     def is_polynomial(self) -> bool:
         return self.type == DegreeOfVulnerability.Type.POLYNOMIAL
@@ -85,6 +92,9 @@ class DegreeOfVulnerability():
 
     def is_unknown(self) -> bool:
         return self.type == DegreeOfVulnerability.Type.UNKNOWN
+
+    def is_failed(self) -> bool:
+        return self.type == DegreeOfVulnerability.Type.FAILED
 
     def is_linear(self) -> bool:
         if not self.is_polynomial():
@@ -103,11 +113,14 @@ class DegreeOfVulnerability():
 
     def __le__(self, other: object) -> bool:
         if not isinstance(other, DegreeOfVulnerability):
+            return NotImplemented
+
+        if self.is_failed():
             return False
         if self.is_unknown():
-            return False
+            return other.is_failed()
         if self.is_exponential():
-            if other.is_unknown():
+            if other.is_unknown() or other.is_failed():
                 return True
             if other.is_exponential():
                 assert self.degree is not None
@@ -123,6 +136,8 @@ class DegreeOfVulnerability():
     def __str__(self):
         if self.is_unknown():
             return "UNK"
+        if self.is_failed():
+            return "FAILED"
         if self.is_constant():
             return "O(1)"
         if self.is_linear():
@@ -139,12 +154,12 @@ class DegreeOfVulnerability():
     @classmethod
     def _exponential_vulnerability_from_steps(cls, steps: list[int]):
         if len(steps) < 3:
-            return cls(cls.Type.UNKNOWN)
+            return cls(cls.Type.FAILED)
 
         # Assuming step[i] = a*(k^i)+b, and return k.
-        deltas = [steps[i] - steps[i+1] for i in range(len(steps)-1)]
         # deltas[i] = a*(k^(i+1))+b - a*(k^i)+b = a*(k^i)*(k-1)
-        assert len(deltas) > 1
+        deltas = [steps[i] - steps[i+1] for i in range(len(steps)-1)]
+
         # deltas[i] // deltas[i-1] = k
         degree = round(deltas[-1] / deltas[-2])
         if degree < 2:
@@ -153,32 +168,32 @@ class DegreeOfVulnerability():
 
     @classmethod
     def from_steps(cls, steps: list[int]):
-        if len(steps) < 3:
-            return cls(cls.Type.UNKNOWN)
-
-        # Find with exact steps
-        delta = steps.copy()
-        degree = -1
-        while len(delta) > 2:
-            if delta[-1] == 0:
-                return cls(cls.Type.POLYNOMIAL, degree)
-            delta = [delta[i] - delta[i+1] for i in range(len(delta)-1)]
-            degree += 1
-
-        # If above method fails, try to find with linear algebra
-        n = len(steps)
-        # assume steps[i] = sum_{j in n} c_j * i^j
-        # then we solve equation for c_j
-        a = [[i**j for j in range(n)] for i in range(n)]
-        c = np.rint(np.linalg.solve(a, steps)).astype(int).tolist()
-
-        if c[-1] != 0:
+        if len(steps) < 4:
             return cls._exponential_vulnerability_from_steps(steps)
 
-        degree = len(c) - [e != 0 for e in reversed(c)].index(True) - 1
-        if degree == len(c):
-            return cls(cls.Type.UNKNOWN)
-        return cls(cls.Type.POLYNOMIAL, degree)
+        # Remove the first step since it may not the base
+        steps = steps[1:]
+
+        # Find with exact steps
+        deltas = steps.copy()
+        degree = 0
+        while True:
+            half = len(deltas) // 2
+            logging.debug(deltas)
+
+            max_last_half = max(deltas[half:])
+            max_first_half = max(deltas[:half])
+            # Almost constant
+            if max_last_half - max_first_half < half:
+                return cls(cls.Type.POLYNOMIAL, degree)
+
+            if len(deltas) == 2:
+                break
+
+            deltas = [deltas[i+1] - deltas[i] for i in range(len(deltas)-1)]
+            degree += 1
+
+        return cls._exponential_vulnerability_from_steps(steps)
 
 
 def print_statistics(

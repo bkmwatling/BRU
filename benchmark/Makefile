@@ -200,10 +200,10 @@ analysis-steps-all-full: $(STEPS_ALL_FULL)
 analysis-steps-sl-full: $(STEPS_SL_FULL)
 
 .PHONY: analysis-steps-all-partial
-analysis-steps-all-partial: $(STEPS_ALL_partial)
+analysis-steps-all-partial: $(STEPS_ALL_PARTIAL)
 
 .PHONY: analysis-steps-sl-partial
-analysis-steps-sl-partial: $(STEPS_SL_partial)
+analysis-steps-sl-partial: $(STEPS_SL_PARTIAL)
 
 # Analysis Statistics
 ANALYSIS_STATS_SL := $(foreach regex_type,$(REGEX_TYPES),\
