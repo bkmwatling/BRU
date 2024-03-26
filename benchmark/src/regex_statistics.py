@@ -63,8 +63,7 @@ def update_statistics(
         if stdout is None:
             data["statistics"] = None
             return data
-        instructions = filter(
-            lambda e: len(e) > 0, map(str.strip, stdout.strip().split("\n")))
+        instructions = filter(None, map(str.strip, stdout.strip().split("\n")))
         statistics = dict(Counter(e.split()[1] for e in instructions))
         updated_data = {
             "pattern": data["pattern"],

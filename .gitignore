@@ -4,13 +4,13 @@ bin/
 *.o
 
 # reproducible benchmark files
-
 benchmark/**/*.jpg
 benchmark/**/*.jsonl
 benchmark/**/*.tar.gz
 benchmark/**/*.tar.xz
 benchmark/**/*.zip
 benchmark/**/*.tar
+benchmark/**/*.tex
 
 # experiments
 __pycache__/

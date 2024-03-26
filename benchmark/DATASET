@@ -1,6 +1,0 @@
-   537806 data-build/all_regexes.jsonl
-    51224 data-build/sl_regexes.jsonl
-   451564 data-build/intermediate/compilable_all_regexes.jsonl
-    49945 data-build/intermediate/compilable_sl_regexes.jsonl
-   428867 data/all_regexes.jsonl
-    49945 data/sl_regexes.jsonl

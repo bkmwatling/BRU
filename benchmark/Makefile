@@ -17,50 +17,13 @@ SL_REGEX_DATASET := $(DATASET_DIR)/sl_regexes.jsonl
 
 .DEFAULT:
 
-
-# Preprocessing
-
-INTERMEDIATE_DATASET_DIR := $(RAW_DATASET_DIR)/intermediate
-COMPILABLE_ALL_REGEX_DATASET := \
-	$(INTERMEDIATE_DATASET_DIR)/compilable_all_regexes.jsonl
-COMPILABLE_SL_REGEX_DATASET := \
-	$(INTERMEDIATE_DATASET_DIR)/compilable_sl_regexes.jsonl
-
-.PHONY: preprocess
-preprocess: preprocess-regexes preprocess-sl-regexes
-
-.PHONY: preprocess-regexes
-preprocess-regexes: $(ALL_REGEX_DATASET)
-
-.PHONY: preprocess-sl-regexes
-preprocess-sl-regexes: $(SL_REGEX_DATASET)
-
-$(COMPILABLE_ALL_REGEX_DATASET): $(RAW_ALL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
-	$(PYTHON) $(RAW_DATASET_DIR)/filter_compilable.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
-
-$(COMPILABLE_SL_REGEX_DATASET): $(RAW_SL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
-	$(PYTHON) $(RAW_DATASET_DIR)/filter_compilable.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
-
-$(ALL_REGEX_DATASET): $(COMPILABLE_ALL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
-	$(PYTHON) $(RAW_DATASET_DIR)/preprocess_all_regexes.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
-
-$(SL_REGEX_DATASET): $(COMPILABLE_SL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
-	$(PYTHON) $(RAW_DATASET_DIR)/preprocess_sl_regexes.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
-
-
 REGEX_TYPES := all sl
 CONSTRUCTIONS := thompson glushkov
 MEMO_SCHEMES := none cn in
 SCHEDULERS := spencer lockstep
 MATCHING_TYPES := full partial
+
+include makefiles/preprocessing.mk
 
 # $(1) = directory, $(2) = prefix, $(3) = regex_type, $(4) = matching_type, $(5) = extension
 define target_variables_template
@@ -95,117 +58,51 @@ $(foreach regex_type,$(REGEX_TYPES),\
 )
 endef
 
-
-# Benchmarking
-BENCHMARK_DIR := $(DATA_DIR)/benchmark
-
-define benchmark_template
-$(BENCHMARK_DIR)/benchmark-$(1)-$(2)-$(3)-$(4)-$(5).jsonl: $(DATASET_DIR)/$(1)_regexes.jsonl | $(BENCHMARK_DIR) $(VENV)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$$(basename $$(notdir $$@))
-	$(PYTHON) src/benchmark.py \
-		--regex-type $(1) \
-		--construction $(2) \
-		--memo-scheme $(3) \
-		--scheduler $(4) \
-		--matching_type $(5) \
-		$(DATASET_DIR)/$(1)_regexes.jsonl $$@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$$(basename $$(notdir $$@))/log.log
-endef
-
-$(call eval_template,benchmark_template)  # generate benchmark target recipes
-
-BENCHMARK_SL_FULL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,sl,full,jsonl)
-BENCHMARK_ALL_FULL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,all,full,jsonl)
-BENCHMARK_SL_PARTIAL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,sl,partial,jsonl)
-BENCHMARK_ALL_PARTIAL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,all,partial,jsonl)
-
-.PHONY: benchmark
-benchmark: \
-	benchmark-sl-full \
-	benchmark-all-full \
-	benchmark-sl-partial \
-	benchmark-all-partial
-
-.PHONY: benchmark-sl-full
-benchmark-sl-full: $(BENCHMARK_SL_FULL)
-
-.PHONY: benchmark-all-full
-benchmark-all-full: $(BENCHMARK_ALL_FULL)
-
-.PHONY: benchmark-sl-partial
-benchmark-sl-partial: $(BENCHMARK_SL_PARTIAL)
-
-.PHONY: benchmark-all-partial
-benchmark-all-partial: $(BENCHMARK_ALL_PARTIAL)
-
-
-# Statistics
-STATISTICS_DIR := $(DATA_DIR)/statistics
-
-# $(STATISTICS_DIR)/statistics-{all,sl}-{thompson,glushkov}-{none,cn,in}.jsonl
-STATISTICS := $(foreach regex_type,$(REGEX_TYPES),\
-	$(foreach construction,$(CONSTRUCTIONS),\
-		$(foreach memo_scheme,$(MEMO_SCHEMES),\
-			$(STATISTICS_DIR)/statistics-$(regex_type)-$(construction)-$(memo_scheme).jsonl\
-		)\
-	)\
-)
-
-# $(1) = regex_type, $(2) = construction, $(3) = memo_scheme
-define statistics_template
-$(STATISTICS_DIR)/statistics-$(1)-$(2)-$(3).jsonl: $(DATASET_DIR)/$(1)_regexes.jsonl | $(STATISTICS_DIR) $(VENV)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$$(basename $$(notdir $$@))
-	$(PYTHON) src/regex_statistics.py --construction $(2) --memo-scheme $(3) $$< $$@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$$(basename $$(notdir $$@))/log.log
-endef
-
-# generate statistics target recipes
-$(foreach regex_type,$(REGEX_TYPES),\
-	$(foreach construction,$(CONSTRUCTIONS),\
-		$(foreach memo_scheme,$(MEMO_SCHEMES),\
-			$(eval $(call statistics_template,$(regex_type),$(construction),$(memo_scheme)))\
-		)\
-	)\
-)
-
-.PHONY: statistics
-statistics: $(STATISTICS)
-
+include makefiles/benchmark.mk
+include makefiles/steps.mk
+include makefiles/statistics.mk
 
 # Analysis
 ANALYSIS_DIR := $(DATA_DIR)/analysis
 
-# Analysis Steps
-STEPS_SL_FULL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,full,tex)
-STEPS_ALL_FULL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,full,tex)
-STEPS_SL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,partial,tex)
-STEPS_ALL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,partial,tex)
+# analyze steps
+ANALYSIS_STEPS_SL_FULL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,full,tex)
+ANALYSIS_STEPS_SL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,partial,tex)
 
-$(ANALYSIS_DIR)/steps-%.tex: $(BENCHMARK_DIR)/benchmark-%.jsonl | $(VENV)
+ANALYSIS_STEPS_ALL_FULL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,full,tex)
+ANALYSIS_STEPS_ALL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,partial,tex)
+
+$(ANALYSIS_DIR)/steps-sl-%.tex: $(BENCHMARK_DIR)/benchmark-sl-%.jsonl | $(VENV)
 	@mkdir -p $(ANALYSIS_DIR)
-	$(PYTHON) src/analysis_steps.py \
-		--regex-type $(word 1,$(subst -, ,$*)) $< > $@ || rm $@
+	$(PYTHON) src/analyze_sl_steps.py $< > $@ || rm $@
 
-.PHONY: analysis-steps
-analysis-steps: \
-	analysis-steps-all-full \
-	analysis-steps-sl-full \
-	analysis-steps-all-partial \
-	analysis-steps-sl-partial
+$(ANALYSIS_DIR)/steps-all-%.tex: $(BENCHMARK_DIR)/steps-benchmark-all-%.jsonl | $(VENV)
+	@mkdir -p $(ANALYSIS_DIR)
+	$(PYTHON) src/analyze_all_steps.py $< > $@ || rm $@
 
-.PHONY: analysis-steps-all-full
-analysis-steps-all-full: $(STEPS_ALL_FULL)
+.PHONY: analyze-steps-all
+analyze-steps-all: \
+	analyze-steps-all-full \
+	analyze-steps-all-partial
 
-.PHONY: analysis-steps-sl-full
-analysis-steps-sl-full: $(STEPS_SL_FULL)
+.PHONY: analyze-steps-sl
+analyze-steps-sl: \
+	analyze-steps-sl-full \
+	analyze-steps-sl-partial
 
-.PHONY: analysis-steps-all-partial
-analysis-steps-all-partial: $(STEPS_ALL_PARTIAL)
+.PHONY: analyze-steps-all-full
+analyze-steps-all-full: $(ANALYSIS_STEPS_ALL_FULL)
 
-.PHONY: analysis-steps-sl-partial
-analysis-steps-sl-partial: $(STEPS_SL_PARTIAL)
+.PHONY: analyze-steps-sl-full
+analyze-steps-sl-full: $(ANALYSIS_STEPS_SL_FULL)
 
-# Analysis Statistics
+.PHONY: analyze-steps-all-partial
+analyze-steps-all-partial: $(ANALYSIS_STEPS_ALL_PARTIAL)
+
+.PHONY: analyze-steps-sl-partial
+analyze-steps-sl-partial: $(ANALYSIS_STEPS_SL_PARTIAL)
+
+# Analyze Statistics
 ANALYSIS_STATS_SL := $(foreach regex_type,$(REGEX_TYPES),\
 	$(foreach construction,$(CONSTRUCTIONS),\
 		$(foreach memo_scheme,$(MEMO_SCHEMES),\
@@ -258,4 +155,4 @@ clean:
 
 .PHONY: vim
 vim:
-	vim $$(git ls-files) $$(git ls-files --others --exclude-standard)
+	vim $$(git ls-files | grep -v '.*\.tex') $$(git ls-files --others --exclude-standard)

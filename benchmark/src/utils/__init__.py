@@ -2,7 +2,7 @@ import re
 import statistics
 import logging
 from functools import total_ordering
-from typing import (Optional, )
+from typing import (Optional, Any, )
 from enum import Enum
 
 
@@ -57,6 +57,10 @@ class BenchmarkResult():
             + self.char_failed
             + self.pred_failed
         )
+
+    @property
+    def memo_entry(self) -> int:
+        return self.memo - self.memo_failed
 
 
 @total_ordering
@@ -181,11 +185,22 @@ class DegreeOfVulnerability():
             half = len(deltas) // 2
             logging.debug(deltas)
 
-            max_last_half = max(deltas[half:])
-            max_first_half = max(deltas[:half])
-            # Almost constant
-            if max_last_half - max_first_half < half:
+            last_half = deltas[half:]
+            first_half = deltas[:half]
+
+            # It might be constant
+            if max(last_half) - max(first_half) < half:
                 return cls(cls.Type.POLYNOMIAL, degree)
+
+            if not all(delta >= 0 for delta in deltas):
+                average_first_half = statistics.mean(first_half)
+                average_last_half = min(
+                    statistics.mean(last_half),
+                    statistics.mean(last_half[:-1])
+                )
+                if average_last_half - average_first_half < half:
+                    return cls(cls.Type.POLYNOMIAL, degree)
+                return cls(cls.Type.UNKNOWN)
 
             if len(deltas) == 2:
                 break
@@ -194,6 +209,37 @@ class DegreeOfVulnerability():
             degree += 1
 
         return cls._exponential_vulnerability_from_steps(steps)
+
+
+def get_step_from_output(output: Optional[dict[str, str]]) -> Optional[int]:
+    if output is None:
+        return None
+    if len(output["stderr"]) == 0:
+        return None
+    result = BenchmarkResult(output["stderr"])
+    return result.steps
+
+
+def trim_dov(dov: DegreeOfVulnerability) -> DegreeOfVulnerability:
+    if dov.is_polynomial():
+        assert dov.degree is not None
+        if dov.degree > 5:
+            return DegreeOfVulnerability(
+                DegreeOfVulnerability.Type.POLYNOMIAL, 5)
+    if dov.is_exponential():
+        return DegreeOfVulnerability(
+            DegreeOfVulnerability.Type.EXPONENTIAL, 2)
+    return dov
+
+
+def update_dov(data: dict[str, Any]) -> dict[str, Any]:
+    outputs = data["outputs"]
+    steps = [get_step_from_output(output) for output in outputs]
+    filtered_steps = [step for step in steps if step is not None]
+    dov = DegreeOfVulnerability.from_steps(filtered_steps)
+    data["dov"] = dov
+    data["steps"] = filtered_steps
+    return data
 
 
 def print_statistics(

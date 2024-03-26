@@ -5,6 +5,7 @@ from typing import (TypedDict, Any, Optional, Callable, )
 from pathlib import Path
 
 import jsonlines  # type: ignore
+import pathos.multiprocessing as mp  # type: ignore
 
 from utils import ConstructionOption
 from utils import MemoSchemeOption
@@ -129,7 +130,8 @@ def benchmark_dataset(
         benchmark_data = (
             lambda e: benchmark_sl_data(e, bru_args, matching_type))
 
-    benchmarked_dataset = map(benchmark_data, regex_dataset)
+    with mp.ProcessPool() as pool:
+        benchmarked_dataset = pool.imap(benchmark_data, regex_dataset)
     output_file = jsonlines.open(output_path, "w")
     output_file.write_all(benchmarked_dataset)
     output_file.close()
@@ -140,7 +142,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     parser = argparse.ArgumentParser(
-        description="Measure the matching step of the sl-regexes")
+        description="Benchmark regexes with Bru.")
     parser.add_argument(
         "-t", "--regex-type", type=RegexType, choices=list(RegexType))
     parser.add_argument(
