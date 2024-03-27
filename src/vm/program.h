@@ -182,4 +182,12 @@ void program_free(Program *self);
  */
 void program_print(const Program *self, FILE *stream);
 
+/**
+ * Print an instruction to the file stream, with its operands.
+ *
+ * @param[in] stream the file stream
+ * @param[in] pc     the pointer into the instruction stream
+ */
+void inst_print(FILE *stream, const byte *pc);
+
 #endif /* PROGRAM_H */

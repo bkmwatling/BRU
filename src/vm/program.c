@@ -6,16 +6,37 @@
 #include "../stc/util/utf.h"
 
 #include "../types.h"
+#include "../utils.h"
 #include "program.h"
 
 #define BUFSIZE 512
 
+/**< function type for printing an offset to a file stream */
+typedef void(offset_print_f)(FILE       *stream,
+                             offset_t    offset,
+                             const byte *pc,
+                             const byte *insts);
+
+/**< function type for printing a predicate */
+typedef void(predicate_print_f)(FILE *stream, len_t idx, const byte *aux);
+
 /* --- Helper function prototypes ------------------------------------------- */
 
-static len_t
-offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts);
-static const byte *
-inst_print(FILE *stream, const byte *pc, const Program *prog);
+static const byte *inst_print_formatted(FILE              *stream,
+                                        const byte        *pc,
+                                        const Program     *prog,
+                                        predicate_print_f *print_predicate,
+                                        offset_print_f    *print_offset);
+static void print_predicate_as_string(FILE *stream, len_t idx, const byte *aux);
+static void print_predicate_as_index(FILE *stream, len_t idx, const byte *aux);
+static void print_offset_as_absolute_index(FILE       *stream,
+                                           offset_t    x,
+                                           const byte *pc,
+                                           const byte *insts);
+static void print_offset_as_offset(FILE       *stream,
+                                   offset_t    offset,
+                                   const byte *pc,
+                                   const byte *insts);
 
 /* --- API function definitions --------------------------------------------- */
 
@@ -77,59 +98,32 @@ void program_print(const Program *self, FILE *stream)
 
     while (pc < insts_end) {
         fprintf(stream, "%4d: ", i++);
-        pc = inst_print(stream, pc, self);
+        pc = inst_print_formatted(stream, pc, self, print_predicate_as_string,
+                                  print_offset_as_absolute_index);
         fputc('\n', stream);
     }
 }
 
-/* --- Helper function definitions ------------------------------------------ */
-
-static len_t
-offset_to_absolute_index(offset_t x, const byte *pc, const byte *insts)
+void inst_print(FILE *stream, const byte *pc)
 {
-    len_t idx, len;
-
-    pc += x;
-    for (idx = 0; insts < pc; idx++) {
-        switch (*insts++) {
-            case NOOP:  /* fallthrough */
-            case MATCH: /* fallthrough */
-            case BEGIN: /* fallthrough */
-            case END: break;
-            case MEMO: insts += sizeof(len_t); break;
-            case CHAR: insts += sizeof(char *); break;
-            case PRED: /* fallthrough */
-            case SAVE: insts += sizeof(len_t); break;
-            case JMP:    /* fallthrough */
-            case GSPLIT: /* fallthrough */
-            case LSPLIT: insts += sizeof(offset_t); break;
-            case SPLIT: insts += 2 * sizeof(offset_t); break;
-            case TSWITCH:
-                MEMREAD(len, insts, len_t);
-                insts += len * sizeof(offset_t);
-                break;
-            case EPSRESET: /* fallthrough */
-            case EPSSET:   /* fallthrough */
-            case EPSCHK: insts += sizeof(len_t); break;
-            case RESET: insts += sizeof(len_t) + sizeof(cntr_t); break;
-            case CMP: insts += sizeof(len_t) + sizeof(cntr_t) + 1; break;
-            case INC: insts += sizeof(len_t); break;
-            case ZWA: insts += 2 * sizeof(offset_t) + 1; break;
-            default:
-                fprintf(stderr, "bytecode = %d\n", insts[-1]);
-                assert(0 && "unreachable");
-        }
-    }
-
-    return idx;
+    inst_print_formatted(stream, pc, NULL, print_predicate_as_index,
+                         print_offset_as_offset);
 }
 
-static const byte *inst_print(FILE *stream, const byte *pc, const Program *prog)
+/* --- Helper function definitions ------------------------------------------ */
+
+static const byte *inst_print_formatted(FILE              *stream,
+                                        const byte        *pc,
+                                        const Program     *prog,
+                                        predicate_print_f *print_predicate,
+                                        offset_print_f    *print_offset)
 {
-    char    *p;
-    cntr_t   c;
-    offset_t x, y;
-    len_t    i, n;
+    char       *p;
+    const byte *insts = prog ? prog->insts : NULL;
+    const byte *aux   = prog ? prog->aux : NULL;
+    cntr_t      c;
+    offset_t    x, y;
+    len_t       i, n;
 
     if (pc == NULL) return NULL;
 
@@ -151,9 +145,8 @@ static const byte *inst_print(FILE *stream, const byte *pc, const Program *prog)
 
         case PRED:
             MEMREAD(i, pc, len_t);
-            p = intervals_to_str((Intervals *) (prog->aux + i));
-            fprintf(stream, "pred %s", p);
-            free(p);
+            fputs("pred ", stream);
+            print_predicate(stream, i, aux);
             break;
 
         case SAVE:
@@ -163,29 +156,29 @@ static const byte *inst_print(FILE *stream, const byte *pc, const Program *prog)
 
         case JMP:
             MEMREAD(x, pc, offset_t);
-            fprintf(stream, "jmp " LEN_FMT,
-                    offset_to_absolute_index(x, pc, prog->insts));
+            fputs("jmp ", stream);
+            print_offset(stream, x, pc, insts);
             break;
 
         case SPLIT:
             MEMREAD(x, pc, offset_t);
             MEMREAD(y, pc, offset_t);
-            fprintf(
-                stream, "split " LEN_FMT ", " LEN_FMT,
-                offset_to_absolute_index(x, pc - sizeof(offset_t), prog->insts),
-                offset_to_absolute_index(y, pc, prog->insts));
+            fputs("split ", stream);
+            print_offset(stream, x, pc - sizeof(offset_t), insts);
+            fputs(", ", stream);
+            print_offset(stream, y, pc, insts);
             break;
 
         case GSPLIT:
             MEMREAD(x, pc, offset_t);
-            fprintf(stream, "gsplit " LEN_FMT,
-                    offset_to_absolute_index(x, pc, prog->insts));
+            fputs("gsplit ", stream);
+            print_offset(stream, x, pc, insts);
             break;
 
         case LSPLIT:
             MEMREAD(x, pc, offset_t);
-            fprintf(stream, "lsplit " LEN_FMT,
-                    offset_to_absolute_index(x, pc, prog->insts));
+            fputs("lsplit ", stream);
+            print_offset(stream, x, pc, insts);
             break;
 
         case TSWITCH:
@@ -193,8 +186,8 @@ static const byte *inst_print(FILE *stream, const byte *pc, const Program *prog)
             fprintf(stream, "tswitch " LEN_FMT, n);
             for (i = 0; i < n; i++) {
                 MEMREAD(x, pc, offset_t);
-                fprintf(stream, ", " LEN_FMT,
-                        offset_to_absolute_index(x, pc, prog->insts));
+                fputs(", ", stream);
+                print_offset(stream, x, pc, insts);
             }
             break;
 
@@ -243,10 +236,11 @@ static const byte *inst_print(FILE *stream, const byte *pc, const Program *prog)
         case ZWA:
             MEMREAD(x, pc, offset_t);
             MEMREAD(y, pc, offset_t);
-            fprintf(
-                stream, "zwa " LEN_FMT ", " LEN_FMT ", %d",
-                offset_to_absolute_index(x, pc - sizeof(offset_t), prog->insts),
-                offset_to_absolute_index(y, pc, prog->insts), *pc);
+            fputs("zwa ", stream);
+            print_offset(stream, x, pc - sizeof(offset_t), insts);
+            fputs(", ", stream);
+            print_offset(stream, y, pc, insts);
+            fprintf(stream, ", %d", *pc);
             pc++;
             break;
 
@@ -256,4 +250,68 @@ static const byte *inst_print(FILE *stream, const byte *pc, const Program *prog)
     }
 
     return pc;
+}
+
+static void print_predicate_as_string(FILE *stream, len_t idx, const byte *aux)
+{
+    char *p = interval_to_str((const Interval *) (aux + idx));
+    fprintf(stream, "%s", p);
+    free(p);
+}
+
+static void print_predicate_as_index(FILE *stream, len_t idx, const byte *aux)
+{
+    fprintf(stream, LEN_FMT, idx);
+}
+
+static void print_offset_as_absolute_index(FILE       *stream,
+                                           offset_t    x,
+                                           const byte *pc,
+                                           const byte *insts)
+{
+    len_t idx, len;
+
+    pc += x;
+    for (idx = 0; insts < pc; idx++) {
+        switch (*insts++) {
+            case NOOP:  /* fallthrough */
+            case MATCH: /* fallthrough */
+            case BEGIN: /* fallthrough */
+            case END: break;
+            case MEMO: insts += sizeof(len_t); break;
+            case CHAR: insts += sizeof(char *); break;
+            case PRED: /* fallthrough */
+            case SAVE: insts += sizeof(len_t); break;
+            case JMP:    /* fallthrough */
+            case GSPLIT: /* fallthrough */
+            case LSPLIT: insts += sizeof(offset_t); break;
+            case SPLIT: insts += 2 * sizeof(offset_t); break;
+            case TSWITCH:
+                MEMREAD(len, insts, len_t);
+                insts += len * sizeof(offset_t);
+                break;
+            case EPSRESET: /* fallthrough */
+            case EPSSET:   /* fallthrough */
+            case EPSCHK: insts += sizeof(len_t); break;
+            case RESET: insts += sizeof(len_t) + sizeof(cntr_t); break;
+            case CMP: insts += sizeof(len_t) + sizeof(cntr_t) + 1; break;
+            case INC: insts += sizeof(len_t); break;
+            case ZWA: insts += 2 * sizeof(offset_t) + 1; break;
+            default:
+                fprintf(stderr, "bytecode = %d\n", insts[-1]);
+                assert(0 && "unreachable");
+        }
+    }
+
+    fprintf(stream, LEN_FMT, idx);
+}
+
+static void print_offset_as_offset(FILE       *stream,
+                                   offset_t    offset,
+                                   const byte *pc,
+                                   const byte *insts)
+{
+    UNUSED(pc);
+    UNUSED(insts);
+    fprintf(stream, OFFSET_FMT, offset);
 }
