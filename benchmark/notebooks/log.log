@@ -1,0 +1,318 @@
+[I 2024-03-28 11:13:52.202 ServerApp] jupyter_lsp | extension was successfully linked.
+[I 2024-03-28 11:13:52.205 ServerApp] jupyter_server_terminals | extension was successfully linked.
+[I 2024-03-28 11:13:52.208 ServerApp] jupyterlab | extension was successfully linked.
+[I 2024-03-28 11:13:52.211 ServerApp] notebook | extension was successfully linked.
+[I 2024-03-28 11:13:52.351 ServerApp] notebook_shim | extension was successfully linked.
+[I 2024-03-28 11:13:52.368 ServerApp] notebook_shim | extension was successfully loaded.
+[I 2024-03-28 11:13:52.370 ServerApp] jupyter_lsp | extension was successfully loaded.
+[I 2024-03-28 11:13:52.371 ServerApp] jupyter_server_terminals | extension was successfully loaded.
+[I 2024-03-28 11:13:52.372 LabApp] JupyterLab extension loaded from /home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyterlab
+[I 2024-03-28 11:13:52.372 LabApp] JupyterLab application directory is /home/cdltlehf/projects/srvm/benchmark/.venv/share/jupyter/lab
+[I 2024-03-28 11:13:52.372 LabApp] Extension Manager is 'pypi'.
+[I 2024-03-28 11:13:52.380 ServerApp] jupyterlab | extension was successfully loaded.
+[I 2024-03-28 11:13:52.382 ServerApp] notebook | extension was successfully loaded.
+[I 2024-03-28 11:13:52.382 ServerApp] Serving notebooks from local directory: /home/cdltlehf/projects/srvm/benchmark
+[I 2024-03-28 11:13:52.382 ServerApp] Jupyter Server 2.13.0 is running at:
+[I 2024-03-28 11:13:52.382 ServerApp] http://node07.toc.lab:50000/tree
+[I 2024-03-28 11:13:52.382 ServerApp]     http://127.0.0.1:50000/tree
+[I 2024-03-28 11:13:52.382 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[W 2024-03-28 11:13:52.519 ServerApp] 404 GET /api/kernels/00df0ffd-14fa-4ee8-aaa4-c6caabcbfde9?1711592032506 (165.132.107.44): Kernel does not exist: 00df0ffd-14fa-4ee8-aaa4-c6caabcbfde9
+[W 2024-03-28 11:13:52.520 ServerApp] wrote error: 'Kernel does not exist: 00df0ffd-14fa-4ee8-aaa4-c6caabcbfde9'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: 00df0ffd-14fa-4ee8-aaa4-c6caabcbfde9)
+[W 2024-03-28 11:13:52.521 ServerApp] 404 GET /api/kernels/00df0ffd-14fa-4ee8-aaa4-c6caabcbfde9?1711592032506 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 1.82ms referer=http://165.132.106.173:50000/notebooks/notebooks/1_3_all_steps_plot(lockstep).ipynb
+[I 2024-03-28 11:13:52.564 ServerApp] Skipped non-installed server(s): bash-language-server, dockerfile-language-server-nodejs, javascript-typescript-langserver, jedi-language-server, julia-language-server, pyright, python-language-server, python-lsp-server, r-languageserver, sql-language-server, texlab, typescript-language-server, unified-language-server, vscode-css-languageserver-bin, vscode-html-languageserver-bin, vscode-json-languageserver-bin, yaml-language-server
+[I 2024-03-28 11:13:55.316 ServerApp] Kernel started: ed2fa203-87a4-46cc-bb5e-a5609c68ef6e
+[I 2024-03-28 11:13:55.789 ServerApp] Connecting to kernel ed2fa203-87a4-46cc-bb5e-a5609c68ef6e.
+[W 2024-03-28 11:13:56.510 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426?1711592036497 (165.132.107.44): Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426
+[W 2024-03-28 11:13:56.510 ServerApp] wrote error: 'Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426)
+[W 2024-03-28 11:13:56.510 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426?1711592036497 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.65ms referer=http://165.132.106.173:50000/notebooks/notebooks%2F1_all_steps_plot.ipynb
+[W 2024-03-28 11:13:57.518 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426/channels?session_id=ddcd75f9-cd12-4008-8036-b7699a10a9be (165.132.107.44): Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426
+[W 2024-03-28 11:13:57.534 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426/channels?session_id=ddcd75f9-cd12-4008-8036-b7699a10a9be (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 15.43ms referer=None
+[W 2024-03-28 11:13:57.535 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426?1711592037523 (165.132.107.44): Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426
+[W 2024-03-28 11:13:57.535 ServerApp] wrote error: 'Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426)
+[W 2024-03-28 11:13:57.535 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426?1711592037523 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.79ms referer=http://165.132.106.173:50000/notebooks/notebooks%2F1_all_steps_plot.ipynb
+[W 2024-03-28 11:13:58.539 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426/channels?session_id=ddcd75f9-cd12-4008-8036-b7699a10a9be (165.132.107.44): Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426
+[W 2024-03-28 11:13:58.540 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426/channels?session_id=ddcd75f9-cd12-4008-8036-b7699a10a9be (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.64ms referer=None
+[W 2024-03-28 11:13:58.541 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426?1711592038529 (165.132.107.44): Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426
+[W 2024-03-28 11:13:58.541 ServerApp] wrote error: 'Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: 10af8170-80ea-42a5-ad3e-1a8cf87ab426)
+[W 2024-03-28 11:13:58.541 ServerApp] 404 GET /api/kernels/10af8170-80ea-42a5-ad3e-1a8cf87ab426?1711592038529 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.47ms referer=http://165.132.106.173:50000/notebooks/notebooks%2F1_all_steps_plot.ipynb
+[W 2024-03-28 11:14:00.732 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592040720 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:00.732 ServerApp] wrote error: 'Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1)
+[W 2024-03-28 11:14:00.732 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592040720 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.57ms referer=http://165.132.106.173:50000/notebooks/notebooks/1_2_all_steps_plot(in-spencer).ipynb
+[W 2024-03-28 11:14:01.408 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:01.408 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.62ms referer=None
+[W 2024-03-28 11:14:01.410 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592041398 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:01.410 ServerApp] wrote error: 'Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1)
+[W 2024-03-28 11:14:01.410 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592041398 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.48ms referer=http://165.132.106.173:50000/notebooks/notebooks/1_2_all_steps_plot(in-spencer).ipynb
+[E 2024-03-28 11:14:01.583 ServerApp] Exception restarting kernel
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 100, in post
+        await km.restart_kernel(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 438, in _async_restart_kernel
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1)
+[E 2024-03-28 11:14:01.583 ServerApp] {
+      "Host": "165.132.106.173:50000",
+      "Accept": "*/*",
+      "Referer": "http://165.132.106.173:50000/notebooks/notebooks/1_2_all_steps_plot(in-spencer).ipynb",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+[E 2024-03-28 11:14:01.583 ServerApp] 500 POST /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/restart?1711592041571 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.57ms referer=http://165.132.106.173:50000/notebooks/notebooks/1_2_all_steps_plot(in-spencer).ipynb
+[W 2024-03-28 11:14:04.513 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:04.514 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.66ms referer=None
+[W 2024-03-28 11:14:04.515 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592044503 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:04.515 ServerApp] wrote error: 'Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1)
+[W 2024-03-28 11:14:04.515 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592044503 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.49ms referer=http://165.132.106.173:50000/notebooks/notebooks/1_2_all_steps_plot(in-spencer).ipynb
+[W 2024-03-28 11:14:06.512 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:06.512 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.60ms referer=None
+[W 2024-03-28 11:14:06.514 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592046502 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:06.514 ServerApp] wrote error: 'Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1)
+[W 2024-03-28 11:14:06.514 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592046502 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.49ms referer=http://165.132.106.173:50000/notebooks/notebooks/1_2_all_steps_plot(in-spencer).ipynb
+[W 2024-03-28 11:14:19.516 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:19.517 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1/channels?session_id=d936907e-7b35-45ee-bad2-4ad3b3d9aa29 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.73ms referer=None
+[W 2024-03-28 11:14:19.518 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592059507 (165.132.107.44): Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1
+[W 2024-03-28 11:14:19.518 ServerApp] wrote error: 'Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1'
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/tornado/web.py", line 1790, in _execute
+        result = await result
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/auth/decorator.py", line 73, in inner
+        return await out
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/handlers.py", line 74, in get
+        model = await ensure_async(km.kernel_model(kernel_id))
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 500, in kernel_model
+        self._check_kernel_id(kernel_id)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/services/kernels/kernelmanager.py", line 531, in _check_kernel_id
+        raise web.HTTPError(404, "Kernel does not exist: %s" % kernel_id)
+    tornado.web.HTTPError: HTTP 404: Not Found (Kernel does not exist: b0c789aa-caef-4afe-9ee7-ba96b13b6de1)
+[W 2024-03-28 11:14:19.518 ServerApp] 404 GET /api/kernels/b0c789aa-caef-4afe-9ee7-ba96b13b6de1?1711592059507 (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 0.51ms referer=http://165.132.106.173:50000/notebooks/notebooks/1_2_all_steps_plot(in-spencer).ipynb
+[I 2024-03-28 11:14:57.616 ServerApp] Kernel started: f98f58c6-b40a-47cd-b6f1-b59746068931
+[I 2024-03-28 11:14:57.957 ServerApp] Connecting to kernel f98f58c6-b40a-47cd-b6f1-b59746068931.
+[I 2024-03-28 11:15:29.514 ServerApp] Saving file at /notebooks/1_all_steps_plot.ipynb
+[I 2024-03-28 11:15:29.617 ServerApp] Saving file at /notebooks/1_2_all_steps_plot(in-spencer).ipynb
+[I 2024-03-28 11:15:30.522 ServerApp] Saving file at /notebooks/1_3_all_steps_plot(lockstep).ipynb
+[I 2024-03-28 11:15:30.573 ServerApp] Saving file at /notebooks/1_1_all_steps_plot(cn-spencer).ipynb
+[I 2024-03-28 11:15:34.080 ServerApp] Kernel started: a7bd1956-be4e-4321-bd47-7e5821c9ce28
+[I 2024-03-28 11:15:34.541 ServerApp] Connecting to kernel a7bd1956-be4e-4321-bd47-7e5821c9ce28.
+[I 2024-03-28 11:17:30.654 ServerApp] Saving file at /notebooks/1_1_all_steps_plot(cn-spencer).ipynb
+[I 2024-03-28 13:28:38.617 ServerApp] Kernel started: fd1de077-16d5-4914-aae3-b17bdacc56a2
+[I 2024-03-28 13:28:39.068 ServerApp] Connecting to kernel fd1de077-16d5-4914-aae3-b17bdacc56a2.
+[I 2024-03-28 13:29:29.507 ServerApp] Saving file at /notebooks/1_all_steps_plot.ipynb
+[I 2024-03-28 13:31:29.598 ServerApp] Saving file at /notebooks/1_all_steps_plot.ipynb
+[I 2024-03-28 13:33:29.980 ServerApp] Saving file at /notebooks/1_all_steps_plot.ipynb
+[I 2024-03-28 13:36:29.513 ServerApp] Saving file at /notebooks/1_1_all_steps_plot(cn-spencer).ipynb
+[I 2024-03-28 13:37:27.534 ServerApp] Support files will be in 
+[I 2024-03-28 13:37:27.534 ServerApp] Writing 29345 bytes to notebook.tex
+[I 2024-03-28 13:37:27.534 ServerApp] Building PDF
+[E 2024-03-28 13:37:27.534 ServerApp] nbconvert failed: OSError('xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.')
+    Traceback (most recent call last):
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/nbconvert/handlers.py", line 134, in get
+        output, resources = await run_sync(
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/anyio/to_thread.py", line 56, in run_sync
+        return await get_async_backend().run_sync_in_worker_thread(
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/anyio/_backends/_asyncio.py", line 2144, in run_sync_in_worker_thread
+        return await future
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/anyio/_backends/_asyncio.py", line 851, in run
+        result = context.run(func, *args)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/jupyter_server/nbconvert/handlers.py", line 135, in <lambda>
+        lambda: exporter.from_notebook_node(nb, resources=resource_dict)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/nbconvert/exporters/pdf.py", line 197, in from_notebook_node
+        self.run_latex(tex_file)
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/nbconvert/exporters/pdf.py", line 166, in run_latex
+        return self.run_command(
+      File "/home/cdltlehf/projects/srvm/benchmark/.venv/lib64/python3.9/site-packages/nbconvert/exporters/pdf.py", line 120, in run_command
+        raise OSError(msg)
+    OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
+[W 2024-03-28 13:37:27.535 ServerApp] 500 GET /nbconvert/pdf/notebooks/1_all_steps_plot.ipynb?download=true (165.132.107.44): nbconvert failed: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
+[E 2024-03-28 13:37:27.536 ServerApp] {
+      "Host": "165.132.106.173:50000",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+      "Referer": "http://165.132.106.173:50000/notebooks/notebooks%2F1_all_steps_plot.ipynb",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+[E 2024-03-28 13:37:27.536 ServerApp] 500 GET /nbconvert/pdf/notebooks/1_all_steps_plot.ipynb?download=true (1b8486bac96b426cb12ee97f82c47902@165.132.107.44) 410.83ms referer=http://165.132.106.173:50000/notebooks/notebooks%2F1_all_steps_plot.ipynb
+[I 2024-03-28 15:45:52.240 ServerApp] Copying notebooks/1_all_steps_plot.ipynb to /notebooks
+[I 2024-03-28 15:46:06.345 ServerApp] Connecting to kernel ed2fa203-87a4-46cc-bb5e-a5609c68ef6e.
+[I 2024-03-28 15:46:06.357 ServerApp] Connecting to kernel f98f58c6-b40a-47cd-b6f1-b59746068931.
+[I 2024-03-28 15:46:06.373 ServerApp] Connecting to kernel a7bd1956-be4e-4321-bd47-7e5821c9ce28.
+[I 2024-03-28 15:46:06.386 ServerApp] Connecting to kernel fd1de077-16d5-4914-aae3-b17bdacc56a2.
+[I 2024-03-28 15:46:06.736 ServerApp] Kernel started: 7c1a2bad-7988-42c3-9216-b00aa2603c8c
+[I 2024-03-28 15:46:07.205 ServerApp] Connecting to kernel 7c1a2bad-7988-42c3-9216-b00aa2603c8c.
+[I 2024-03-28 15:46:50.822 ServerApp] Kernel restarted: 7c1a2bad-7988-42c3-9216-b00aa2603c8c
+[I 2024-03-28 15:46:50.824 ServerApp] Starting buffering for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:9d711ad4-9fec-48b1-922e-1e155ff66168
+[I 2024-03-28 15:46:50.826 ServerApp] Connecting to kernel 7c1a2bad-7988-42c3-9216-b00aa2603c8c.
+[I 2024-03-28 15:46:50.826 ServerApp] Restoring connection for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:9d711ad4-9fec-48b1-922e-1e155ff66168
+[I 2024-03-28 15:48:06.516 ServerApp] Saving file at /notebooks/2_all_memo_size.ipynb
+[I 2024-03-28 15:49:27.459 ServerApp] Kernel restarted: 7c1a2bad-7988-42c3-9216-b00aa2603c8c
+[I 2024-03-28 15:49:27.461 ServerApp] Starting buffering for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:9d711ad4-9fec-48b1-922e-1e155ff66168
+[I 2024-03-28 15:49:27.463 ServerApp] Connecting to kernel 7c1a2bad-7988-42c3-9216-b00aa2603c8c.
+[I 2024-03-28 15:49:27.464 ServerApp] Restoring connection for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:9d711ad4-9fec-48b1-922e-1e155ff66168
+[I 2024-03-28 15:50:06.589 ServerApp] Saving file at /notebooks/2_all_memo_size.ipynb
+[I 2024-03-28 15:52:06.326 ServerApp] Connecting to kernel ed2fa203-87a4-46cc-bb5e-a5609c68ef6e.
+[I 2024-03-28 15:52:06.339 ServerApp] Connecting to kernel f98f58c6-b40a-47cd-b6f1-b59746068931.
+[I 2024-03-28 15:52:06.423 ServerApp] Connecting to kernel a7bd1956-be4e-4321-bd47-7e5821c9ce28.
+[I 2024-03-28 15:52:06.451 ServerApp] Connecting to kernel fd1de077-16d5-4914-aae3-b17bdacc56a2.
+[I 2024-03-28 15:52:06.464 ServerApp] Connecting to kernel 7c1a2bad-7988-42c3-9216-b00aa2603c8c.
+[I 2024-03-28 15:52:07.511 ServerApp] Saving file at /notebooks/2_all_memo_size.ipynb
+[I 2024-03-28 15:52:11.733 ServerApp] Copying notebooks/2_all_memo_size.ipynb to /notebooks
+[I 2024-03-28 15:52:49.102 ServerApp] Starting buffering for fd1de077-16d5-4914-aae3-b17bdacc56a2:b50a2022-765c-42b6-b14f-bf9a42e0fb74
+[I 2024-03-28 15:52:49.585 ServerApp] Starting buffering for a7bd1956-be4e-4321-bd47-7e5821c9ce28:d86672f6-aeaf-4bd5-a34b-28de95cfb90a
+[I 2024-03-28 15:52:49.915 ServerApp] Starting buffering for f98f58c6-b40a-47cd-b6f1-b59746068931:3020939e-804f-40c1-a37e-4431b90126bc
+[I 2024-03-28 15:52:50.287 ServerApp] Starting buffering for ed2fa203-87a4-46cc-bb5e-a5609c68ef6e:e2150c9b-d354-4d60-a838-3f3829ac005e
+[I 2024-03-28 15:52:50.729 ServerApp] Starting buffering for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:9d711ad4-9fec-48b1-922e-1e155ff66168
+[I 2024-03-28 15:53:29.261 ServerApp] Connecting to kernel ed2fa203-87a4-46cc-bb5e-a5609c68ef6e.
+[I 2024-03-28 15:53:29.277 ServerApp] Connecting to kernel f98f58c6-b40a-47cd-b6f1-b59746068931.
+[I 2024-03-28 15:53:29.293 ServerApp] Connecting to kernel a7bd1956-be4e-4321-bd47-7e5821c9ce28.
+[I 2024-03-28 15:53:29.308 ServerApp] Connecting to kernel fd1de077-16d5-4914-aae3-b17bdacc56a2.
+[I 2024-03-28 15:53:29.324 ServerApp] Connecting to kernel 7c1a2bad-7988-42c3-9216-b00aa2603c8c.
+[I 2024-03-28 15:53:29.528 ServerApp] Starting buffering for ed2fa203-87a4-46cc-bb5e-a5609c68ef6e:5bc13c6c-3d0d-49e4-a6ee-7895b7e801d3
+[I 2024-03-28 15:53:29.528 ServerApp] Starting buffering for f98f58c6-b40a-47cd-b6f1-b59746068931:40476adb-bb21-45fa-bc23-aea8889bb64f
+[I 2024-03-28 15:53:29.528 ServerApp] Starting buffering for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:742757dd-51c1-4eb7-b6ce-f665063316e0
+[I 2024-03-28 15:53:29.529 ServerApp] Starting buffering for fd1de077-16d5-4914-aae3-b17bdacc56a2:f07e6f00-9856-452f-bf45-5a1deb12a6ed
+[I 2024-03-28 15:53:29.529 ServerApp] Starting buffering for a7bd1956-be4e-4321-bd47-7e5821c9ce28:444d882f-2642-4a9d-8f9a-b6ca6b8ab8c8
+[I 2024-03-28 15:53:29.594 ServerApp] Kernel started: e7c9e2e2-8df4-4006-98b1-6ad844b35339
+[I 2024-03-28 15:53:29.977 ServerApp] Connecting to kernel e7c9e2e2-8df4-4006-98b1-6ad844b35339.
+[I 2024-03-28 15:53:39.339 ServerApp] Kernel restarted: e7c9e2e2-8df4-4006-98b1-6ad844b35339
+[I 2024-03-28 15:53:39.341 ServerApp] Starting buffering for e7c9e2e2-8df4-4006-98b1-6ad844b35339:af3c07d4-787a-4dfb-b61a-6a8aa75f8f07
+[I 2024-03-28 15:53:39.344 ServerApp] Connecting to kernel e7c9e2e2-8df4-4006-98b1-6ad844b35339.
+[I 2024-03-28 15:53:39.344 ServerApp] Restoring connection for e7c9e2e2-8df4-4006-98b1-6ad844b35339:af3c07d4-787a-4dfb-b61a-6a8aa75f8f07
+[I 2024-03-28 15:54:03.353 ServerApp] Copying notebooks/2_2_all_memo_size(in).ipynb to /notebooks
+[I 2024-03-28 15:55:29.424 ServerApp] Saving file at /notebooks/2_2_all_memo_size(in).ipynb
+[I 2024-03-28 15:55:57.559 ServerApp] Connecting to kernel ed2fa203-87a4-46cc-bb5e-a5609c68ef6e.
+[I 2024-03-28 15:55:57.575 ServerApp] Connecting to kernel f98f58c6-b40a-47cd-b6f1-b59746068931.
+[I 2024-03-28 15:55:57.590 ServerApp] Connecting to kernel a7bd1956-be4e-4321-bd47-7e5821c9ce28.
+[I 2024-03-28 15:55:57.604 ServerApp] Connecting to kernel fd1de077-16d5-4914-aae3-b17bdacc56a2.
+[I 2024-03-28 15:55:57.619 ServerApp] Connecting to kernel e7c9e2e2-8df4-4006-98b1-6ad844b35339.
+[I 2024-03-28 15:55:57.656 ServerApp] Connecting to kernel 7c1a2bad-7988-42c3-9216-b00aa2603c8c.
+[I 2024-03-28 15:55:57.807 ServerApp] Starting buffering for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:2e3704f0-af6f-46be-b0ef-a1df5acac747
+[I 2024-03-28 15:55:57.822 ServerApp] Starting buffering for a7bd1956-be4e-4321-bd47-7e5821c9ce28:98e7c650-0ce6-4d46-9cf5-2fcf370f21a0
+[I 2024-03-28 15:55:57.822 ServerApp] Starting buffering for f98f58c6-b40a-47cd-b6f1-b59746068931:2422197a-5275-4cef-a028-47f6e2970ef6
+[I 2024-03-28 15:55:57.823 ServerApp] Starting buffering for fd1de077-16d5-4914-aae3-b17bdacc56a2:8031e89a-9002-4530-babd-a930d85760d9
+[I 2024-03-28 15:55:57.824 ServerApp] Starting buffering for ed2fa203-87a4-46cc-bb5e-a5609c68ef6e:5fb2145a-7d5a-4a64-8bba-d67f848fa0d2
+[I 2024-03-28 15:55:57.884 ServerApp] Kernel started: 07e27028-b26b-4677-9b93-8d69c6c7089f
+[I 2024-03-28 15:55:58.190 ServerApp] Connecting to kernel 07e27028-b26b-4677-9b93-8d69c6c7089f.
+[I 2024-03-28 15:56:09.612 ServerApp] Kernel restarted: 07e27028-b26b-4677-9b93-8d69c6c7089f
+[I 2024-03-28 15:56:09.614 ServerApp] Starting buffering for 07e27028-b26b-4677-9b93-8d69c6c7089f:b2bf79ca-7e4f-4da1-8760-c1a3a0bf0b5e
+[I 2024-03-28 15:56:09.616 ServerApp] Connecting to kernel 07e27028-b26b-4677-9b93-8d69c6c7089f.
+[I 2024-03-28 15:56:09.616 ServerApp] Restoring connection for 07e27028-b26b-4677-9b93-8d69c6c7089f:b2bf79ca-7e4f-4da1-8760-c1a3a0bf0b5e
+[I 2024-03-28 15:57:57.722 ServerApp] Saving file at /notebooks/2_3_all_memo_size(thompson, in vs cn).ipynb
+[I 2024-03-28 15:58:03.010 ServerApp] Copying notebooks/2_2_all_memo_size(in).ipynb to /notebooks
+[W 2024-03-28 15:58:10.592 ServerApp] delete /notebooks/2_2_all_memo_size(in)-Copy1.ipynb
+[I 2024-03-28 15:58:12.931 ServerApp] Copying notebooks/2_3_all_memo_size(thompson, in vs cn).ipynb to /notebooks
+[I 2024-03-28 15:58:26.629 ServerApp] Connecting to kernel ed2fa203-87a4-46cc-bb5e-a5609c68ef6e.
+[I 2024-03-28 15:58:26.643 ServerApp] Connecting to kernel f98f58c6-b40a-47cd-b6f1-b59746068931.
+[I 2024-03-28 15:58:26.657 ServerApp] Connecting to kernel a7bd1956-be4e-4321-bd47-7e5821c9ce28.
+[I 2024-03-28 15:58:26.672 ServerApp] Connecting to kernel fd1de077-16d5-4914-aae3-b17bdacc56a2.
+[I 2024-03-28 15:58:26.686 ServerApp] Connecting to kernel 7c1a2bad-7988-42c3-9216-b00aa2603c8c.
+[I 2024-03-28 15:58:26.722 ServerApp] Connecting to kernel e7c9e2e2-8df4-4006-98b1-6ad844b35339.
+[I 2024-03-28 15:58:26.780 ServerApp] Connecting to kernel 07e27028-b26b-4677-9b93-8d69c6c7089f.
+[I 2024-03-28 15:58:26.861 ServerApp] Starting buffering for f98f58c6-b40a-47cd-b6f1-b59746068931:fd13c877-3f6e-48da-9602-1292c858458a
+[I 2024-03-28 15:58:26.861 ServerApp] Starting buffering for a7bd1956-be4e-4321-bd47-7e5821c9ce28:e2fbf66c-f06b-472b-8d7a-98774dc09beb
+[I 2024-03-28 15:58:26.862 ServerApp] Starting buffering for fd1de077-16d5-4914-aae3-b17bdacc56a2:d9e20450-041e-41d0-a87a-fe48898e8e19
+[I 2024-03-28 15:58:26.863 ServerApp] Starting buffering for ed2fa203-87a4-46cc-bb5e-a5609c68ef6e:5e65de1d-4867-48c9-88cb-550350306ea0
+[I 2024-03-28 15:58:26.863 ServerApp] Starting buffering for 7c1a2bad-7988-42c3-9216-b00aa2603c8c:81c9fcff-9e09-4aed-80e1-2042edc017e8
+[I 2024-03-28 15:58:26.939 ServerApp] Kernel started: 1a8e3ed2-8a0c-41fb-a474-41ef3298f30e
+[I 2024-03-28 15:58:27.271 ServerApp] Connecting to kernel 1a8e3ed2-8a0c-41fb-a474-41ef3298f30e.
+[I 2024-03-28 15:58:37.932 ServerApp] Kernel restarted: 1a8e3ed2-8a0c-41fb-a474-41ef3298f30e
+[I 2024-03-28 15:58:37.935 ServerApp] Starting buffering for 1a8e3ed2-8a0c-41fb-a474-41ef3298f30e:4c1017c8-0ea5-4830-afab-2fad5c6933a3
+[I 2024-03-28 15:58:37.937 ServerApp] Connecting to kernel 1a8e3ed2-8a0c-41fb-a474-41ef3298f30e.
+[I 2024-03-28 15:58:37.937 ServerApp] Restoring connection for 1a8e3ed2-8a0c-41fb-a474-41ef3298f30e:4c1017c8-0ea5-4830-afab-2fad5c6933a3
+[I 2024-03-28 16:00:26.790 ServerApp] Saving file at /notebooks/2_4_all_memo_size(glushkov, in vs cn).ipynb
+[I 2024-03-28 16:10:01.510 ServerApp] Saving file at /notebooks/2_3_all_memo_size(thompson, in vs cn).ipynb
+[I 2024-03-28 16:10:28.505 ServerApp] Saving file at /notebooks/2_4_all_memo_size(glushkov, in vs cn).ipynb
