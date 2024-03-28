@@ -11,6 +11,7 @@ benchmark/**/*.tar.xz
 benchmark/**/*.zip
 benchmark/**/*.tar
 benchmark/**/*.tex
+benchmark/**/*.txt
 
 # experiments
 __pycache__/

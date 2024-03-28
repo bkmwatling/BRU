@@ -8,7 +8,7 @@ from utils import print_statistics
 
 def print_step_statistics(input_path: Path, prefix: str) -> None:
     dataset = jsonlines.open(input_path, mode='r')
-    steps = [data[f"avg_{prefix}_step"] for data in dataset]
+    steps = [data[f"avg_{prefix}_memo_size"] for data in dataset]
     steps = [step for step in steps if step is not None]
 
     # Avg. of Avg.

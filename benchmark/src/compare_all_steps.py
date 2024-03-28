@@ -9,12 +9,14 @@ def compare_data(
     data1: dict[str, Any],
     data2: dict[str, Any],
     prefix: str
-) -> None:
+) -> bool:
     pattern = data1["pattern"]
     strings = data1[f"{prefix}_inputs"]
 
     steps1 = data1[f"{prefix}_steps"]
     steps2 = data2[f"{prefix}_steps"]
+
+    flag = False
     for string, step1, step2 in zip(strings, steps1, steps2):
         if step1 is None and step2 is None:
             continue
@@ -23,13 +25,19 @@ def compare_data(
             print(string)
             print(step1)
             print(step2)
+            print()
+            flag = True
+    return flag
 
 
 def compare_datasets(file1: Path, file2: Path, prefix: str) -> None:
     dataset1 = jsonlines.open(file1, mode='r')
     dataset2 = jsonlines.open(file2, mode='r')
+    count = 0
     for data1, data2 in zip(dataset1, dataset2):
-        compare_data(data1, data2, prefix)
+        if compare_data(data1, data2, prefix):
+            count += 1
+    print(f"The average number of steps increased for {count} regexes.")
     dataset1.close()
     dataset2.close()
 

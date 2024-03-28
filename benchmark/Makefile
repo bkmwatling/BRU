@@ -60,63 +60,9 @@ endef
 
 include makefiles/benchmark.mk
 include makefiles/steps.mk
+include makefiles/memo_size.mk
 include makefiles/statistics.mk
-
-# Analysis
-ANALYSIS_DIR := $(DATA_DIR)/analysis
-
-# analyze steps
-ANALYSIS_STEPS_SL_FULL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,full,tex)
-ANALYSIS_STEPS_SL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,sl,partial,tex)
-
-ANALYSIS_STEPS_ALL_FULL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,full,tex)
-ANALYSIS_STEPS_ALL_PARTIAL := $(call target_variables_template,$(ANALYSIS_DIR),steps,all,partial,tex)
-
-$(ANALYSIS_DIR)/steps-sl-%.tex: $(BENCHMARK_DIR)/benchmark-sl-%.jsonl | $(VENV)
-	@mkdir -p $(ANALYSIS_DIR)
-	$(PYTHON) src/analyze_sl_steps.py $< > $@ || rm $@
-
-$(ANALYSIS_DIR)/steps-all-%.tex: $(BENCHMARK_DIR)/steps-benchmark-all-%.jsonl | $(VENV)
-	@mkdir -p $(ANALYSIS_DIR)
-	$(PYTHON) src/analyze_all_steps.py $< > $@ || rm $@
-
-.PHONY: analyze-steps-all
-analyze-steps-all: \
-	analyze-steps-all-full \
-	analyze-steps-all-partial
-
-.PHONY: analyze-steps-sl
-analyze-steps-sl: \
-	analyze-steps-sl-full \
-	analyze-steps-sl-partial
-
-.PHONY: analyze-steps-all-full
-analyze-steps-all-full: $(ANALYSIS_STEPS_ALL_FULL)
-
-.PHONY: analyze-steps-sl-full
-analyze-steps-sl-full: $(ANALYSIS_STEPS_SL_FULL)
-
-.PHONY: analyze-steps-all-partial
-analyze-steps-all-partial: $(ANALYSIS_STEPS_ALL_PARTIAL)
-
-.PHONY: analyze-steps-sl-partial
-analyze-steps-sl-partial: $(ANALYSIS_STEPS_SL_PARTIAL)
-
-# Analyze Statistics
-ANALYSIS_STATS_SL := $(foreach regex_type,$(REGEX_TYPES),\
-	$(foreach construction,$(CONSTRUCTIONS),\
-		$(foreach memo_scheme,$(MEMO_SCHEMES),\
-			$(ANALYSIS_DIR)/statistics-$(regex_type)-$(construction)-$(memo_scheme).tex\
-		)\
-	)\
-)
-
-$(ANALYSIS_DIR)/statistics-%.tex: $(STATISTICS_DIR)/statistics-%.jsonl | $(VENV)
-	@mkdir -p $(ANALYSIS_DIR)
-	$(PYTHON) src/analysis_statistics.py $< > $@ || rm $@
-
-.PHONY: analysis-statistics
-analysis-statistics: $(ANALYSIS_STATS_SL)
+include makefiles/analysis.mk
 
 # Misc
 $(LOGS_DIR)/%: | $(LOGS_DIR)
@@ -127,20 +73,6 @@ $(VENV): requirements.txt
 	touch $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
-
-
-DIRS := \
-	$(DATA_DIR) \
-	$(DATASET_DIR) \
-	$(RAW_DATASET_DIR) \
-	$(LOGS_DIR) \
-	$(INTERMEDIATE_DATASET_DIR) \
-	$(BENCHMARK_DIR) \
-	$(ANALYSIS_DIR) \
-	$(STATISTICS_DIR)
-
-$(DIRS):
-	mkdir -p $@
 
 %.tar.gz: %
 	tar -czvf $@ $<
@@ -155,4 +87,27 @@ clean:
 
 .PHONY: vim
 vim:
-	vim $$(git ls-files | grep -v '.*\.tex') $$(git ls-files --others --exclude-standard)
+	vim $$(git ls-files)
+
+NOTEBOOK_DIR := notebooks
+
+.PHONY: jupyter
+jupyter: | $(NOTEBOOK_DIR) $(VENV)
+	$(VENV)/bin/jupyter notebook \
+		--ip=0.0.0.0 --port=50000 --no-browser \
+		2> $(NOTEBOOK_DIR)/log.log
+
+DIRS := \
+	$(DATA_DIR) \
+	$(DATASET_DIR) \
+	$(RAW_DATASET_DIR) \
+	$(LOGS_DIR) \
+	$(INTERMEDIATE_DATASET_DIR) \
+	$(BENCHMARK_DIR) \
+	$(ANALYSIS_DIR) \
+	$(STATISTICS_DIR) \
+	$(NOTEBOOK_DIR)
+
+$(DIRS):
+	mkdir -p $@
+

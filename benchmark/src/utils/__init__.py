@@ -220,6 +220,17 @@ def get_step_from_output(output: Optional[dict[str, str]]) -> Optional[int]:
     return result.steps
 
 
+def get_memo_size_from_output(
+    output: Optional[dict[str, str]]
+) -> Optional[int]:
+    if output is None:
+        return None
+    if len(output["stderr"]) == 0:
+        return None
+    result = BenchmarkResult(output["stderr"])
+    return result.memo_entry
+
+
 def trim_dov(dov: DegreeOfVulnerability) -> DegreeOfVulnerability:
     if dov.is_polynomial():
         assert dov.degree is not None

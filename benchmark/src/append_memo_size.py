@@ -6,11 +6,11 @@ from typing import (Any, Optional, )
 
 import jsonlines  # type: ignore
 
-from utils import get_step_from_output
+from utils import get_memo_size_from_output
 from utils import RegexType
 
 
-def append_steps_to_data_list(
+def append_memo_size_to_data_list(
     data_list: list[dict[str, Any]],
     filenames: list[str],
     inputs_label: str,
@@ -22,39 +22,44 @@ def append_steps_to_data_list(
     outputs_per_dataset = [
         data[outputs_label] for data in data_list]
 
-    steps_per_dataset: list[list[Optional[int]]] = [
+    memo_sizes_per_dataset: list[list[Optional[int]]] = [
         [] for _ in data_list]
 
     for string, output_per_dataset in (
         zip(strings, zip(*outputs_per_dataset))
     ):
-        step_per_dataset = [
-            get_step_from_output(output) for output in output_per_dataset]
+        memo_size_per_dataset = [
+            get_memo_size_from_output(output) for output in output_per_dataset]
 
         # Filter out the input if any of engine has no output
-        if any(step is None for step in step_per_dataset):
+        if any(memo_size is None for memo_size in memo_size_per_dataset):
             logging.warning(pattern)
             logging.warning(string)
-            for filename, step in zip(filenames, step_per_dataset):
-                if step is not None:
+            for filename, memo_size in zip(filenames, memo_size_per_dataset):
+                if memo_size is not None:
                     continue
                 logging.warning(f"No output for {filename}")
-            for steps in steps_per_dataset:
-                steps.append(None)
+            for memo_sizes in memo_sizes_per_dataset:
+                memo_sizes.append(None)
             continue
 
-        for steps, step in zip(steps_per_dataset, step_per_dataset):
-            assert step is not None
-            steps.append(step)
+        for memo_sizes, memo_size in zip(
+            memo_sizes_per_dataset, memo_size_per_dataset
+        ):
+            assert memo_size is not None
+            memo_sizes.append(memo_size)
 
-    for data, steps in zip(data_list, steps_per_dataset):
-        data[f"{prefix}_steps"] = steps
-        data[f"avg_{prefix}_step"] = None
+    for data, memo_sizes in zip(data_list, memo_sizes_per_dataset):
+        data[f"{prefix}_memo_sizes"] = memo_size
+        data[f"avg_{prefix}_memo_size"] = None
 
-        filtered_steps = [step for step in steps if step is not None]
-        if len(filtered_steps) == 0:
+        filtered_memo_size = [
+            memo_size for memo_size in memo_sizes
+            if memo_size is not None
+        ]
+        if len(filtered_memo_size) == 0:
             continue
-        data[f"avg_{prefix}_step"] = statistics.mean(filtered_steps)
+        data[f"avg_{prefix}_memo_size"] = statistics.mean(filtered_memo_size)
     return data_list
 
 
@@ -62,10 +67,10 @@ def proccess_all_data_list(
     data_list: list[dict[str, Any]],
     filenames: list[str]
 ) -> list[dict[str, Any]]:
-    appended = append_steps_to_data_list(
+    appended = append_memo_size_to_data_list(
         data_list, filenames,
         "positive_inputs", "positive_outputs", "positive")
-    appended = append_steps_to_data_list(
+    appended = append_memo_size_to_data_list(
         appended, filenames,
         "negative_inputs", "negative_outputs", "negative")
     return appended
@@ -78,7 +83,7 @@ def proccess_sl_data_list(
     raise NotADirectoryError()
 
 
-def append_steps(
+def append_memo_size(
     input_paths: list[Path],
     output_prefix: str,
     regex_type: RegexType
@@ -115,9 +120,9 @@ def append_steps(
 if __name__ == "__main__":
     # logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser(
-        description="Append steps to benchmark results")
+        description="Append memo size to benchmark results")
     parser.add_argument(
         "--regex-type", type=RegexType, choices=list(RegexType))
     parser.add_argument("inputs", nargs="*", type=Path, help="Input files")
     args = parser.parse_args()
-    append_steps(args.inputs, "steps", args.regex_type)
+    append_memo_size(args.inputs, "memo_size", args.regex_type)
