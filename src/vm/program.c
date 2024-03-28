@@ -254,13 +254,14 @@ static const byte *inst_print_formatted(FILE              *stream,
 
 static void print_predicate_as_string(FILE *stream, len_t idx, const byte *aux)
 {
-    char *p = interval_to_str((const Interval *) (aux + idx));
-    fprintf(stream, "%s", p);
+    char *p = intervals_to_str((const Intervals *) (aux + idx));
+    fputs(p, stream);
     free(p);
 }
 
 static void print_predicate_as_index(FILE *stream, len_t idx, const byte *aux)
 {
+    UNUSED(aux);
     fprintf(stream, LEN_FMT, idx);
 }
 
