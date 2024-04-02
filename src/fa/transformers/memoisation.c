@@ -41,24 +41,27 @@ static void cn_dfs(StateMachine *sm,
     size_t    i, n;
     state_id  dst;
 
-    on_path[sid - 1] = TRUE;
-    out_transitions  = smir_get_out_transitions(sm, sid, &n);
+    if (sid) on_path[sid - 1] = TRUE;
+    out_transitions = smir_get_out_transitions(sm, sid, &n);
     for (i = 0; i < n; i++) {
         dst = smir_get_dst(sm, out_transitions[i]);
 
-        if (IS_FINAL_STATE(dst) || finished[dst - 1]) continue;
+        if (IS_FINAL_STATE(dst)) continue;
 
         if (on_path[dst - 1]) {
             has_backedge[dst - 1] = TRUE;
             continue;
         }
 
-        cn_dfs(sm, dst, has_backedge, finished, on_path);
+        if (!finished[dst - 1])
+            cn_dfs(sm, dst, has_backedge, finished, on_path);
     }
 
     if (out_transitions) free(out_transitions);
-    on_path[sid - 1]  = FALSE;
-    finished[sid - 1] = TRUE;
+    if (sid) {
+        on_path[sid - 1]  = FALSE;
+        finished[sid - 1] = TRUE;
+    }
 }
 
 static byte *memoise_cn(StateMachine *sm)
@@ -71,7 +74,7 @@ static byte *memoise_cn(StateMachine *sm)
     if (nstates > 0) {
         on_path  = calloc(nstates, sizeof(byte));
         finished = calloc(nstates, sizeof(byte));
-        cn_dfs(sm, 1, memo_sids, finished, on_path);
+        cn_dfs(sm, INITIAL_STATE_ID, memo_sids, finished, on_path);
 
         free(on_path);
         free(finished);
