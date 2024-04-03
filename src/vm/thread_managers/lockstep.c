@@ -19,7 +19,7 @@ typedef struct thompson_thread {
 } ThompsonThread;
 
 typedef struct thompson_scheduler {
-    int in_sync; /**< whether to execute the synchronisation queue of threads */
+    int in_lockstep; /**< whether to execute the synchronisation thread queue */
 
     Thread **curr; /**< stc_vec for current queue of threads to be executed   */
     Thread **next; /**< stc_vec for next queue of threads to be executed      */
@@ -28,6 +28,9 @@ typedef struct thompson_scheduler {
 
 typedef struct thompson_thread_manager {
     ThompsonScheduler *scheduler; /**< the Thompson scheduler for scheduling  */
+    const byte        *start_pc;  /**< the starting PC for new threads        */
+    const char        *sp;        /**< the string pointer for lockstep        */
+    int                matched;   /**< whether a match has been found         */
 
     // for spawning threads
     len_t ncounters;  /**< number of counter values to spawn threads with     */
@@ -37,15 +40,19 @@ typedef struct thompson_thread_manager {
 
 /* --- ThompsonThreadManager function prototypes ---------------------------- */
 
+static void thompson_thread_manager_init(void       *impl,
+                                         const byte *start_pc,
+                                         const char *start_sp);
 static void thompson_thread_manager_reset(void *impl);
 static void thompson_thread_manager_free(void *impl);
+static int  thompson_thread_manager_done_exec(void *impl);
 
-static Thread *thompson_thread_manager_spawn_thread(void       *impl,
-                                                    const byte *pc,
-                                                    const char *sp);
-static void    thompson_thread_manager_schedule_thread(void *impl, Thread *t);
-static void    thompson_thread_manager_schedule_thread_in_order(void   *impl,
-                                                                Thread *t);
+static void thompson_thread_manager_schedule_new_thread(void       *impl,
+                                                        const byte *pc,
+                                                        const char *sp);
+static void thompson_thread_manager_schedule_thread(void *impl, Thread *t);
+#define thompson_thread_manager_schedule_thread_in_order \
+    thompson_thread_manager_schedule_thread
 static Thread *thompson_thread_manager_next_thread(void *impl);
 static void thompson_thread_manager_notify_thread_match(void *impl, Thread *t);
 static Thread *thompson_thread_manager_clone_thread(void         *impl,
@@ -69,11 +76,14 @@ static void  thompson_thread_set_memory(void       *impl,
 static const char *const *
 thompson_thread_captures(void *impl, const Thread *t, len_t *ncaptures);
 static void thompson_thread_set_capture(void *impl, Thread *t, len_t idx);
+static int  thompson_threads_contain(Thread **threads, Thread *thread);
 
 /* --- ThompsonScheduler function prototypes -------------------------------- */
 
 static ThompsonScheduler *thompson_scheduler_new(void);
 static int thompson_scheduler_schedule(ThompsonScheduler *self, Thread *thread);
+static int thompson_scheduler_done_step(ThompsonScheduler *self);
+static int thompson_scheduler_has_next(ThompsonScheduler *self);
 static Thread *thompson_scheduler_next(ThompsonScheduler *self);
 static void    thompson_scheduler_free(ThompsonScheduler *self);
 
@@ -110,12 +120,26 @@ thompson_thread_manager_new(len_t ncounters, len_t memory_len, len_t ncaptures)
     return tm;
 }
 
+static void thompson_thread_manager_init(void       *impl,
+                                         const byte *start_pc,
+                                         const char *start_sp)
+{
+    ThompsonThreadManager *self = impl;
+
+    self->start_pc               = start_pc;
+    self->sp                     = start_sp;
+    self->matched                = FALSE;
+    self->scheduler->in_lockstep = FALSE;
+
+    thompson_thread_manager_schedule_new_thread(impl, start_pc, start_sp);
+}
+
 static void thompson_thread_manager_reset(void *impl)
 {
     Thread            *t;
     ThompsonScheduler *ts = ((ThompsonThreadManager *) impl)->scheduler;
 
-    for (t = thompson_scheduler_next(ts); t; t = thompson_scheduler_next(ts))
+    while ((t = thompson_scheduler_next(ts)))
         thompson_thread_manager_kill_thread(impl, t);
 }
 
@@ -126,8 +150,14 @@ static void thompson_thread_manager_free(void *impl)
     free(impl);
 }
 
-static Thread *
-thompson_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp)
+static int thompson_thread_manager_done_exec(void *impl)
+{
+    return *((ThompsonThreadManager *) impl)->sp == '\0';
+}
+
+static void thompson_thread_manager_schedule_new_thread(void       *impl,
+                                                        const byte *pc,
+                                                        const char *sp)
 {
     ThompsonThread        *tt   = malloc(sizeof(*tt));
     ThompsonThreadManager *self = impl;
@@ -142,26 +172,34 @@ thompson_thread_manager_spawn_thread(void *impl, const byte *pc, const char *sp)
     stc_slice_init(tt->captures, 2 * self->ncaptures);
     memset(tt->captures, 0, 2 * self->ncaptures * sizeof(*tt->captures));
 
-    return (Thread *) tt;
+    thompson_thread_manager_schedule_thread(impl, (Thread *) tt);
 }
 
 static void thompson_thread_manager_schedule_thread(void *impl, Thread *t)
 {
     if (!thompson_scheduler_schedule(
-            ((ThompsonThreadManager *) impl)->scheduler, t)) {
+            ((ThompsonThreadManager *) impl)->scheduler, t))
         thompson_thread_manager_kill_thread(impl, t);
-    }
-}
-
-static void thompson_thread_manager_schedule_thread_in_order(void   *impl,
-                                                             Thread *t)
-{
-    thompson_thread_manager_schedule_thread(impl, t);
 }
 
 static Thread *thompson_thread_manager_next_thread(void *impl)
 {
-    return thompson_scheduler_next(((ThompsonThreadManager *) impl)->scheduler);
+    ThompsonThreadManager *self = impl;
+    size_t                 i, len;
+
+    if (thompson_scheduler_done_step(self->scheduler) && *self->sp &&
+        (!self->matched || thompson_scheduler_has_next(self->scheduler))) {
+        self->sp = stc_utf8_str_next(self->sp);
+        for (i = 0, len = stc_vec_len(self->scheduler->next); i < len; i++)
+            self->scheduler->next[i]->sp = self->sp;
+        for (i = 0, len = stc_vec_len(self->scheduler->sync); i < len; i++)
+            self->scheduler->sync[i]->sp = self->sp;
+        if (!self->matched)
+            thompson_thread_manager_schedule_new_thread(impl, self->start_pc,
+                                                        self->sp);
+    }
+
+    return thompson_scheduler_next(self->scheduler);
 }
 
 static void thompson_thread_manager_notify_thread_match(void *impl, Thread *t)
@@ -169,9 +207,10 @@ static void thompson_thread_manager_notify_thread_match(void *impl, Thread *t)
     ThompsonScheduler *ts = ((ThompsonThreadManager *) impl)->scheduler;
     size_t             i, len = stc_vec_len(ts->curr);
 
+    ((ThompsonThreadManager *) impl)->matched = TRUE;
     thompson_thread_manager_kill_thread(impl, t);
     for (i = 0; i < len; i++)
-        if (ts->curr[i]) thompson_thread_manager_kill_thread(impl, ts->curr[i]);
+        thompson_thread_manager_kill_thread(impl, ts->curr[i]);
     stc_vec_clear(ts->curr);
 }
 
@@ -197,7 +236,8 @@ static void thompson_thread_manager_kill_thread(void *impl, Thread *t)
     free(t);
 }
 
-/* --- Thread function definitions ---------------------------------- */
+/* --- Thread function definitions ------------------------------------------ */
+
 static const byte *thompson_thread_pc(void *impl, const Thread *t)
 {
     UNUSED(impl);
@@ -219,7 +259,8 @@ static const char *thompson_thread_sp(void *impl, const Thread *t)
 static void thompson_thread_inc_sp(void *impl, Thread *t)
 {
     UNUSED(impl);
-    t->sp = stc_utf8_str_next(t->sp);
+    UNUSED(t);
+    // t->sp = stc_utf8_str_next(t->sp);
 }
 
 static cntr_t thompson_thread_counter(void *impl, const Thread *t, len_t idx)
@@ -300,7 +341,7 @@ static ThompsonScheduler *thompson_scheduler_new(void)
 {
     ThompsonScheduler *ts = malloc(sizeof(*ts));
 
-    ts->in_sync = FALSE;
+    ts->in_lockstep = FALSE;
     stc_vec_default_init(ts->curr); // NOLINT(bugprone-sizeof-expression)
     stc_vec_default_init(ts->next); // NOLINT(bugprone-sizeof-expression)
     stc_vec_default_init(ts->sync); // NOLINT(bugprone-sizeof-expression)
@@ -333,23 +374,34 @@ static int thompson_scheduler_schedule(ThompsonScheduler *self, Thread *thread)
     return TRUE;
 }
 
+static int thompson_scheduler_done_step(ThompsonScheduler *self)
+{
+    return stc_vec_is_empty(self->curr) && self->in_lockstep;
+}
+
+static int thompson_scheduler_has_next(ThompsonScheduler *self)
+{
+    return !(stc_vec_is_empty(self->curr) && stc_vec_is_empty(self->next) &&
+             stc_vec_is_empty(self->sync));
+}
+
 static Thread *thompson_scheduler_next(ThompsonScheduler *self)
 {
     Thread  *thread = NULL;
     Thread **tmp;
 
+thompson_scheduler_next_start:
     if (stc_vec_is_empty(self->curr)) {
-        if (self->in_sync) self->in_sync = FALSE;
-
         if (stc_vec_is_empty(self->next)) {
-            self->in_sync = TRUE;
-            tmp           = self->curr;
-            self->curr    = self->sync;
-            self->sync    = tmp;
+            self->in_lockstep = TRUE;
+            tmp               = self->curr;
+            self->curr        = self->sync;
+            self->sync        = tmp;
         } else {
-            tmp        = self->curr;
-            self->curr = self->next;
-            self->next = tmp;
+            self->in_lockstep = FALSE;
+            tmp               = self->curr;
+            self->curr        = self->next;
+            self->next        = tmp;
         }
     }
 
@@ -360,9 +412,9 @@ static Thread *thompson_scheduler_next(ThompsonScheduler *self)
         switch (*thread->pc) {
             case CHAR:
             case PRED:
-                if (!self->in_sync) {
+                if (!self->in_lockstep) {
                     thompson_scheduler_schedule(self, thread);
-                    thread = thompson_scheduler_next(self);
+                    goto thompson_scheduler_next_start;
                 }
                 break;
 
