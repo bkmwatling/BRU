@@ -14,7 +14,7 @@ static byte *memoise_in(StateMachine *sm)
     state_id  sid, dst;
     trans_id *out_transitions;
 
-    for (sid = 1; sid <= nstates; sid++) {
+    for (sid = 0; sid <= nstates; sid++) {
         out_transitions = smir_get_out_transitions(sm, sid, &n);
         for (i = 0; i < n; i++) {
             dst = smir_get_dst(sm, out_transitions[i]);
