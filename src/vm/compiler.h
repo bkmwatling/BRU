@@ -7,6 +7,7 @@
 typedef enum {
     THOMPSON,
     GLUSHKOV,
+    FLAT,
 } Construction;
 
 typedef enum {
