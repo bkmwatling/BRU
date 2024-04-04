@@ -189,12 +189,13 @@ trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n);
 size_t smir_state_get_num_actions(StateMachine *self, state_id sid);
 
 /**
- * Get the actions of a state.
+ * Get the actions of a state. Will return NULL if the `sid` is INITIAL_STATE_ID
+ * or FINAL_STATE_ID.
  *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
  *
- * @return the actions of the state
+ * @return the actions of the state, or NULL
  */
 const ActionList *smir_state_get_actions(StateMachine *self, state_id sid);
 
@@ -476,6 +477,17 @@ void smir_action_list_clear(ActionList *self);
  * @param[in] self the list of actions
  */
 void smir_action_list_free(ActionList *self);
+
+/**
+ * Get the number of actions in a list of actions.
+ *
+ * NOTE: Currently O(n) complexity.
+ *
+ * @param[in] self the list of actions
+ *
+ * @return the number of actions in the list (0 if the list is NULL or empty)
+ */
+size_t smir_action_list_len(const ActionList *self);
 
 /**
  * Push an action to the back of a list of actions.

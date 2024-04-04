@@ -67,6 +67,8 @@ static StcArgConvertResult convert_construction(const char *arg, void *out)
         *construction = THOMPSON;
     else if (strcmp(arg, "glushkov") == 0)
         *construction = GLUSHKOV;
+    else if (strcmp(arg, "flat") == 0)
+        *construction = FLAT;
     else
         return STC_ARG_CR_FAILURE;
 
@@ -148,8 +150,8 @@ static void add_parsing_args(StcArgParser *ap, BruOptions *options)
 static void add_compilation_args(StcArgParser *ap, BruOptions *options)
 {
     stc_argparser_add_custom_option(
-        ap, "-c", "--construction", "thompson | glushkov",
-        "whether to compile using thompson or glushkov",
+        ap, "-c", "--construction", "thompson | glushkov | flat",
+        "whether to compile using thompson, glushkov, or flat",
         &options->compiler_opts.construction, "thompson", convert_construction);
     stc_argparser_add_bool_option(
         ap, NULL, "--only-std-split",

@@ -580,6 +580,19 @@ void smir_action_list_free(ActionList *self)
     DLL_FREE(self, action_list_free, elem, next);
 }
 
+size_t smir_action_list_len(const ActionList *self)
+{
+    size_t            len;
+    const ActionList *iter;
+
+    if (!self) return 0;
+
+    for (len = 0, iter = self->next; iter != self; len++, iter = iter->next)
+        ;
+
+    return len;
+}
+
 void smir_action_list_push_back(ActionList *self, const Action *act)
 {
     ActionList *al = malloc(sizeof(*al));
