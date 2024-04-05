@@ -1,57 +1,18 @@
 import argparse
 import logging
 import subprocess
-from typing import (TypedDict, Any, Optional, Callable, )
+from typing import (Any, Optional, Callable, )
 from pathlib import Path
 
 import jsonlines  # type: ignore
-import pathos.multiprocessing as mp  # type: ignore
 
 from utils import ConstructionOption
 from utils import MemoSchemeOption
 from utils import SchedulerOption
 from utils import RegexType
 from utils import MatchingType
-
-BruArgs = TypedDict("BruArgs", {
-    "memo-scheme": MemoSchemeOption,
-    "construction": ConstructionOption,
-    "scheduler": SchedulerOption
-}, total=False)
-
-
-def benchmark(
-    pattern: str,
-    string: str,
-    bru_args: BruArgs,
-    timeout: int = 10
-) -> dict[str, str]:
-    construction = bru_args["construction"]
-    memo_scheme = bru_args["memo-scheme"]
-    scheduler = bru_args["scheduler"]
-
-    if scheduler == SchedulerOption.LOCKSTEP:
-        if memo_scheme != MemoSchemeOption.NONE:
-            raise ValueError(
-                "Lockstep scheduler can only be used with no memoization")
-
-    args = [
-        'bru', 'match',
-        '-b',  # benchmark
-        '-e',  # expand counter
-        '-c', construction.value,
-        '-m', memo_scheme.value,
-        '-s', scheduler.value,
-        '--',
-        pattern, string
-    ]
-    completed = subprocess.run(
-        args, check=True, timeout=10,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    stdout = completed.stdout.decode("utf-8")
-    stderr = completed.stderr.decode("utf-8")
-    return {"stdout": stdout, "stderr": stderr}
+from utils import BruArgs
+from utils import benchmark
 
 
 def get_safe_benchmark(
@@ -130,8 +91,7 @@ def benchmark_dataset(
         benchmark_data = (
             lambda e: benchmark_sl_data(e, bru_args, matching_type))
 
-    with mp.ProcessPool() as pool:
-        benchmarked_dataset = pool.imap(benchmark_data, regex_dataset)
+    benchmarked_dataset = map(benchmark_data, regex_dataset)
     output_file = jsonlines.open(output_path, "w")
     output_file.write_all(benchmarked_dataset)
     output_file.close()

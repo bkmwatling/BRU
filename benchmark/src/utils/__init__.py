@@ -1,8 +1,9 @@
+import logging
 import re
 import statistics
-import logging
+import subprocess
 from functools import total_ordering
-from typing import (Optional, Any, )
+from typing import (Optional, Any, TypedDict, Iterable)
 from enum import Enum
 
 
@@ -30,6 +31,62 @@ class RegexType(Enum):
 class MatchingType(Enum):
     FULL = "full"
     PARTIAL = "partial"
+
+
+BruArgs = TypedDict("BruArgs", {
+    "memo-scheme": MemoSchemeOption,
+    "construction": ConstructionOption,
+    "scheduler": SchedulerOption
+}, total=False)
+
+
+def iterate_bru_args() -> Iterable[BruArgs]:
+    for construction in ConstructionOption:
+        for memo_scheme in MemoSchemeOption:
+            yield BruArgs({
+                "construction": construction,
+                "memo-scheme": memo_scheme,
+                "scheduler": SchedulerOption.SPENCER
+            })
+        yield BruArgs({
+            "construction": construction,
+            "memo-scheme": MemoSchemeOption.NONE,
+            "scheduler": SchedulerOption.LOCKSTEP
+        })
+
+
+def benchmark(
+    pattern: str,
+    string: str,
+    bru_args: BruArgs,
+    timeout: int = 10
+) -> dict[str, str]:
+    construction = bru_args["construction"]
+    memo_scheme = bru_args["memo-scheme"]
+    scheduler = bru_args["scheduler"]
+
+    if scheduler == SchedulerOption.LOCKSTEP:
+        if memo_scheme != MemoSchemeOption.NONE:
+            raise ValueError(
+                "Lockstep scheduler can only be used with no memoization")
+
+    args = [
+        'bru', 'match',
+        '-b',  # benchmark
+        '-e',  # expand counter
+        '-c', construction.value,
+        '-m', memo_scheme.value,
+        '-s', scheduler.value,
+        '--',
+        pattern, string
+    ]
+    completed = subprocess.run(
+        args, check=True, timeout=10,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    stdout = completed.stdout.decode("utf-8")
+    stderr = completed.stderr.decode("utf-8")
+    return {"stdout": stdout, "stderr": stderr}
 
 
 class BenchmarkResult():
