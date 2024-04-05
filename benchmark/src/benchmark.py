@@ -106,6 +106,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-t", "--regex-type", type=RegexType, choices=list(RegexType))
     parser.add_argument(
+        "-f", "--matching_type",
+        type=MatchingType, choices=list(MatchingType))
+    parser.add_argument(
         "-c", "--construction",
         type=ConstructionOption, choices=list(ConstructionOption))
     parser.add_argument(
@@ -114,9 +117,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-m", "--memo-scheme",
         type=MemoSchemeOption, choices=list(MemoSchemeOption))
-    parser.add_argument(
-        "-f", "--matching_type",
-        type=MatchingType, choices=list(MatchingType))
 
     parser.add_argument("input", type=Path, help="Input file")
     parser.add_argument("output", type=Path, help="Output file")

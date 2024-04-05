@@ -9,7 +9,6 @@ from typing import (Any, Optional, Callable, )
 import timeout_decorator  # type: ignore
 import jsonlines  # type: ignore
 import xeger  # type: ignore
-import pathos.multiprocessing as mp  # type: ignore
 
 
 class TimeOutException(Exception):
@@ -109,12 +108,11 @@ def write_preprocessed_dataset(
             logging.debug(f"Failed to preprocess {data['pattern']}: {e}")
             return None
 
-    with mp.ProcessPool() as pool:
-        optional_preprocessed_dataset = pool.imap(
-            safe_preprocess_data, regex_dataset)
-
+    optional_preprocessed_dataset = map(safe_preprocess_data, regex_dataset)
     preprocessed_dataset = (
         data for data in optional_preprocessed_dataset if data is not None)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_file = jsonlines.open(output_path, "w")
     for data in preprocessed_dataset:
         try:

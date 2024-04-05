@@ -58,7 +58,7 @@ def append_steps_to_data_list(
     return data_list
 
 
-def proccess_all_data_list(
+def process_all_data_list(
     data_list: list[dict[str, Any]],
     filenames: list[str]
 ) -> list[dict[str, Any]]:
@@ -71,32 +71,29 @@ def proccess_all_data_list(
     return appended
 
 
-def proccess_sl_data_list(
+def process_sl_data_list(
     data_list: list[dict[str, Any]],
     filenames: list[str]
 ) -> list[dict[str, Any]]:
-    raise NotADirectoryError()
+    raise NotImplementedError()
 
 
 def append_steps(
     input_paths: list[Path],
-    output_prefix: str,
+    output_dir: Path,
     regex_type: RegexType
 ) -> None:
     datasets = [
         jsonlines.open(input_path, mode='r') for input_path in input_paths]
     filenames = [input_path.name for input_path in input_paths]
-    output_paths = [
-        input_path.parent / f"{output_prefix}-{input_path.stem}.jsonl"
-        for input_path in input_paths
-    ]
+    output_paths = [output_dir / input_path.name for input_path in input_paths]
     outputs = [
         jsonlines.open(output_path, mode='w') for output_path in output_paths]
 
     process_data_list = (
-        proccess_all_data_list
+        process_all_data_list
         if regex_type == RegexType.ALL
-        else proccess_sl_data_list
+        else process_sl_data_list
     )
 
     data_lists = map(list, zip(*datasets))
@@ -118,6 +115,7 @@ if __name__ == "__main__":
         description="Append steps to benchmark results")
     parser.add_argument(
         "--regex-type", type=RegexType, choices=list(RegexType))
-    parser.add_argument("inputs", nargs="*", type=Path, help="Input files")
+    parser.add_argument("inputs", nargs="*", type=Path)
+    parser.add_argument("output_dir", type=Path)
     args = parser.parse_args()
-    append_steps(args.inputs, "steps", args.regex_type)
+    append_steps(args.inputs, args.output_dir, args.regex_type)

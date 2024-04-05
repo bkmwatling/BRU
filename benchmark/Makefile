@@ -3,66 +3,71 @@ BRU_PATH := $(shell dirname $(shell pwd))/bin
 PYTHON := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 export PATH := $(PATH):$(BRU_PATH)
-LOGS_DIR := logs
-TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 
 DATA_DIR := data
-RAW_DATASET_DIR := data-build
-RAW_ALL_REGEX_DATASET := $(RAW_DATASET_DIR)/all_regexes.jsonl
-RAW_SL_REGEX_DATASET := $(RAW_DATASET_DIR)/sl_regexes.jsonl
-
-DATASET_DIR := $(DATA_DIR)/polyglot
-ALL_REGEX_DATASET := $(DATASET_DIR)/all_regexes.jsonl
-SL_REGEX_DATASET := $(DATASET_DIR)/sl_regexes.jsonl
-
-.DEFAULT:
+TIMESTAMP := $(shell date +%Y%m%d%H%M%S)
+LOGS_PREFIX := logs
+LOGS_DIR := $(LOGS_PREFIX)/$(TIMESTAMP)
 
 REGEX_TYPES := all sl
-CONSTRUCTIONS := thompson glushkov
+CONSTRUCTIONS := thompson flat
 MEMO_SCHEMES := none cn in
 SCHEDULERS := spencer lockstep
 MATCHING_TYPES := full partial
 
+.DEFAULT: default
+default:
+
+
+DATASET_DIR := $(DATA_DIR)/polyglot
+ALL_REGEX_DATASET := $(DATASET_DIR)/all_regexes.jsonl
+SL_REGEX_DATASET := $(DATASET_DIR)/sl_regexes.jsonl
 include makefiles/preprocessing.mk
 
-# $(1) = directory, $(2) = prefix, $(3) = regex_type, $(4) = matching_type, $(5) = extension
-define target_variables_template
-$(foreach construction,$(CONSTRUCTIONS),\
-	$(foreach memo_scheme,$(MEMO_SCHEMES),\
-		$(1)/$(2)-$(3)-$(construction)-$(memo_scheme)-spencer-$(4).$(5)\
-	)\
-) \
-$(foreach construction,$(CONSTRUCTIONS),\
-	$(1)/$(2)-$(3)-$(construction)-none-lockstep-$(4).$(5)\
-)
-endef
 
-# $(1) = template which must take 5 arguments:
-# regex_type, construction, memo_scheme, scheduler, matching_type
-define eval_template
-$(foreach regex_type,$(REGEX_TYPES),\
-	$(foreach construction,$(CONSTRUCTIONS),\
-		$(foreach memo_scheme,$(MEMO_SCHEMES),\
-			$(foreach matching_type,$(MATCHING_TYPES),\
-				$(eval $(call $(1),$(regex_type),$(construction),$(memo_scheme),spencer,$(matching_type)))\
-			)\
-		)\
-	)\
-) \
-$(foreach regex_type,$(REGEX_TYPES),\
-	$(foreach construction,$(CONSTRUCTIONS),\
-		$(foreach matching_type,$(MATCHING_TYPES),\
-			$(eval $(call $(1),$(regex_type),$(construction),none,lockstep,$(matching_type)))\
-		)\
-	)\
-)
-endef
-
+BENCHMARK_DIR := $(DATA_DIR)/benchmark
+BENCHMARK_ALL_FULL := $(addprefix $(BENCHMARK_DIR)/all-full-, \
+		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {thompson,flat}-lockstep-none.jsonl))
+BENCHMARK_ALL_PARTIAL := $(addprefix $(BENCHMARK_DIR)/all-partial-, \
+		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {thompson,flat}-lockstep-none.jsonl))
+BENCHMARK_SL_FULL := $(addprefix $(BENCHMARK_DIR)/sl-full-, \
+		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {thompson,flat}-lockstep-none.jsonl))
+BENCHMARK_SL_PARTIAL := $(addprefix $(BENCHMARK_DIR)/sl-partial-, \
+		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {thompson,flat}-lockstep-none.jsonl))
 include makefiles/benchmark.mk
-include makefiles/steps.mk
-include makefiles/memo_size.mk
+
+
+STATISTICS_DIR := $(DATA_DIR)/statistics
+STATISTICS := $(addprefix $(STATISTICS_DIR)/statistics-, \
+		$(shell echo {all,sl}-{thompson,flat}-{cn,in,none}.jsonl))
 include makefiles/statistics.mk
-include makefiles/analysis.mk
+
+
+STEP_DIR := $(DATA_DIR)/step
+STEP_ALL := $(addprefix $(STEP_DIR)/all-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.jsonl))
+STEP_SL := $(addprefix $(STEP_DIR)/sl-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.jsonl))
+include makefiles/step.mk
+
+
+MEMO_SIZE_DIR := $(DATA_DIR)/memo-size
+MEMO_SIZE_ALL := $(addprefix $(MEMO_SIZE_DIR)/all-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.jsonl))
+MEMO_SIZE_SL := $(addprefix $(MEMO_SIZE_DIR)/sl-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.jsonl) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.jsonl))
+include makefiles/memo_size.mk
+
+
+# include makefiles/analysis.mk
 
 # Misc
 $(LOGS_DIR)/%: | $(LOGS_DIR)
@@ -80,11 +85,6 @@ $(VENV): requirements.txt
 %.tar.xz: %
 	tar -cJvf $@ $<
 
-.PHONY: clean
-clean:
-	rm -rf $(VENV)
-	rm -rf $(LOGS_DIR)
-
 .PHONY: vim
 vim:
 	vim $$(git ls-files)
@@ -100,14 +100,26 @@ jupyter: | $(NOTEBOOK_DIR) $(VENV)
 DIRS := \
 	$(DATA_DIR) \
 	$(DATASET_DIR) \
-	$(RAW_DATASET_DIR) \
 	$(LOGS_DIR) \
-	$(INTERMEDIATE_DATASET_DIR) \
 	$(BENCHMARK_DIR) \
-	$(ANALYSIS_DIR) \
 	$(STATISTICS_DIR) \
-	$(NOTEBOOK_DIR)
+	$(STEP_DIR) \
+	$(MEMO_SIZE_DIR) \
+	$(ANALYSIS_DIR) \
+	$(NOTEBOOK_DIR) \
 
 $(DIRS):
 	mkdir -p $@
 
+.PHONY: clean
+clean:
+	rm -rf $(LOGS_PREFIX)
+
+.PHONY: clean-all
+clean-all: clean
+	rm -rf $(DIRS)
+	rm -rf $(VENV)
+
+.PHONY: clean-benchmark
+clean-benchmark:
+	rm -rf $(BENCHMARK_DIR)

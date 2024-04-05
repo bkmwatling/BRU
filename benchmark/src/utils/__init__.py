@@ -9,7 +9,7 @@ from enum import Enum
 
 class ConstructionOption(Enum):
     THOMPOSON = "thompson"
-    GLUSHKOV = "glushkov"
+    GLUSHKOV = "flat"
 
 
 class MemoSchemeOption(Enum):
@@ -95,7 +95,8 @@ class BenchmarkResult():
         pattern = re.compile(r"[A-Z]+: (\d+) \(FAILED: (\d+)\)")
         for line in stderr.strip().split("\n"):
             match = pattern.match(line)
-            assert match is not None
+            if match is None:
+                continue
             parsed.append((int(match.group(1)), int(match.group(2))))
         self.match, self.match_failed = parsed[0]
         self.memo, self.memo_failed = parsed[1]
@@ -104,7 +105,7 @@ class BenchmarkResult():
 
     @property
     def steps(self) -> int:
-        return self.match + self.memo + self.char + self.pred
+        return self.char + self.pred
 
     @property
     def steps_failed(self) -> int:

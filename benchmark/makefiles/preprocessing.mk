@@ -1,35 +1,33 @@
-INTERMEDIATE_DATASET_DIR := $(RAW_DATASET_DIR)/intermediate
-COMPILABLE_ALL_REGEX_DATASET := \
-	$(INTERMEDIATE_DATASET_DIR)/compilable_all_regexes.jsonl
-COMPILABLE_SL_REGEX_DATASET := \
-	$(INTERMEDIATE_DATASET_DIR)/compilable_sl_regexes.jsonl
+# Raw dataset directories
+RAW_DATASET_DIR := data-build
+RAW_ALL_REGEX_DATASET := $(RAW_DATASET_DIR)/all_regexes.jsonl
+RAW_SL_REGEX_DATASET := $(RAW_DATASET_DIR)/sl_regexes.jsonl
 
+INTERMEDIATE_DATASET_DIR := $(RAW_DATASET_DIR)/intermediate
 
 .PHONY: preprocess
-preprocess: preprocess-regexes preprocess-sl-regexes
+preprocess: preprocess-all-regexes preprocess-sl-regexes
 
-.PHONY: preprocess-regexes
-preprocess-regexes: $(ALL_REGEX_DATASET)
+.PHONY: preprocess-all-regexes
+preprocess-all-regexes: $(ALL_REGEX_DATASET)
 
 .PHONY: preprocess-sl-regexes
 preprocess-sl-regexes: $(SL_REGEX_DATASET)
 
-$(COMPILABLE_ALL_REGEX_DATASET): $(RAW_ALL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
+.PRECIOUS: $(INTERMEDIATE_DATASET_DIR)/compilable_%_regexes.jsonl
+$(INTERMEDIATE_DATASET_DIR)/compilable_%_regexes.jsonl: \
+		$(RAW_DATASET_DIR)/%_regexes.jsonl \
+		| $(VENV) $(INTERMEDIATE_DATASET_DIR) $(LOGS_DIR)
 	$(PYTHON) $(RAW_DATASET_DIR)/filter_compilable.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
+		2> $(LOGS_DIR)/$(basename $(notdir $@)).log
 
-$(COMPILABLE_SL_REGEX_DATASET): $(RAW_SL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
-	$(PYTHON) $(RAW_DATASET_DIR)/filter_compilable.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
+.PRECIOUS: $(DATASET_DIR)/%_regexes.jsonl
+$(DATASET_DIR)/%_regexes.jsonl: \
+		$(INTERMEDIATE_DATASET_DIR)/compilable_%_regexes.jsonl \
+		| $(VENV) $(DATASET_DIR)
+	$(PYTHON) $(RAW_DATASET_DIR)/preprocess_$*_regexes.py $< $@ \
+		2> $(LOGS_DIR)/$(basename $(notdir $@)).log
 
-$(ALL_REGEX_DATASET): $(COMPILABLE_ALL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
-	$(PYTHON) $(RAW_DATASET_DIR)/preprocess_all_regexes.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log
+$(INTERMEDIATE_DATASET_DIR):
+	mkdir -p $@
 
-$(SL_REGEX_DATASET): $(COMPILABLE_SL_REGEX_DATASET) | $(VENV) $(INTERMEDIATE_DATASET_DIR)
-	make $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))
-	$(PYTHON) $(RAW_DATASET_DIR)/preprocess_sl_regexes.py $< $@ \
-		2> $(LOGS_DIR)/$(TIMESTAMP)-$(basename $(notdir $@))/log.log

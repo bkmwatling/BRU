@@ -14,7 +14,7 @@ def is_compilable(pattern: str) -> bool:
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
         )
         subprocess.run(
-            ['bru', 'compile', '-e', '-c', 'glushkov', '--', pattern],
+            ['bru', 'compile', '-e', '-c', 'flat', '--', pattern],
             check=True, timeout=10,
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
         )

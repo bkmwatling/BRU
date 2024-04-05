@@ -80,21 +80,18 @@ def proccess_sl_data_list(
     data_list: list[dict[str, Any]],
     filenames: list[str]
 ) -> list[dict[str, Any]]:
-    raise NotADirectoryError()
+    raise NotImplementedError
 
 
 def append_memo_size(
     input_paths: list[Path],
-    output_prefix: str,
+    output_dir: Path,
     regex_type: RegexType
 ) -> None:
     datasets = [
         jsonlines.open(input_path, mode='r') for input_path in input_paths]
     filenames = [input_path.name for input_path in input_paths]
-    output_paths = [
-        input_path.parent / f"{output_prefix}-{input_path.stem}.jsonl"
-        for input_path in input_paths
-    ]
+    output_paths = [output_dir / input_path.name for input_path in input_paths]
     outputs = [
         jsonlines.open(output_path, mode='w') for output_path in output_paths]
 
@@ -123,6 +120,7 @@ if __name__ == "__main__":
         description="Append memo size to benchmark results")
     parser.add_argument(
         "--regex-type", type=RegexType, choices=list(RegexType))
-    parser.add_argument("inputs", nargs="*", type=Path, help="Input files")
+    parser.add_argument("inputs", nargs="*", type=Path)
+    parser.add_argument("output_dir", type=Path)
     args = parser.parse_args()
-    append_memo_size(args.inputs, "memo_size", args.regex_type)
+    append_memo_size(args.inputs, args.output_dir, args.regex_type)

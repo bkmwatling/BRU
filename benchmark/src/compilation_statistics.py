@@ -1,7 +1,8 @@
 import argparse
 import logging
 import subprocess
-from typing import (TypedDict, Any, Optional, )
+import itertools
+from typing import (TypedDict, Any, Optional, Iterator, )
 from pathlib import Path
 from collections import Counter
 
@@ -63,8 +64,19 @@ def update_statistics(
         if stdout is None:
             data["statistics"] = None
             return data
-        instructions = filter(None, map(str.strip, stdout.strip().split("\n")))
+        instructions: Iterator[str] = filter(
+            None, map(str.strip, stdout.strip().split("\n")))
+
+        first_instruction = next(instructions)
+        flattening_label = "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING:"
+        eliminated = 0
+        if first_instruction.startswith(flattening_label):
+            eliminated = int(first_instruction.split()[1])
+            return data
+        else:
+            instructions = itertools.chain([first_instruction], instructions)
         statistics = dict(Counter(e.split()[1] for e in instructions))
+        statistics["eliminated"] = eliminated
         updated_data = {
             "pattern": data["pattern"],
             "statistics": statistics
