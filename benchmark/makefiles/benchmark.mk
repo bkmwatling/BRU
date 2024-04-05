@@ -21,11 +21,13 @@ BENCHMARK_SL_PARTIAL := $(call target_variables_template,$(BENCHMARK_DIR),benchm
 BENCHMARK_ALL_PARTIAL := $(call target_variables_template,$(BENCHMARK_DIR),benchmark,all,partial,jsonl)
 
 .PHONY: benchmark
-benchmark: \
-	benchmark-sl-full \
-	benchmark-all-full \
-	benchmark-sl-partial \
-	benchmark-all-partial
+benchmark: benchmark-sl-full benchmark-all-full
+
+.PHONY: benchmark-sl
+benchmark-sl: benchmark-sl-full benchmark-sl-partial
+
+.PHONY: benchmark-all
+benchmark-all: benchmark-all-full benchmark-all-partial
 
 .PHONY: benchmark-sl-full
 benchmark-sl-full: $(BENCHMARK_SL_FULL)

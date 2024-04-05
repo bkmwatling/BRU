@@ -13,16 +13,6 @@ $(ANALYSIS_DIR)/steps-all-%.tex: $(BENCHMARK_DIR)/steps-benchmark-all-%.jsonl | 
 	@mkdir -p $(ANALYSIS_DIR)
 	$(PYTHON) src/analyze_all_steps.py $< > $@ || rm $@
 
-.PHONY: analyze-steps-all
-analyze-steps-all: \
-	analyze-steps-all-full \
-	analyze-steps-all-partial
-
-.PHONY: analyze-steps-sl
-analyze-steps-sl: \
-	analyze-steps-sl-full \
-	analyze-steps-sl-partial
-
 .PHONY: analyze-steps-all-full
 analyze-steps-all-full: $(ANALYSIS_STEPS_ALL_FULL)
 
@@ -34,3 +24,17 @@ analyze-steps-all-partial: $(ANALYSIS_STEPS_ALL_PARTIAL)
 
 .PHONY: analyze-steps-sl-partial
 analyze-steps-sl-partial: $(ANALYSIS_STEPS_SL_PARTIAL)
+
+.PHONY: analyze-steps-all
+analyze-steps-all: \
+	analyze-steps-all-full \
+	analyze-steps-all-partial
+
+.PHONY: analyze-steps-sl
+analyze-steps-sl: \
+	analyze-steps-sl-full \
+	analyze-steps-sl-partial
+
+.PHONY: analyze-steps
+
+analyze-steps: analyze-steps-all analyze-steps-sl

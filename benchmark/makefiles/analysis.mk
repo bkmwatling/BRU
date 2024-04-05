@@ -15,7 +15,10 @@ ANALYSIS_STATS_SL := $(foreach regex_type,$(REGEX_TYPES),\
 
 $(ANALYSIS_DIR)/statistics-%.tex: $(STATISTICS_DIR)/statistics-%.jsonl | $(VENV)
 	@mkdir -p $(ANALYSIS_DIR)
-	$(PYTHON) src/analysis_statistics.py $< > $@ || rm $@
+	$(PYTHON) src/analyze_statistics.py $< > $@ || rm $@
 
 .PHONY: analyze-statistics
 analyze-statistics: $(ANALYSIS_STATS_SL)
+
+.PHONY: analyze
+analyze: analyze-steps analyze-memo-size analyze-statistics
