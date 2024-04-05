@@ -92,7 +92,7 @@ vim:
 NOTEBOOK_DIR := notebooks
 
 .PHONY: jupyter
-jupyter: | $(NOTEBOOK_DIR) $(VENV)
+jupyter: | $(VENV)
 	$(VENV)/bin/jupyter notebook \
 		--ip=0.0.0.0 --port=50000 --no-browser \
 		2> $(NOTEBOOK_DIR)/log.log
@@ -105,8 +105,7 @@ DIRS := \
 	$(STATISTICS_DIR) \
 	$(STEP_DIR) \
 	$(MEMO_SIZE_DIR) \
-	$(ANALYSIS_DIR) \
-	$(NOTEBOOK_DIR) \
+	$(ANALYSIS_DIR)
 
 $(DIRS):
 	mkdir -p $@
