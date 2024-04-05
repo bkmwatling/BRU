@@ -9,7 +9,8 @@
 #include "re/parser.h"
 #include "vm/compiler.h"
 #include "vm/srvm.h"
-#include "vm/thread_managers/all_matches.h"
+// NOTE: deprecated/not useful, see all_matches ThreadManager
+// #include "vm/thread_managers/all_matches.h"
 #include "vm/thread_managers/benchmark.h"
 #include "vm/thread_managers/lockstep.h"
 #include "vm/thread_managers/memoisation.h"
@@ -174,12 +175,14 @@ static void add_matching_args(StcArgParser *ap, BruOptions *options)
         ap, "-s", "--scheduler", "spencer | lockstep | thompson",
         "which scheduler to use for execution", &options->scheduler_type,
         "spencer", convert_scheduler_type);
-    stc_argparser_add_bool_option(ap, "-b", "--benchmark",
-                                  "whether to benchmark SRVM execution",
-                                  &options->benchmark, FALSE);
-    stc_argparser_add_bool_option(ap, NULL, "--all-matches",
-                                  "whether to report all matches",
-                                  &options->all_matches, FALSE);
+    stc_argparser_add_bool_option(
+        ap, "-b", "--benchmark",
+        "whether to benchmark SRVM execution, writing to the logfile",
+        &options->benchmark, FALSE);
+    // NOTE: deprecated/not useful, see all_matches ThreadManager
+    // stc_argparser_add_bool_option(ap, NULL, "--all-matches",
+    //                               "whether to report all matches",
+    //                               &options->all_matches, FALSE);
     stc_argparser_add_str_argument(
         ap, "<input>", "the input string to match against the regex",
         &options->text);
@@ -304,9 +307,10 @@ static int match(BruOptions *options)
     if (options->benchmark)
         thread_manager =
             benchmark_thread_manager_new(thread_manager, options->logfile);
-    if (options->all_matches)
-        thread_manager = all_matches_thread_manager_new(
-            thread_manager, options->logfile, options->text);
+    // NOTE: deprecated/not useful, see all_matches ThreadManager
+    // if (options->all_matches)
+    //     thread_manager = all_matches_thread_manager_new(
+    //         thread_manager, options->logfile, options->text);
 
     srvm = srvm_new(thread_manager, prog);
     while ((matched = srvm_find(srvm, options->text)) != MATCHES_EXHAUSTED) {
@@ -328,7 +332,6 @@ static int match(BruOptions *options)
         }
         free(captures);
     }
-    printf("matched = %d\n", matched);
     program_free((Program *) prog);
     srvm_free(srvm);
 
