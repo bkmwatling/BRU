@@ -20,25 +20,11 @@ benchmark-sl-full: $(BENCHMARK_SL_FULL)
 benchmark-sl-partial: $(BENCHMARK_SL_PARTIAL)
 
 
-.PRECIOUS: $(BENCHMARK_DIR)/all-%.jsonl
-.ONESHELL:
-$(BENCHMARK_DIR)/sl-%.jsonl: \
-		$(SL_REGEX_DATASET) | $(BENCHMARK_DIR) $(VENV)
-	@echo "make $@"
-	@args=($(subst -, ,$*))
-	@$(PYTHON) src/benchmark.py \
-		--regex-type sl \
-		--matching_type $${args[0]} \
-		--construction $${args[1]} \
-		--scheduler $${args[2]} \
-		--memo-scheme $${args[3]} \
-		$< $@ \
-		2> $(LOGS_DIR)/$(basename $(notdir $@)).log
-
-.PRECIOUS: $(BENCHMARK_DIR)/sl-%.jsonl
+.SECONDARY: $(BENCHMARK_DIR)/sl-%.jsonl
 .ONESHELL:
 $(BENCHMARK_DIR)/all-%.jsonl: \
-		$(ALL_REGEX_DATASET) | $(BENCHMARK_DIR) $(VENV)
+		$(ALL_REGEX_DATASET) \
+		| $(BENCHMARK_DIR) $(VENV) $(LOGS_DIR)/benchmark
 	@echo "make $@"
 	@args=($(subst -, ,$*))
 	@$(PYTHON) src/benchmark.py \
@@ -48,4 +34,20 @@ $(BENCHMARK_DIR)/all-%.jsonl: \
 		--scheduler $${args[2]} \
 		--memo-scheme $${args[3]} \
 		$< $@ \
-		2> $(LOGS_DIR)/$(basename $(notdir $@)).log
+		2> $(LOGS_DIR)/benchmark/$(basename $(notdir $@)).log
+
+.SECONDARY: $(BENCHMARK_DIR)/all-%.jsonl
+.ONESHELL:
+$(BENCHMARK_DIR)/sl-%.jsonl: \
+		$(SL_REGEX_DATASET) \
+		| $(BENCHMARK_DIR) $(VENV) $(LOGS_DIR)/benchmark
+	@echo "make $@"
+	@args=($(subst -, ,$*))
+	@$(PYTHON) src/benchmark.py \
+		--regex-type sl \
+		--matching_type $${args[0]} \
+		--construction $${args[1]} \
+		--scheduler $${args[2]} \
+		--memo-scheme $${args[3]} \
+		$< $@ \
+		2> $(LOGS_DIR)/benchmark/$(basename $(notdir $@)).log

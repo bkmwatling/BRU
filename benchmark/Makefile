@@ -93,10 +93,10 @@ vim:
 NOTEBOOK_DIR := notebooks
 
 .PHONY: jupyter
-jupyter: | $(VENV)
+jupyter: | $(VENV) $(LOGS_DIR)/jupyter
 	$(VENV)/bin/jupyter notebook \
 		--ip=0.0.0.0 --port=50000 --no-browser \
-		2> $(NOTEBOOK_DIR)/log.log
+		2> $(LOGS_DIR)/jupyter/log.log
 
 DIRS := \
 	$(DATA_DIR) \

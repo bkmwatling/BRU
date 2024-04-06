@@ -1,7 +1,7 @@
 data/
 case-study/
-data-build/
-!data-build/*.py
+data-build/*.jsonl
+data-build/intermediate
 notebooks/.ipynb_checkpoints
 __pycache__/
 .venv/

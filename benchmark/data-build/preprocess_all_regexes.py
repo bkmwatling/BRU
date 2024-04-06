@@ -9,6 +9,7 @@ from typing import (Any, Optional, Callable, )
 import timeout_decorator  # type: ignore
 import jsonlines  # type: ignore
 import xeger  # type: ignore
+from pathos.pools import ProcessPool  # type: ignore
 
 
 random.seed(42)
@@ -111,7 +112,9 @@ def write_preprocessed_dataset(
             logging.debug(f"Failed to preprocess {data['pattern']}: {e}")
             return None
 
-    optional_preprocessed_dataset = map(safe_preprocess_data, regex_dataset)
+    with ProcessPool() as pool:
+        optional_preprocessed_dataset = pool.imap(
+            safe_preprocess_data, regex_dataset)
     preprocessed_dataset = (
         data for data in optional_preprocessed_dataset if data is not None)
 

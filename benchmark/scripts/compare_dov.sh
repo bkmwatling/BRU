@@ -1,5 +1,5 @@
 python src/compare_sl_dov.py \
-  data/benchmark/benchmark-sl-{thompson,glushkov}-none-spencer-full.jsonl > data/analysis/dov-comparison-full.jsonl
+  data/benchmark/sl-full-{thompson,flat}-spencer-none.jsonl > data/analysis/dov-comparison-full.jsonl
 
 python src/compare_sl_dov.py \
-  data/benchmark/benchmark-sl-{thompson,glushkov}-none-spencer-partial.jsonl > data/analysis/dov-comparison-partial.jsonl
+  data/benchmark/sl-full-{thompson,flat}-spencer-none.jsonl > data/analysis/dov-comparison-partial.jsonl

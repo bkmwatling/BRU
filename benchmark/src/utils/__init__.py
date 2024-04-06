@@ -37,9 +37,9 @@ class MatchingType(Enum):
 
 
 BruArgs = TypedDict("BruArgs", {
-    "memo-scheme": MemoSchemeOption,
     "construction": ConstructionOption,
-    "scheduler": SchedulerOption
+    "scheduler": SchedulerOption,
+    "memo-scheme": MemoSchemeOption,
 }, total=False)
 
 
@@ -48,13 +48,13 @@ def iterate_bru_args() -> Iterable[BruArgs]:
         for memo_scheme in MemoSchemeOption:
             yield BruArgs({
                 "construction": construction,
+                "scheduler": SchedulerOption.SPENCER,
                 "memo-scheme": memo_scheme,
-                "scheduler": SchedulerOption.SPENCER
             })
         yield BruArgs({
             "construction": construction,
+            "scheduler": SchedulerOption.LOCKSTEP,
             "memo-scheme": MemoSchemeOption.NONE,
-            "scheduler": SchedulerOption.LOCKSTEP
         })
 
 
