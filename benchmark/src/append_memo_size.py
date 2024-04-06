@@ -20,7 +20,7 @@ def append_memo_size_to_data_list(
     pattern = data_list[0]["pattern"]
     strings = data_list[0][inputs_label]
     outputs_per_dataset = [
-        data[outputs_label] for data in data_list]
+        data.pop(outputs_label) for data in data_list]
 
     memo_sizes_per_dataset: list[list[Optional[int]]] = [
         [] for _ in data_list]

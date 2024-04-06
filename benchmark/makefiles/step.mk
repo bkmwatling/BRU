@@ -6,7 +6,7 @@ append-step: append-all-step
 .PHONY: append-all-step
 append-all-step: $(STEP_ALL)
 
-.PRECIOS: $(STEP_ALL)
+.PRECIOUS: $(STEP_ALL)
 $(STEP_ALL): $(BENCHMARK_ALL_FULL) $(BENCHMARK_ALL_PARTIAL) \
 		| $(STEP_DIR) $(LOGS_DIR) $(VENV)
 	@echo "make $@"

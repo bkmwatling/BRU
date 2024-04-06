@@ -16,7 +16,7 @@ SCHEDULERS := spencer lockstep
 MATCHING_TYPES := full partial
 
 .DEFAULT: default
-default:
+default: analyze
 
 
 DATASET_DIR := $(DATA_DIR)/polyglot
@@ -42,7 +42,7 @@ include makefiles/benchmark.mk
 
 
 STATISTICS_DIR := $(DATA_DIR)/statistics
-STATISTICS := $(addprefix $(STATISTICS_DIR)/statistics-, \
+STATISTICS := $(addprefix $(STATISTICS_DIR)/, \
 		$(shell echo {all,sl}-{thompson,flat}-{cn,in,none}.jsonl))
 include makefiles/statistics.mk
 
@@ -67,7 +67,8 @@ MEMO_SIZE_SL := $(addprefix $(MEMO_SIZE_DIR)/sl-, \
 include makefiles/memo_size.mk
 
 
-# include makefiles/analysis.mk
+ANALYSIS_DIR := $(DATA_DIR)/analysis
+include makefiles/analysis.mk
 
 # Misc
 $(LOGS_DIR)/%: | $(LOGS_DIR)
@@ -122,3 +123,7 @@ clean-all: clean
 .PHONY: clean-benchmark
 clean-benchmark:
 	rm -rf $(BENCHMARK_DIR)
+
+.PHONY: clean-statistics
+clean-statistics:
+	rm -rf $(STATISTICS_DIR)

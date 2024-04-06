@@ -2,7 +2,7 @@ import argparse
 import logging
 import subprocess
 import itertools
-from typing import (TypedDict, Any, Optional, Iterator, )
+from typing import (TypedDict, Any, Optional, )
 from pathlib import Path
 from collections import Counter
 
@@ -10,6 +10,7 @@ import jsonlines  # type: ignore
 
 from utils import ConstructionOption
 from utils import MemoSchemeOption
+from utils import FLATTENING_LABEL
 
 
 BruArgs = TypedDict("BruArgs", {
@@ -22,7 +23,7 @@ def run_bru(
     pattern: str,
     bru_args: BruArgs,
     timeout: int = 10
-) -> str:
+) -> tuple[str, str]:
     construction = bru_args["construction"]
     memo_scheme = bru_args["memo-scheme"]
 
@@ -39,15 +40,17 @@ def run_bru(
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     stdout = completed.stdout.decode("utf-8")
-    return stdout
+    stderr = completed.stderr.decode("utf-8")
+    return stdout, stderr
 
 
-def safe_run_bru(pattern: str, bru_args: BruArgs) -> Optional[str]:
+def safe_run_bru(pattern: str, bru_args: BruArgs) -> Optional[tuple[str, str]]:
     try:
         return run_bru(pattern, bru_args)
     except subprocess.TimeoutExpired:
         pass
     except Exception as e:
+        print(e)
         logging.error(f"Engine error for {pattern}")
         logging.error(e)
     return None
@@ -60,21 +63,16 @@ def update_statistics(
 ) -> None:
 
     def update_statistics_data(data: dict[str, Any]) -> dict[str, Any]:
-        stdout = safe_run_bru(data["pattern"], bru_args)
+        stdout, stderr = safe_run_bru(data["pattern"], bru_args)
         if stdout is None:
             data["statistics"] = None
             return data
-        instructions: Iterator[str] = filter(
-            None, map(str.strip, stdout.strip().split("\n")))
 
-        first_instruction = next(instructions)
-        flattening_label = "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING:"
+        instructions = filter(
+            None, map(str.strip, stdout.strip().split("\n")))
         eliminated = 0
-        if first_instruction.startswith(flattening_label):
-            eliminated = int(first_instruction.split()[1])
-            return data
-        else:
-            instructions = itertools.chain([first_instruction], instructions)
+        if stderr.startswith(FLATTENING_LABEL):
+            eliminated = int(stderr.split(': ')[1])
         statistics = dict(Counter(e.split()[1] for e in instructions))
         statistics["eliminated"] = eliminated
         updated_data = {

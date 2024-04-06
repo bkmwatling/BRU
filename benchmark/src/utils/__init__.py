@@ -7,6 +7,9 @@ from typing import (Optional, Any, TypedDict, Iterable)
 from enum import Enum
 
 
+FLATTENING_LABEL = "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING:"
+
+
 class ConstructionOption(Enum):
     THOMPOSON = "thompson"
     GLUSHKOV = "flat"
@@ -93,10 +96,13 @@ class BenchmarkResult():
     def __init__(self, stderr: str):
         parsed: list[tuple[int, int]] = []
         pattern = re.compile(r"[A-Z]+: (\d+) \(FAILED: (\d+)\)")
+        self.eliminated = 0
         for line in stderr.strip().split("\n"):
-            match = pattern.match(line)
-            if match is None:
+            if line.startswith(FLATTENING_LABEL):
+                eliminated = int(line.split(': ')[1])
                 continue
+            match = pattern.match(line)
+            assert match is not None
             parsed.append((int(match.group(1)), int(match.group(2))))
         self.match, self.match_failed = parsed[0]
         self.memo, self.memo_failed = parsed[1]

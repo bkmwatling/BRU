@@ -1,24 +1,28 @@
-# Analysis
-ANALYSIS_DIR := $(DATA_DIR)/analysis
-
-include makefiles/analysis_steps.mk
-include makefiles/analysis_memo_size.mk
-
-# Analyze Statistics
-ANALYSIS_STATS_SL := $(foreach regex_type,$(REGEX_TYPES),\
-	$(foreach construction,$(CONSTRUCTIONS),\
-		$(foreach memo_scheme,$(MEMO_SCHEMES),\
-			$(ANALYSIS_DIR)/statistics-$(regex_type)-$(construction)-$(memo_scheme).tex\
-		)\
-	)\
-)
-
-$(ANALYSIS_DIR)/statistics-%.tex: $(STATISTICS_DIR)/statistics-%.jsonl | $(VENV)
-	@mkdir -p $(ANALYSIS_DIR)
-	$(PYTHON) src/analyze_statistics.py $< > $@ || rm $@
-
-.PHONY: analyze-statistics
-analyze-statistics: $(ANALYSIS_STATS_SL)
-
 .PHONY: analyze
-analyze: analyze-steps analyze-memo-size analyze-statistics
+analyze: analyze-statistics analyze-step analyze-memo-size
+
+
+ANALYSIS_STATISTICS_DIR := $(ANALYSIS_DIR)/statistics
+ANALYSIS_STATISTICS := $(addprefix $(ANALYSIS_STATISTICS_DIR)/, \
+		$(shell echo {all,sl}-{thompson,flat}-{cn,in,none}.tex))
+include makefiles/analysis_statistics.mk
+
+
+ANALYSIS_STEP_DIR := $(ANALYSIS_DIR)/step
+ANALYSIS_STEP_ALL := $(addprefix $(ANALYSIS_STEP_DIR)/all-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.tex) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.tex))
+ANALYSIS_STEP_SL := $(addprefix $(ANALYSIS_STEP_DIR)/sl-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.tex) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.tex))
+include makefiles/analysis_step.mk
+
+
+ANALYSIS_MEMO_SIZE_DIR := $(ANALYSIS_DIR)/memo_size
+ANALYSIS_MEMO_SIZE_ALL := $(addprefix $(ANALYSIS_MEMO_SIZE_DIR)/all-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.tex) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.tex))
+ANALYSIS_MEMO_SIZE_SL := $(addprefix $(ANALYSIS_MEMO_SIZE_DIR)/sl-, \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.tex) \
+		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.tex))
+include makefiles/analysis_memo_size.mk

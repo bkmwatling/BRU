@@ -19,6 +19,7 @@ benchmark-sl-full: $(BENCHMARK_SL_FULL)
 .PHONY: benchmark-sl-partial
 benchmark-sl-partial: $(BENCHMARK_SL_PARTIAL)
 
+
 .PRECIOUS: $(BENCHMARK_DIR)/all-%.jsonl
 .ONESHELL:
 $(BENCHMARK_DIR)/sl-%.jsonl: \
