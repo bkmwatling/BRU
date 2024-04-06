@@ -1,0 +1,3 @@
+[formats]
+"notebooks/" = "ipynb"
+"scripts/" = "py:percent"

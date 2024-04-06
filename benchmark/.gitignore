@@ -2,7 +2,7 @@ data/
 case-study/
 data-build/*.jsonl
 data-build/intermediate
-notebooks/.ipynb_checkpoints
+.ipynb_checkpoints
 __pycache__/
 .venv/
 .mypy_cache/
