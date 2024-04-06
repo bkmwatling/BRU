@@ -11,6 +11,9 @@ import jsonlines  # type: ignore
 import xeger  # type: ignore
 
 
+random.seed(42)
+
+
 class TimeOutException(Exception):
     pass
 

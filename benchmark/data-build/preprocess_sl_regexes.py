@@ -7,6 +7,9 @@ from typing import (Any, )
 import jsonlines  # type: ignore
 
 
+random.seed(42)
+
+
 def preprocess_data(
     data: dict[str, Any],
     number_of_evil_inputs: int

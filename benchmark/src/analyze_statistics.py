@@ -31,7 +31,7 @@ def print_results(args: argparse.Namespace) -> None:
     d = df.to_dict('tight')
     keys = [
         'char', 'pred', 'begin', 'end', 'match', 'save', 'memo', 'jmp',
-        'split', 'tswitch'
+        'split', 'tswitch', 'eliminated'
     ]
     averages = {k: statistics.mean(v) for k, v in zip(d['index'], d['data'])}
     print(" & ".join(keys), end=" \\\\ \n")
