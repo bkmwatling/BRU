@@ -58,6 +58,16 @@ def iterate_bru_args() -> Iterable[BruArgs]:
         })
 
 
+def bru_args_to_tuple(
+    bru_args: BruArgs
+) -> tuple[str, str, str]:
+    return (
+        bru_args["construction"].value,
+        bru_args["scheduler"].value,
+        bru_args["memo-scheme"].value
+    )
+
+
 def benchmark(
     pattern: str,
     string: str,

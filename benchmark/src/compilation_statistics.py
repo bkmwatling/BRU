@@ -63,11 +63,12 @@ def update_statistics(
 ) -> None:
 
     def update_statistics_data(data: dict[str, Any]) -> dict[str, Any]:
-        stdout, stderr = safe_run_bru(data["pattern"], bru_args)
-        if stdout is None:
+        result = safe_run_bru(data["pattern"], bru_args)
+        if result is None:
             data["statistics"] = None
             return data
 
+        stdout, stderr = result
         instructions = filter(
             None, map(str.strip, stdout.strip().split("\n")))
         eliminated = 0
