@@ -1,21 +1,4 @@
 obj/
 bin/
-
 *.o
-
-# reproducible benchmark files
-benchmark/data
-benchmark/case-study
-benchmark/data-build/*.jsonl
-benchmark/notebooks/.ipynb_checkpoints
-
-# experiments
-__pycache__/
-experiments/data-build/*
-experiments/data/*
-!.gitkeep
-.venv
-.mypy_cache/
-logs/
-
 tags

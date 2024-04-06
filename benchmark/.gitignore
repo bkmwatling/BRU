@@ -1,0 +1,9 @@
+data/
+case-study/
+data-build/
+!data-build/*.py
+notebooks/.ipynb_checkpoints
+__pycache__/
+.venv/
+.mypy_cache/
+logs/
