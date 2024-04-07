@@ -23,7 +23,6 @@ def print_results(args: argparse.Namespace) -> None:
             continue
         if data["statistics"] is not None:
             regex_statistics.append(data["statistics"])
-    print(len(regex_statistics))
 
     post_processed = map(post_process, regex_statistics)
     df = pd.DataFrame(post_processed).fillna(0).T
@@ -34,9 +33,10 @@ def print_results(args: argparse.Namespace) -> None:
         'split', 'tswitch', 'eliminated'
     ]
     averages = {k: statistics.mean(v) for k, v in zip(d['index'], d['data'])}
-    print(" & ".join(keys), end=" \\\\ \n")
+    print("Number & " + " & ".join(keys), end=" \\\\ \n")
     print(
-        " & ".join(
+        str(round(len(regex_statistics))) + " & "
+        + " & ".join(
             "{}({})".format(
                 round(averages.get(key, 0), 2),
                 round(averages.get(f"{key}_ratio", 0) * 100, 2)
