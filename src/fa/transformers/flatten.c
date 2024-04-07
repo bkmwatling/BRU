@@ -3,6 +3,12 @@
 
 #include "flatten.h"
 
+/* --- Preprocessor macros -------------------------------------------------- */
+
+#define ACTION_TO_IDX(type)    ((unsigned int) (type))
+#define ACTION_TO_BIT(type)    (1 << ACTION_TO_IDX(type))
+#define INSERT_TYPE(set, type) (set |= ACTION_TO_BIT(type))
+
 /* --- Data structures ------------------------------------------------------ */
 
 typedef struct {
@@ -32,10 +38,6 @@ typedef struct {
  */
 static int action_list_signature(const ActionList *actions)
 {
-#define ACTION_TO_IDX(type)    ((unsigned int) (type))
-#define ACTION_TO_BIT(type)    (1 << ACTION_TO_IDX(type))
-#define INSERT_TYPE(set, type) (set |= ACTION_TO_BIT(type))
-
     ActionListIterator *ali;
     const Action       *a;
     int                 signature = 0;
@@ -61,10 +63,6 @@ static int action_list_signature(const ActionList *actions)
     }
 
     return signature;
-
-#undef ACTION_TO_IDX
-#undef ACTION_TO_BIT
-#undef INSERT_TYPE
 }
 
 /**
@@ -84,7 +82,8 @@ static int action_list_signature_equivalent(int sig1, int sig2)
 {
     // NOTE: any actions that, if appear in one list and not the other, means
     // the lists are not equal
-    static int DISAMBIGUATING_ACTIONS = ACT_END | ACT_BEGIN;
+    static int DISAMBIGUATING_ACTIONS =
+        ACTION_TO_BIT(ACT_END) | ACTION_TO_BIT(ACT_BEGIN);
 
     return ((sig1 ^ sig2) & DISAMBIGUATING_ACTIONS) == 0;
 }
