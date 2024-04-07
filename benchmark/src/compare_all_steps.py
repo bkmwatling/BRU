@@ -8,7 +8,8 @@ import jsonlines  # type: ignore
 def compare_data(
     data1: dict[str, Any],
     data2: dict[str, Any],
-    prefix: str
+    prefix: str,
+    threshold: int = 0,
 ) -> bool:
     pattern = data1["pattern"]
     strings = data1[f"{prefix}_inputs"]
@@ -20,7 +21,7 @@ def compare_data(
     for string, step1, step2 in zip(strings, steps1, steps2):
         if step1 is None and step2 is None:
             continue
-        if step1 < step2:
+        if step2 - step1 > threshold:
             print(pattern)
             print(string)
             print(step1)
@@ -30,12 +31,14 @@ def compare_data(
     return flag
 
 
-def compare_datasets(file1: Path, file2: Path, prefix: str) -> None:
+def compare_datasets(
+  file1: Path, file2: Path, prefix: str, threshold: int
+) -> None:
     dataset1 = jsonlines.open(file1, mode='r')
     dataset2 = jsonlines.open(file2, mode='r')
     count = 0
     for data1, data2 in zip(dataset1, dataset2):
-        if compare_data(data1, data2, prefix):
+        if compare_data(data1, data2, prefix, threshold):
             count += 1
     print(f"The average number of steps increased for {count} regexes.")
     dataset1.close()
@@ -49,5 +52,6 @@ if __name__ == "__main__":
     parser.add_argument("file2", type=Path)
     parser.add_argument(
         "--input-type", type=str, choices=["positive", "negative"])
+    parser.add_argument("--threshold", type=int, default=0)
     args = parser.parse_args()
-    compare_datasets(args.file1, args.file2, args.input_type)
+    compare_datasets(args.file1, args.file2, args.input_type, args.threshold)
