@@ -59,9 +59,9 @@ include makefiles/step.mk
 
 MEMO_SIZE_DIR := $(DATA_DIR)/memo-size
 MEMO_SIZE_ALL := $(addprefix $(MEMO_SIZE_DIR)/all-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.jsonl) \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.jsonl))
 MEMO_SIZE_SL := $(addprefix $(MEMO_SIZE_DIR)/sl-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.jsonl) \
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.jsonl))
 include makefiles/memo_size.mk
 
 
