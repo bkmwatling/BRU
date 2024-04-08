@@ -167,7 +167,7 @@ static void memoised_thread_manager_init_memoisation(void       *impl,
     if (self->memoisation_memory) free(self->memoisation_memory);
 
     self->text               = text;
-    self->text_len           = strlen(text);
+    self->text_len           = strlen(text) + 1;
     self->memoisation_memory = malloc(nmemo_insts * self->text_len *
                                       sizeof(*self->memoisation_memory));
     memset(self->memoisation_memory, FALSE,
@@ -178,9 +178,10 @@ static int memoised_thread_memoise(void *impl, Thread *t, len_t idx)
 {
     MemoisedThreadManager *self = impl;
     size_t                 i    = idx * self->text_len + (t->sp - self->text);
-    if (self->memoisation_memory[i]) return FALSE;
 
+    if (self->memoisation_memory[i]) return FALSE;
     self->memoisation_memory[i] = TRUE;
+
     return TRUE;
 }
 
