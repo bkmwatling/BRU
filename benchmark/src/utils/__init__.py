@@ -2,10 +2,14 @@ import logging
 import re
 import statistics
 import subprocess
+from itertools import product
 from functools import total_ordering
 from typing import (Optional, Any, TypedDict, Iterable)
 from enum import Enum
+from pathlib import Path
 
+import jsonlines
+import numpy as np
 
 FLATTENING_LABEL = "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING:"
 
@@ -58,16 +62,6 @@ def iterate_bru_args() -> Iterable[BruArgs]:
         })
 
 
-def bru_args_to_tuple(
-    bru_args: BruArgs
-) -> tuple[str, str, str]:
-    return (
-        bru_args["construction"].value,
-        bru_args["scheduler"].value,
-        bru_args["memo-scheme"].value
-    )
-
-
 def benchmark(
     pattern: str,
     string: str,
@@ -109,7 +103,7 @@ class BenchmarkResult():
         self.eliminated = 0
         for line in stderr.strip().split("\n"):
             if line.startswith(FLATTENING_LABEL):
-                eliminated = int(line.split(': ')[1])
+                self.eliminated = int(line.split(': ')[1])
                 continue
             match = pattern.match(line)
             assert match is not None
@@ -342,3 +336,125 @@ def print_statistics(
     ]
     print("{}".format(delimiter.join(labels)), end=end)
     print("{}".format(delimiter.join(map(str, values))), end=end)
+
+
+def load_steps(filename: Path, prefix: str) -> np.array:
+    logging.debug(f"Loading {prefix} steps from {filename}")
+    label = f"avg_{prefix}_step"
+    with jsonlines.open(filename) as dataset:
+        xs = [data[label] for data in dataset if data[label] is not None]
+    return np.array(xs)
+
+
+def load_memo_sizes(filename: Path, prefix: str) -> np.array:
+    with jsonlines.open(filename) as dataset:
+        label = f"avg_{prefix}_memo_size"
+        xs = [data[label] for data in dataset if data[label] is not None]
+    return np.array(xs)
+
+
+def load_mask(filename: Path, prefix: str) -> np.array:
+    label = f"avg_{prefix}_step"
+    with jsonlines.open(filename) as dataset:
+        return np.array([data[label] is not None for data in dataset])
+
+
+def load_eliminated(filename: Path) -> np.array:
+    logging.debug(f"Loading eliminateds from {filename}")
+
+    def get_eliminated(data: dict[str, Any]) -> Optional[int]:
+        try:
+            return data['statistics']['eliminated']
+        except (KeyError, TypeError):
+            return None
+
+    with jsonlines.open(filename) as dataset:
+        eliminateds = [get_eliminated(data) for data in dataset]
+        return np.array(eliminateds)
+
+
+def load_steps_dict(data_dir: Path) -> dict[str, Any]:
+    """ Return `steps` dict with the following structure:
+    `steps[matching_type][construction][scheduler][memo_scheme][input_type]`
+    """
+    steps = {}
+    iterator = product(MatchingType, iterate_bru_args())
+    for matching_type, bru_args in iterator:
+        construction = bru_args["construction"]
+        scheduler = bru_args["scheduler"]
+        memo_scheme = bru_args["memo-scheme"]
+        steps_memo_scheme = (
+            steps
+            .setdefault(matching_type.value, {})
+            .setdefault(construction.value, {})
+            .setdefault(scheduler.value, {})
+            .setdefault(memo_scheme.value, {})
+        )
+
+        basename = '-'.join([
+            'all',
+            matching_type.value,
+            construction.value,
+            scheduler.value,
+            memo_scheme.value
+        ])
+        basename += '.jsonl'
+        filename = data_dir / 'step' / basename
+        for input_type in ['positive', 'negative']:
+            xs = load_steps(filename, input_type)
+            steps_memo_scheme.setdefault(input_type, xs)
+    return steps
+
+
+def load_memo_sizes_dict(data_dir: Path) -> dict[str, Any]:
+    """ Return `memo_sizes` dict with the following structure:
+    `memo_sizes[matching_type][construction][memo_scheme][input_type]`
+    """
+    memo_sizes = {}
+    iterator = product(MatchingType, ConstructionOption, MemoSchemeOption)
+    for matching_type, construction, memo_scheme in iterator:
+        memo_sizes_memo_scheme = (
+            memo_sizes
+            .setdefault(matching_type.value, {})
+            .setdefault(construction.value, {})
+            .setdefault(memo_scheme.value, {})
+        )
+
+        basename = '-'.join([
+            'all',
+            matching_type.value,
+            construction.value,
+            'spencer',
+            memo_scheme.value
+        ])
+        basename += '.jsonl'
+        filename = data_dir / 'memo-size' / basename
+        for input_type in ['positive', 'negative']:
+            xs = load_memo_sizes(filename, input_type)
+            memo_sizes_memo_scheme[input_type] = xs
+    return memo_sizes
+
+
+def load_all_eliminateds_dict(data_dir: Path) -> dict[str, Any]:
+    """ Return `eliminateds` dict with the following structure:
+    `eliminateds[memo_scheme][input_type]`
+    """
+    eliminateds = {}
+    regex_type = RegexType.ALL
+    construction = ConstructionOption.GLUSHKOV
+    step_filename = data_dir / 'step' / 'all-full-thompson-lockstep-none.jsonl'
+    input_types = ['positive', 'negative']
+    mask = {
+        input_type: load_mask(step_filename, input_type)
+        for input_type in input_types
+    }
+    for memo_scheme in MemoSchemeOption:
+        basename = '-'.join([
+            regex_type.value, construction.value, memo_scheme.value])
+        basename += '.jsonl'
+        filename = Path('../../data/statistics') / basename
+        eliminated = load_eliminated(filename)
+        eliminateds_memo_scheme = eliminateds.setdefault(memo_scheme.value, {})
+        for input_type in input_types:
+            eliminateds_memo_scheme[input_type] = eliminated[mask[input_type]]
+    return eliminateds
