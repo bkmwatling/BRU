@@ -20,9 +20,7 @@ include makefiles/analysis_step.mk
 
 ANALYSIS_MEMO_SIZE_DIR := $(ANALYSIS_DIR)/memo_size
 ANALYSIS_MEMO_SIZE_ALL := $(addprefix $(ANALYSIS_MEMO_SIZE_DIR)/all-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.tex) \
-		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.tex))
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.tex))
 ANALYSIS_MEMO_SIZE_SL := $(addprefix $(ANALYSIS_MEMO_SIZE_DIR)/sl-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.tex) \
-		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.tex))
+		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.tex))
 include makefiles/analysis_memo_size.mk
