@@ -21,7 +21,6 @@ benchmark-sl-partial: $(BENCHMARK_SL_PARTIAL)
 
 
 .SECONDARY: $(BENCHMARK_DIR)/sl-%.jsonl
-.ONESHELL:
 $(BENCHMARK_DIR)/all-%.jsonl: \
 		$(ALL_REGEX_DATASET) \
 		| $(BENCHMARK_DIR) $(VENV) $(LOGS_DIR)/benchmark
@@ -37,7 +36,6 @@ $(BENCHMARK_DIR)/all-%.jsonl: \
 		2> $(LOGS_DIR)/benchmark/$(basename $(notdir $@)).log
 
 .SECONDARY: $(BENCHMARK_DIR)/all-%.jsonl
-.ONESHELL:
 $(BENCHMARK_DIR)/sl-%.jsonl: \
 		$(SL_REGEX_DATASET) \
 		| $(BENCHMARK_DIR) $(VENV) $(LOGS_DIR)/benchmark

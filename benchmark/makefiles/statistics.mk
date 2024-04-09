@@ -2,7 +2,6 @@
 statistics: $(STATISTICS)
 
 .SECONDARY: $(STATISTICS_DIR)/sl-%.jsonl
-.ONESHELL:
 $(STATISTICS_DIR)/sl-%.jsonl: \
 		$(SL_REGEX_DATASET) \
 		| $(STATISTICS_DIR) $(VENV) $(LOGS_DIR)/statistics
@@ -13,7 +12,6 @@ $(STATISTICS_DIR)/sl-%.jsonl: \
 		2> $(LOGS_DIR)/statistics/$(basename $(notdir $@)).log
 
 .SECONDARY: $(STATISTICS_DIR)/statistics-all-%.jsonl
-.ONESHELL:
 $(STATISTICS_DIR)/all-%.jsonl: \
 		$(ALL_REGEX_DATASET) \
 		| $(STATISTICS_DIR) $(VENV) $(LOGS_DIR)/statistics
