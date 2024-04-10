@@ -315,6 +315,11 @@ static int srvm_run(SRVM *self, const char *text)
                     // scheduler_free(s);
                     break;
 
+                case STATE:
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_schedule_thread(tm, thread);
+                    break;
+
                 case NBYTECODES: assert(0 && "unreachable");
             }
         }

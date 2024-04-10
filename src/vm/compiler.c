@@ -5,12 +5,19 @@
 #include "../fa/transformers/flatten.h"
 #include "../fa/transformers/memoisation.h"
 #include "../re/sre.h"
+#include "../utils.h"
 #include "compiler.h"
 
 #define COMPILER_OPTS_DEFAULT \
-    ((CompilerOpts){ THOMPSON, FALSE, CS_PCRE, MS_NONE })
+    ((CompilerOpts){ THOMPSON, FALSE, CS_PCRE, MS_NONE, FALSE })
 
 #define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) + 1))
+
+static void compile_state_markers(void *meta, Program *prog)
+{
+    UNUSED(meta);
+    BCPUSH(prog->insts, STATE);
+}
 
 Compiler *compiler_new(const Parser *parser, const CompilerOpts opts)
 {
@@ -61,7 +68,8 @@ const Program *compiler_compile(const Compiler *self)
     smir_print(sm, stderr);
 #endif
 
-    prog = smir_compile(sm);
+    prog = smir_compile_with_meta(
+        sm, self->opts.mark_states ? compile_state_markers : NULL, NULL);
     smir_free(sm);
 
     return prog;

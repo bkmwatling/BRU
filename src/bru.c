@@ -167,6 +167,10 @@ static void add_compilation_args(StcArgParser *ap, BruOptions *options)
         ap, "-m", "--memo-scheme", "none | cn | in | iar",
         "which memoisation scheme to apply",
         &options->compiler_opts.memo_scheme, "none", convert_memo_scheme);
+    stc_argparser_add_bool_option(
+        ap, NULL, "--mark-states",
+        "whether to compile state marking instructions",
+        &options->compiler_opts.mark_states, FALSE);
 }
 
 static void add_matching_args(StcArgParser *ap, BruOptions *options)

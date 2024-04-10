@@ -244,6 +244,8 @@ static const byte *inst_print_formatted(FILE              *stream,
             pc++;
             break;
 
+        case STATE: fputs("state", stream); break;
+
         default:
             fprintf(stderr, "bytecode = %d\n", pc[-1]);
             assert(0 && "unreachable");
@@ -298,6 +300,7 @@ static void print_offset_as_absolute_index(FILE       *stream,
             case CMP: insts += sizeof(len_t) + sizeof(cntr_t) + 1; break;
             case INC: insts += sizeof(len_t); break;
             case ZWA: insts += 2 * sizeof(offset_t) + 1; break;
+            case STATE: break;
             default:
                 fprintf(stderr, "bytecode = %d\n", insts[-1]);
                 assert(0 && "unreachable");

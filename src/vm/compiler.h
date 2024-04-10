@@ -27,6 +27,7 @@ typedef struct {
     int              only_std_split;    /**< whether to only use `split`      */
     CaptureSemantics capture_semantics; /**< which capture semantics to use   */
     MemoScheme       memo_scheme;       /**< which memoisation scheme to use  */
+    int              mark_states; /**< whether to compile state instructions  */
 } CompilerOpts;
 
 typedef struct {

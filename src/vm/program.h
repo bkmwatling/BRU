@@ -104,7 +104,8 @@
 #define CMP        17
 #define INC        18
 #define ZWA        19
-#define NBYTECODES 20
+#define STATE      20
+#define NBYTECODES 21
 
 /* Order for cmp */
 #define LT 1
