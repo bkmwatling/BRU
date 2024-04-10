@@ -1,10 +1,9 @@
 #ifndef SPENCER_THREAD_MANAGER_H
 #define SPENCER_THREAD_MANAGER_H
 
-#include <stddef.h>
+#include <stdio.h>
 
 #include "../../types.h"
-#include "../program.h"
 #include "thread_manager.h"
 
 /* --- Spencer ThreadManager function prototypes ---------------------------- */
@@ -15,10 +14,13 @@
  * @param[in] ncounters  the number of counters needed
  * @param[in] memory_len the number of bytes to allocate for thread memory
  * @param[in] ncaptures  the number of captures needed
+ * @param[in] logfile    the file for logging output
  *
  * @return the constructed Spencer-style thread manager
  */
-ThreadManager *
-spencer_thread_manager_new(len_t ncounters, len_t memory_len, len_t ncaptures);
+ThreadManager *spencer_thread_manager_new(len_t ncounters,
+                                          len_t memory_len,
+                                          len_t ncaptures,
+                                          FILE *logfile);
 
 #endif /* SPENCER_THREAD_MANAGER_H */

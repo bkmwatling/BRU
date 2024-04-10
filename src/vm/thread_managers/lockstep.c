@@ -7,6 +7,7 @@
 #include "../../utils.h"
 #include "lockstep.h"
 #include "thread_manager.h"
+#include "thread_pool.h"
 
 /* --- Type definitions ----------------------------------------------------- */
 
@@ -28,6 +29,7 @@ typedef struct thompson_scheduler {
 
 typedef struct thompson_thread_manager {
     ThompsonScheduler *scheduler; /**< the Thompson scheduler for scheduling  */
+    ThreadPool        *pool;      /**< the pool of threads                    */
     const byte        *start_pc;  /**< the starting PC for new threads        */
     const char        *sp;        /**< the string pointer for lockstep        */
     int                matched;   /**< whether a match has been found         */
@@ -87,18 +89,32 @@ static int thompson_scheduler_has_next(ThompsonScheduler *self);
 static Thread *thompson_scheduler_next(ThompsonScheduler *self);
 static void    thompson_scheduler_free(ThompsonScheduler *self);
 
+/* --- Helper function prototypes ------------------------------------------- */
+
+static ThompsonThread             *
+thompson_thread_manager_new_thread(ThompsonThreadManager *self);
+static void thompson_thread_manager_copy_thread(ThompsonThreadManager *self,
+                                                ThompsonThread        *dst,
+                                                const ThompsonThread  *src);
+static ThompsonThread             *
+thompson_thread_manager_get_thread(ThompsonThreadManager *self);
+static void thompson_thread_free(Thread *t);
+
 /* --- ThompsonThreadManager function definitions --------------------------- */
 
-ThreadManager *
-thompson_thread_manager_new(len_t ncounters, len_t memory_len, len_t ncaptures)
+ThreadManager *thompson_thread_manager_new(len_t ncounters,
+                                           len_t memory_len,
+                                           len_t ncaptures,
+                                           FILE *logfile)
 {
     ThreadManager         *tm  = malloc(sizeof(*tm));
-    ThompsonThreadManager *stm = malloc(sizeof(*stm));
+    ThompsonThreadManager *ttm = malloc(sizeof(*ttm));
 
-    stm->scheduler  = thompson_scheduler_new();
-    stm->ncounters  = ncounters;
-    stm->memory_len = memory_len;
-    stm->ncaptures  = ncaptures;
+    ttm->scheduler  = thompson_scheduler_new();
+    ttm->pool       = thread_pool_new(logfile);
+    ttm->ncounters  = ncounters;
+    ttm->memory_len = memory_len;
+    ttm->ncaptures  = ncaptures;
 
     THREAD_MANAGER_SET_REQUIRED_FUNCS(tm, thompson);
 
@@ -115,7 +131,7 @@ thompson_thread_manager_new(len_t ncounters, len_t memory_len, len_t ncaptures)
     tm->init_memoisation = thread_manager_init_memoisation_noop;
     tm->memoise          = thread_manager_memoise_noop;
 
-    tm->impl = stm;
+    tm->impl = ttm;
 
     return tm;
 }
@@ -145,8 +161,11 @@ static void thompson_thread_manager_reset(void *impl)
 
 static void thompson_thread_manager_free(void *impl)
 {
+    ThompsonThreadManager *self = impl;
+
     thompson_thread_manager_reset(impl);
-    thompson_scheduler_free(((ThompsonThreadManager *) impl)->scheduler);
+    thompson_scheduler_free(self->scheduler);
+    thread_pool_free(self->pool, thompson_thread_free);
     free(impl);
 }
 
@@ -159,17 +178,14 @@ static void thompson_thread_manager_schedule_new_thread(void       *impl,
                                                         const byte *pc,
                                                         const char *sp)
 {
-    ThompsonThread        *tt   = malloc(sizeof(*tt));
     ThompsonThreadManager *self = impl;
+    ThompsonThread        *tt   = thompson_thread_manager_get_thread(self);
 
     tt->pc = pc;
     tt->sp = sp;
 
-    stc_slice_init(tt->counters, self->ncounters);
     memset(tt->counters, 0, self->ncounters * sizeof(*tt->counters));
-    stc_slice_init(tt->memory, self->memory_len);
     memset(tt->memory, 0, self->memory_len * sizeof(*tt->memory));
-    stc_slice_init(tt->captures, 2 * self->ncaptures);
     memset(tt->captures, 0, 2 * self->ncaptures * sizeof(*tt->captures));
 
     thompson_thread_manager_schedule_thread(impl, (Thread *) tt);
@@ -216,24 +232,18 @@ static void thompson_thread_manager_notify_thread_match(void *impl, Thread *t)
 
 static Thread *thompson_thread_manager_clone_thread(void *impl, const Thread *t)
 {
-    ThompsonThread *clone = malloc(sizeof(*clone));
-    memcpy(clone, t, sizeof(*clone));
+    ThompsonThreadManager *self = impl;
+    ThompsonThread        *tt   = thompson_thread_manager_get_thread(self);
 
-    UNUSED(impl);
-    clone->captures = stc_slice_clone(((ThompsonThread *) t)->captures);
-    clone->counters = stc_slice_clone(((ThompsonThread *) t)->counters);
-    clone->memory   = stc_slice_clone(((ThompsonThread *) t)->memory);
+    thompson_thread_manager_copy_thread(self, tt, (ThompsonThread *) t);
 
-    return (Thread *) clone;
+    return (Thread *) tt;
 }
 
 static void thompson_thread_manager_kill_thread(void *impl, Thread *t)
 {
-    UNUSED(impl);
-    stc_slice_free(((ThompsonThread *) t)->captures);
-    stc_slice_free(((ThompsonThread *) t)->counters);
-    stc_slice_free(((ThompsonThread *) t)->memory);
-    free(t);
+    ThompsonThreadManager *self = impl;
+    thread_pool_add_thread(self->pool, t);
 }
 
 /* --- Thread function definitions ------------------------------------------ */
@@ -431,4 +441,51 @@ static void thompson_scheduler_free(ThompsonScheduler *self)
     stc_vec_free(self->next);
     stc_vec_free(self->sync);
     free(self);
+}
+
+/* --- Helper functions ----------------------------------------------------- */
+
+static ThompsonThread *
+thompson_thread_manager_new_thread(ThompsonThreadManager *self)
+{
+    ThompsonThread *tt = malloc(sizeof(*tt));
+
+    stc_slice_init(tt->memory, self->memory_len);
+    stc_slice_init(tt->captures, self->ncaptures);
+    stc_slice_init(tt->counters, self->ncounters);
+
+    return tt;
+}
+
+static void thompson_thread_manager_copy_thread(ThompsonThreadManager *self,
+                                                ThompsonThread        *dst,
+                                                const ThompsonThread  *src)
+{
+    dst->pc = src->pc;
+    dst->sp = src->sp;
+    memcpy(dst->memory, src->memory, sizeof(*dst->memory) * self->memory_len);
+    memcpy(dst->captures, src->captures,
+           sizeof(*dst->captures) * self->ncaptures);
+    memcpy(dst->counters, src->counters,
+           sizeof(*dst->counters) * self->ncounters);
+}
+
+static ThompsonThread *
+thompson_thread_manager_get_thread(ThompsonThreadManager *self)
+{
+    ThompsonThread *tt = (ThompsonThread *) thread_pool_get_thread(self->pool);
+
+    if (!tt) tt = thompson_thread_manager_new_thread(self);
+
+    return tt;
+}
+
+static void thompson_thread_free(Thread *t)
+{
+    ThompsonThread *tt = (ThompsonThread *) t;
+
+    stc_slice_free(tt->memory);
+    stc_slice_free(tt->counters);
+    stc_slice_free(tt->captures);
+    free(tt);
 }

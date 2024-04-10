@@ -300,11 +300,11 @@ static int match(BruOptions *options)
     }
 
     if (options->scheduler_type == SCH_SPENCER)
-        thread_manager = spencer_thread_manager_new(0, prog->thread_mem_len,
-                                                    prog->ncaptures);
+        thread_manager = spencer_thread_manager_new(
+            0, prog->thread_mem_len, prog->ncaptures, options->logfile);
     else if (options->scheduler_type == SCH_LOCKSTEP)
-        thread_manager = thompson_thread_manager_new(0, prog->thread_mem_len,
-                                                     prog->ncaptures);
+        thread_manager = thompson_thread_manager_new(
+            0, prog->thread_mem_len, prog->ncaptures, options->logfile);
 
     if (options->compiler_opts.memo_scheme != MS_NONE)
         thread_manager = memoised_thread_manager_new(thread_manager);
