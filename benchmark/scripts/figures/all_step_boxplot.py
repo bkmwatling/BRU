@@ -3,7 +3,7 @@ import matplotlib
 import jsonlines
 import sys
 from pathlib import Path
-sys.path.append('../src/')
+sys.path.append('../../src/')
 
 from utils import benchmark
 from utils import iterate_bru_args
@@ -23,7 +23,8 @@ def load_steps(filename: Path, prefix: str) -> np.array:
     return np.array(xs)
 
 # %%
-regex_type = RegexType.ALL.value()
+regex_type = RegexType.ALL
+print(regex_type.value)
 matching_type = MatchingType.FULL.value()
 
 data = {}
@@ -42,3 +43,5 @@ plt.show()
 plt.boxplot(data.values(), showmeans=True, showfliers=False)
 plt.xticks(range(len(data)), data.keys(), rotation=70)
 plt.show()
+
+# %%
