@@ -34,14 +34,14 @@ importlib.reload(utils)
 from utils import load_all_eliminateds_dict  # noqa: E402
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 eliminateds = load_all_eliminateds_dict(data_dir)
-logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 
 # %%
 importlib.reload(utils)
 from utils import load_steps_dict  # noqa: E402
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 steps = load_steps_dict(data_dir)
-logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 
 # %%
 import importlib
@@ -77,6 +77,7 @@ import importlib
 import itertools
 importlib.reload(plt)
 
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 options = itertools.product(
     ['full', 'partial'],
     [('spencer', 'none'), ('spencer', 'cn'), ('spencer', 'in'), ('lockstep', 'none')]
@@ -116,7 +117,7 @@ for matching_type, (scheduler, memo_scheme) in options:
     axs[0].set_ylabel(ylabel)
     axs[0].axis('square')
     
-    vmin = np.min(h)
+    vmax = np.max(h)
     
     axs[1].hist2d(xs[zs > threshold], ys[zs > threshold], bins=(x_space, y_space), norm='log', vmin=1, vmax=vmax)
     axs[1].set_xscale('log')
@@ -155,9 +156,58 @@ plt.hist([xs, ys], range=(minimum, maximum), log=True, bins=10)
 plt.show()
 
 # %%
-# Difference of histogram (excluding outliers)
-plt1, bin1, _ = plt.hist(xs, range=(minimum, maximum), log=True, bins=100)
-plt2, bin2, _ = plt.hist(ys, range=(minimum, maximum), log=True, bins=100)
-plt.clf()
-plt.bar(bin1[:-1], width=np.diff(bin1), height=plt2 - plt1, align='edge')
-plt.show()
+# Histogram 2D
+import importlib
+import itertools
+importlib.reload(plt)
+
+options = itertools.product(
+    ['full', 'partial'],
+    [('spencer', 'none'), ('spencer', 'cn'), ('spencer', 'in'), ('lockstep', 'none')]
+)
+threshold = 1
+
+for matching_type, (scheduler, memo_scheme) in options:
+    input_types = ['positive', 'negative']
+    xs = np.concatenate([
+        steps[matching_type]['thompson'][scheduler][memo_scheme][input_type]
+        for input_type in input_types
+    ])
+    xlabel = "-".join([matching_type, 'thompson', scheduler, memo_scheme])
+    ys = np.concatenate([
+        steps[matching_type]['flat'][scheduler][memo_scheme][input_type]
+        for input_type in input_types
+    ])
+    ylabel = "-".join([matching_type, 'flat', scheduler, memo_scheme])
+    zs = np.concatenate(
+        [eliminateds[memo_scheme][input_type] for input_type in input_types])
+    
+    # Range excluding outliers
+    total = xs + ys
+    quartile_1 = np.quantile(total, 0.25)
+    quartile_3 = np.quantile(total, 0.75)
+    iqr = quartile_3 - quartile_1
+    maximum = np.max(total, where=xs <= quartile_3 + 1.5 * iqr, initial=-np.inf)
+    minimum = np.min(total, where=xs >= quartile_1 - 1.5 * iqr, initial=np.inf)
+
+    fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+    for i in range(2):
+        _xs = xs[zs <= threshold] if i == 0 else xs[zs > threshold]
+        _ys = ys[zs <= threshold] if i == 0 else ys[zs > threshold]
+        bins = np.geomspace(1, max(xs+ys), 30)
+        plt1, _ = np.histogram(_xs, bins)
+        plt2, _ = np.histogram(_ys, bins)
+        height = plt2 - plt1
+        axs[i].bar(bins[:-1], width=np.diff(bins), height=height, align='edge')
+        axs[i].set_xscale('log')
+        axs[i].set_ylim([-200,200])
+    
+    plt.subplots_adjust(wspace=0.3)
+    output_dir = Path('./outputs')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    filename = "-".join([matching_type, scheduler, memo_scheme]) + '-histdiff.pdf'
+    plt.savefig(output_dir / filename)
+    plt.show()
+
+
+# %%
