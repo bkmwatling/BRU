@@ -1,8 +1,9 @@
 import logging
+import json
 import argparse
 import statistics
 from pathlib import Path
-from typing import (Any, Optional, )
+from typing import (Any, Optional, Iterator)
 
 import jsonlines  # type: ignore
 
@@ -83,13 +84,28 @@ def proccess_sl_data_list(
     raise NotImplementedError
 
 
+def read_jsonlines(input_path: Path) -> Iterator[dict[str, Any]]:
+    with open(input_path, 'r', errors='ignore') as f:
+        for i, line in enumerate(f):
+            try:
+                error_entry = {
+                    "pattern": "",
+                    "positive_inputs": [""], "positive_outputs": [None],
+                    "negative_inputs": [""], "negative_outputs": [None],
+                    "input_path": str(input_path),
+                    "line_number": i
+                }
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                yield error_entry
+
+
 def append_memo_size(
     input_paths: list[Path],
     output_dir: Path,
     regex_type: RegexType
 ) -> None:
-    datasets = [
-        jsonlines.open(input_path, mode='r') for input_path in input_paths]
+    datasets = [read_jsonlines(input_path) for input_path in input_paths]
     filenames = [input_path.name for input_path in input_paths]
     output_paths = [output_dir / input_path.name for input_path in input_paths]
     outputs = [

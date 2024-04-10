@@ -17,8 +17,6 @@ MATCHING_TYPES := full partial
 
 .ONESHELL:
 
-.DELETE_ON_ERROR:
-
 .DEFAULT: default
 default: analyze
 

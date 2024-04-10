@@ -1,5 +1,3 @@
-# STEP
-
 .PHONY: append-step
 append-step: append-all-step
 

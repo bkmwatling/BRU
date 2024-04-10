@@ -1,5 +1,3 @@
-# MEMO_SIZE
-
 .PHONY: append-memo-size
 append-memo-size: append-all-memo-size
 
