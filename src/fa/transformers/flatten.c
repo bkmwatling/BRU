@@ -227,16 +227,16 @@ static int transition_is_useful(const ActionList *actions,
 {
     trans_id *out_trans;
     size_t    nout, i;
-    byte      useful     = TRUE;
-    int       action_sig = action_list_signature(actions);
+    byte      useful        = TRUE;
+    int       new_trans_sig = action_list_signature(actions), old_trans_sig;
 
     out_trans = smir_get_out_transitions(sm, src, &nout);
     for (i = 0; i < nout; i++) {
         if (smir_get_dst(sm, out_trans[i]) == dst) {
-            if (action_list_signature_equivalent(
-                    action_list_signature(
-                        smir_trans_get_actions(sm, out_trans[i])),
-                    action_sig)) {
+            old_trans_sig =
+                action_list_signature(smir_trans_get_actions(sm, out_trans[i]));
+            if (old_trans_sig == 0 || action_list_signature_equivalent(
+                                          old_trans_sig, new_trans_sig)) {
                 useful = FALSE;
                 break;
             }
