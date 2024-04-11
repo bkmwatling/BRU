@@ -138,9 +138,9 @@ static void spencer_thread_manager_init(void       *impl,
     st->pc = start_pc;
     st->sp = start_sp;
 
-    memset(st->counters, 0, self->ncounters * sizeof(*st->counters));
-    memset(st->memory, 0, self->memory_len * sizeof(*st->memory));
-    memset(st->captures, 0, 2 * self->ncaptures * sizeof(*st->captures));
+    memset(st->counters, 0, sizeof(*st->counters) * self->ncounters);
+    memset(st->memory, 0, sizeof(*st->memory) * self->memory_len);
+    memset(st->captures, 0, sizeof(*st->captures) * 2 * self->ncaptures);
 
     spencer_thread_manager_schedule_thread(impl, (Thread *) st);
 }
@@ -349,7 +349,7 @@ spencer_thread_manager_new_thread(SpencerThreadManager *self)
     SpencerThread *st = malloc(sizeof(*st));
 
     stc_slice_init(st->memory, self->memory_len);
-    stc_slice_init(st->captures, self->ncaptures);
+    stc_slice_init(st->captures, 2 * self->ncaptures);
     stc_slice_init(st->counters, self->ncounters);
 
     return st;
@@ -363,7 +363,7 @@ static void spencer_thread_manager_copy_thread(SpencerThreadManager *self,
     dst->sp = src->sp;
     memcpy(dst->memory, src->memory, sizeof(*dst->memory) * self->memory_len);
     memcpy(dst->captures, src->captures,
-           sizeof(*dst->captures) * self->ncaptures);
+           sizeof(*dst->captures) * 2 * self->ncaptures);
     memcpy(dst->counters, src->counters,
            sizeof(*dst->counters) * self->ncounters);
 }

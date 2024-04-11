@@ -184,9 +184,9 @@ static void thompson_thread_manager_schedule_new_thread(void       *impl,
     tt->pc = pc;
     tt->sp = sp;
 
-    memset(tt->counters, 0, self->ncounters * sizeof(*tt->counters));
-    memset(tt->memory, 0, self->memory_len * sizeof(*tt->memory));
-    memset(tt->captures, 0, 2 * self->ncaptures * sizeof(*tt->captures));
+    memset(tt->counters, 0, sizeof(*tt->counters) * self->ncounters);
+    memset(tt->memory, 0, sizeof(*tt->memory) * self->memory_len);
+    memset(tt->captures, 0, sizeof(*tt->captures) * 2 * self->ncaptures);
 
     thompson_thread_manager_schedule_thread(impl, (Thread *) tt);
 }
@@ -451,7 +451,7 @@ thompson_thread_manager_new_thread(ThompsonThreadManager *self)
     ThompsonThread *tt = malloc(sizeof(*tt));
 
     stc_slice_init(tt->memory, self->memory_len);
-    stc_slice_init(tt->captures, self->ncaptures);
+    stc_slice_init(tt->captures, 2 * self->ncaptures);
     stc_slice_init(tt->counters, self->ncounters);
 
     return tt;
@@ -465,7 +465,7 @@ static void thompson_thread_manager_copy_thread(ThompsonThreadManager *self,
     dst->sp = src->sp;
     memcpy(dst->memory, src->memory, sizeof(*dst->memory) * self->memory_len);
     memcpy(dst->captures, src->captures,
-           sizeof(*dst->captures) * self->ncaptures);
+           sizeof(*dst->captures) * 2 * self->ncaptures);
     memcpy(dst->counters, src->counters,
            sizeof(*dst->counters) * self->ncounters);
 }
