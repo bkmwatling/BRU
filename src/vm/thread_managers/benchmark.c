@@ -112,6 +112,7 @@ static void benchmark_thread_manager_free(void *impl)
     LOG_INSTS(self, MEMO);
     LOG_INSTS(self, CHAR);
     LOG_INSTS(self, PRED);
+    LOG_INSTS(self, STATE);
 
     thread_manager_free(self->__manager);
     free(impl);

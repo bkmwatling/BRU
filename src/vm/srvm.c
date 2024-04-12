@@ -227,13 +227,17 @@ static int srvm_run(SRVM *self, const char *text)
 
                 case TSWITCH:
                     MEMREAD(k, pc, len_t);
-                    for (; k > 0; k--) {
+                    // k > 1 to reuse current thread for last offset
+                    for (; k > 1; k--) {
                         MEMREAD(x, pc, offset_t);
                         t = thread_manager_clone_thread(tm, thread);
                         thread_manager_set_pc(tm, t, pc + x);
                         thread_manager_schedule_thread_in_order(tm, t);
                     }
-                    thread_manager_kill_thread(tm, thread);
+                    // reuse current thread
+                    MEMREAD(x, pc, offset_t);
+                    thread_manager_set_pc(tm, thread, pc + x);
+                    thread_manager_schedule_thread_in_order(tm, thread);
                     break;
 
                 case EPSRESET:
@@ -313,6 +317,11 @@ static int srvm_run(SRVM *self, const char *text)
                     // else
                     //     scheduler_kill(scheduler, thread);
                     // scheduler_free(s);
+                    break;
+
+                case STATE:
+                    thread_manager_set_pc(tm, thread, pc);
+                    thread_manager_schedule_thread(tm, thread);
                     break;
 
                 case NBYTECODES: assert(0 && "unreachable");
