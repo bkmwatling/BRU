@@ -62,7 +62,8 @@ const Program *compiler_compile(const Compiler *self)
     regex_node_free(re.root);
 
     if (self->opts.memo_scheme != MS_NONE)
-        sm = transform_memoise(sm, self->opts.memo_scheme);
+        sm = transform_memoise(sm, self->opts.memo_scheme,
+                               self->parser->opts.logfile);
 
 #ifdef DEBUG
     smir_print(sm, stderr);

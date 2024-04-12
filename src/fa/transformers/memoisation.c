@@ -31,11 +31,8 @@ static byte *memoise_in(StateMachine *sm)
     return memo_sids;
 }
 
-static void cn_dfs(StateMachine *sm,
-                   state_id      sid,
-                   byte         *has_backedge,
-                   byte         *finished,
-                   byte         *on_path)
+static void
+cn_dfs(StateMachine *sm, state_id sid, byte *has_backedge, byte *on_path)
 {
     trans_id *out_transitions;
     size_t    i, n;
@@ -53,15 +50,11 @@ static void cn_dfs(StateMachine *sm,
             continue;
         }
 
-        if (!finished[dst - 1])
-            cn_dfs(sm, dst, has_backedge, finished, on_path);
+        cn_dfs(sm, dst, has_backedge, on_path);
     }
 
     if (out_transitions) free(out_transitions);
-    if (sid) {
-        on_path[sid - 1]  = FALSE;
-        finished[sid - 1] = TRUE;
-    }
+    if (sid) on_path[sid - 1] = FALSE;
 }
 
 static byte *memoise_cn(StateMachine *sm)
@@ -69,21 +62,30 @@ static byte *memoise_cn(StateMachine *sm)
     size_t nstates   = smir_get_num_states(sm);
     byte  *memo_sids = calloc(nstates, sizeof(byte));
     byte  *on_path;
-    byte  *finished;
 
     if (nstates > 0) {
-        on_path  = calloc(nstates, sizeof(byte));
-        finished = calloc(nstates, sizeof(byte));
-        cn_dfs(sm, INITIAL_STATE_ID, memo_sids, finished, on_path);
-
+        on_path = calloc(nstates, sizeof(byte));
+        cn_dfs(sm, INITIAL_STATE_ID, memo_sids, on_path);
         free(on_path);
-        free(finished);
     }
 
     return memo_sids;
 }
 
-static void memoise_states(StateMachine *sm, byte *sids)
+/**
+ * Memoise the states of a state machine in the given set of state identifiers.
+ *
+ * The set of state identifiers, `sids`, is interpretted as a boolean array
+ * indexed by state identifier. A non-zero value in the array for a given state
+ * identifier `i` indicates that state should be memoised, while a value of zero
+ * indicates it should not be.
+ *
+ * @param[in] sm      the state machine
+ * @param[in] sids    a boolean array indicating if a state is in the set to be
+ *                    memoised
+ * @param[in] logfile the file for logging output
+ */
+static void memoise_states(StateMachine *sm, byte *sids, FILE *logfile)
 {
     state_id sid;
     size_t   nstates, k = SIZE_MAX;
@@ -95,11 +97,15 @@ static void memoise_states(StateMachine *sm, byte *sids)
     for (sid = 1, nstates = smir_get_num_states(sm); sid <= nstates; sid++)
         if (sids[sid - 1])
             smir_state_prepend_action(sm, sid, smir_action_num(ACT_MEMO, k--));
+
+    if (logfile)
+        fprintf(logfile, "NUMBER OF STATES MEMOISED: %zu\n", SIZE_MAX - k);
 }
 
 /* --- API function --------------------------------------------------------- */
 
-StateMachine *transform_memoise(StateMachine *sm, MemoScheme memo)
+StateMachine *
+transform_memoise(StateMachine *sm, MemoScheme memo, FILE *logfile)
 {
     byte *memo_sids;
 
@@ -112,7 +118,7 @@ StateMachine *transform_memoise(StateMachine *sm, MemoScheme memo)
         case MS_IAR: return sm;
     }
 
-    memoise_states(sm, memo_sids);
+    memoise_states(sm, memo_sids, logfile);
     if (memo_sids) free(memo_sids);
 
     return sm;
