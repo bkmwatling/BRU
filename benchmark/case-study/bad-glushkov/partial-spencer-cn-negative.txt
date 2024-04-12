@@ -1,0 +1,841 @@
+((^|[^\\])(\\\\))*,
+>\\^\\s\\c\\\\Q\\\\,
+64
+70
+
+((^|[^\\])(\\\\))*,
+?\\+\\\\\\\\,
+36
+38
+
+((^|[^\\])(\\\\))*,
+*\\t\\\\W\\\\\\\\,
+49
+52
+
+((^|[^\\])(\\\\))*,
+[\\\\%\\J\\\\,
+28
+29
+
+((^|[^\\])(\\\\))*,
+l\\M\\\\,
+28
+30
+
+((^|[^\\])(\\\\))*,
+\\.\\\\p\\\\,
+38
+41
+
+((^|[^\\])(\\\\))*,
+\\~\\\\s\\c\\X\\t\\\\3\\,
+71
+77
+
+(Add|Remove).*?(?:(?:To|From).+?)*(?:To|From)((?:To|From)?.*?)$
+Remove{p]FromVD )!,Zq8'FromRzBi8qFromKqFromFrom1'05=~T
+4qI?FFrom'\TOFromr7=ToAC, 
+658
+712
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+
+H	  
+JOIN	
+ 
+43
+47
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+
+ 
+	 	OUTER   
+
+OUTERJOINk	 	
+247
+343
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+		RIGHT
+JOI 
+ 
+99
+131
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+	RIGHT	
+OUT!R
+
+INNER	CROSS	 	JOIN	
+ 
+140
+179
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+	LEFT
+
+ 
+
+P
+JOIN
+	
+163
+226
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+	 OUTE 	 CROSSJOIN  	
+
+
+
+
+
+70
+82
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+	
+ 
+
+OUTER
+CROSS				 
+	 JOkN	
+270
+374
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+ 			
+TJOIN		
+139
+191
+
+\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
+ 
+	  	
+ 	
+INNER LEFT
+
+	
+	 R	 INNER 
+	JOIN
+
+242
+334
+
+^(:?#\d+\W+)(:?0x(?:(?:\d|[abcdefABCDEF]){0,2})+)(:? +in +)(:?.+?)(:? .+)$
+#67587515{#"(}@"=^:0xx6Ee2408a      in        :"B3: :?
+59
+60
+
+((^|,)(single|album|appears_on|compilation))+$
+compilationsingleappears_on,singlealbumalbumcompilation
+79
+81
+
+((^|,)(single|album|appears_on|compilation))+$
+,album,appears_oncompilation,single,single,compilationcompilation,appears_on,appears_on
+154
+159
+
+((^|,)(single|album|appears_on|compilation))+$
+,compilationappears_on
+41
+42
+
+((^|,)(single|album|appears_on|compilation))+$
+compilationsinglecompilation
+43
+44
+
+((^|,)(single|album|appears_on|compilation))+$
+,album,albumalbum
+40
+42
+
+((^|,)(single|album|appears_on|compilation))+$
+,single,compilationsingle,single
+61
+63
+
+((^|,)(single|album|appears_on|compilation))+$
+,albumalbum
+25
+26
+
+((^|,)(single|album|appears_on|compilation))+$
+,compilationalbumappears_on
+46
+47
+
+((^|,)(single|album|appears_on|compilation))+$
+,compilation,singlecompilation,compilation,album,album,appears_onappears_onsingle
+155
+161
+
+((^|,)(single|album|appears_on|compilation))+$
+singlecompilation,albumalbumappears_on
+57
+59
+
+[^b]*((..)|(\2))+Sz
+8W/L0+f~f~."5,-z
+82
+98
+
+[^b]*((..)|(\2))+Sz
+ES~S~S~S~Sz8
+35
+36
+
+[^b]*((..)|(\2))+Sz
+r(RrK'N: T.q ~ ~ifFz
+102
+122
+
+[^b]*((..)|(\2))+Sz
+y]1Z6Z6<+PtPtPtPtPtSzy
+45
+46
+
+[^b]*((..)|(\2))+Sz
+6gAc8Bx2z
+47
+56
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+protected .tatic @hpnWP:BSdw 		
+e
+210
+211
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+static				cons-
+
+	 @TH	 "7G,A
+348
+359
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+const	
+	N::mt6O7uAVA::93::>BIlsk7d::1VB::NVscdU0tnK ***	
+ $XmH	 
+}p
+475
+481
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+static
+const 		static
+ 		
+9Cf2g::GXjztxMzS::o	j2JnKn1u::HHC1FSsG::LKzsrc::MHJ_Fa4::7ZXxcdy2t0::FLpQSdG::SyJ6Nm
+ **********@2Ixh8
+		l<~PqX.
+918
+940
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+public$pmt. 
+8x5c65!
+317
+318
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+conststatic	%Iu7ExDHgE4`$
+405
+409
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+protected  Z	
+conststatic	KhjUjcJB::NN::yRBn1::GPf0::wc8T %QBmL  	2EYf
+362
+367
+
+(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
+static
+ 
+  const		 stakic 		  
+static%7Ly-&.dcmz
+614
+631
+
+^((https?|ftp|file):\/\/|((www|ftp)\.)|(\/|.*\/)*)[a-z0-9-]+((\.|\/)[a-z0-9-]+)+([/?].*)?$
+ftp.qbr.80kt_-hfncq60x
+103
+106
+
+^((https?|ftp|file):\/\/|((www|ftp)\.)|(\/|.*\/)*)[a-z0-9-]+((\.|\/)[a-z0-9-]+)+([/?].*)?$
+ftp.ziyfe0.6pd/gpx
+c5h/l.krn0/a9lvx5ncn
+129
+137
+
+^((https?|ftp|file):\/\/|((www|ftp)\.)|(\/|.*\/)*)[a-z0-9-]+((\.|\/)[a-z0-9-]+)+([/?].*)?$
+ftp.lyo7oe.rla1-5.o954kgtq3 gub-fdr.kanx.glge.1.ild-p.57cx1kjc/pv
+258
+263
+
+^((https?|ftp|file):\/\/|((www|ftp)\.)|(\/|.*\/)*)[a-z0-9-]+((\.|\/)[a-z0-9-]+)+([/?].*)?$
+www.z
+wgde6i.evu0.wqn5wb7v.lypmr.jea97frl2/7/dxm1h/z68ud5.fv0b/bm9m4/ent/
+38
+39
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+4a7a338217419080f4e9738c4131f9a9-6e391d0635b4604026ecd23688591305-7b4c727b3b2f80c24a90b49ce0b20c56-6ffe90d4ca8206c6dc35093693fe4791-ce1a9908d43d8fd110fa8fdfb9a38c70-2d21364cde8af8a2932b2bac981d7fac-1555663a2f02463eec1898d2bfa2:254.vurl.
+15639
+15647
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+6479f11fee730591dc9061927337121d-4e033a98ef654e69911495255e0ea297-4d66a0f1c5a3>d993f1add7ea672511c.vurl.
+5803
+5805
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+5efbe27c94c973f3984deea7da3b5e9c-49a96025a6a7fdbd88cdce590ed66716:6d18f31ca427ee8d8940c765e1761bb6-4b9bdef86608902e09f1116deae4a045-f8923cf20f15b9bda0a0190831767a68-d17f56d76d99c9382ae0ca9b738f051e-0227850efb6b76b820f397403551f3de-6d77a2ef3751a06801827bd9f9728f41-2200704106070250cf01e581c699d97f.vurl.
+4923
+4924
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+08c528277f462958b78413ef4d37ecdb-9853c794832bd56b07e0698fa3f7db15-d4016d75ac60ede058110fa6aa1bd621-fe5ba3eef49becb14025885e363f5c23-c0a561cdec0c01a74a42a5dfc0ec49ae-584e7e85a8b221e499142drf0b8bfa69-796fcfbb374105c39127624937e38039.vurl.
+12954
+12963
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+5badcd833be4442761ac7dca8766b181-eb017751bd9d72cb5854c6c27d6a5791-4ff6f804b46ba3a08489a92c750d9317-b11197f48b80641b63343453bb81feb1-76575fbe67febbee724b821c28612992-d11f3w8d215dd7593ae5199c8a49c72a.vurl.
+13102
+13111
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+0d60d1f31334afae06d6c10b8ee3a9f1-044752fbff25bc4844b9e9m191605711-8078388b30f47c0c29bb4a9233830294.vurl.
+3726
+3727
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+769f2b3f9b9ba84ed9eba8faf4c2efb7-eb8ddd43f42fdb4f5b65b2c92e13cd7c-3e34e6cd50015538510448bc2c1d97b7-a84a1e61d1276a8b51cf0984361b8f8b-b6dd707eb3a9128c80c309f35a0a60d3-671f95e65928b7ef0d1d4ddb472365Wc-b415f347d3bf783581eee9088e151cd2-ff308f4c1deec06568245fe893857e18-2ddb894bf072119daab28a64dc292d0f-c6c3b81caa342c39fcbfd45b2c5b5e41-11cac9a3a0e276a1a7319e2a3e5b3a06.vurl.
+13832
+13841
+
+(([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.
+3eeba933a588086861f9ce2511f7978f-532beff2cc5dfcf95675de973268598c-898124b5077e061dbeaa5305a05d4106-de52846b1b09363e19ae37c0c2e7af22-9187a73f6a4ba4b25f25dc855041d4ce-b*443aa612510ae2f315b731eab74ec9-21000eacd6bd815a530b24feb0f3ebb4-4bb8e6a175f11d0a1790577ce258417b.vurl.
+13635
+13643
+
+^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
+		
+
+68.*
+
+	 ||
+
+ 	~711577783 ||		 
+  67526969
+
+
+|| 110P75581.80717			
+858
+870
+
+^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
+!=2926966.9238690790.*
+||
+ 99|| 	 
+ 	951q.5.*
+ 
+559
+721
+
+^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
+574.* <=22885.*
+ 
+|| 
+
+55614.* 	 ||	96
+
+23697&102.7	 	
+ 		|| 80.*
+
+
+
+   ||
+ 	>120  
+|| <=42
+
+||		 
+ 		356>4285.5902574
+
+ ||
+	
+	
+  ~773468506
+	
+749
+767
+
+^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
+	 510
+
+
+||&6643.*  
+216
+228
+
+^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
+062  		 >846523015
+||
+<02344	
+  
+||~94233x346.*
+   ||	^8063240  	 || 
+
+~92
+  
+535
+547
+
+^(normal|none|(\b(url\([^)]*\)|chapter_counter|attr\([^)]*\)|(no-)?(open|close)-quote|inherit)((\b\s*)|$|\s+))+)$
+url() 	 open-quote 
+url(Q)
+ chapter_counter
+ attr(<E]ed\Ji`D)attr(o%vN|*rq)attr(KAyS) nherit
+ 		
+chapter_counter
+306
+322
+
+((^|,)(sha256|sha384|sha512))+$
+sha256,sha384,sha512sha256sha384,sha384,sha256
+94
+97
+
+((^|,)(sha256|sha384|sha512))+$
+sha384sha384,sha512sha384,sha512sha512
+81
+84
+
+((^|,)(sha256|sha384|sha512))+$
+,sha512sha256
+31
+32
+
+((^|,)(sha256|sha384|sha512))+$
+,sha512,sha512,sha256,sha384,sha512sha384
+115
+120
+
+((^|,)(sha256|sha384|sha512))+$
+sha384sha512
+27
+28
+
+((^|,)(sha256|sha384|sha512))+$
+,sha256,sha512sha512,sha512
+68
+70
+
+((^|,)(sha256|sha384|sha512))+$
+sha512sha256sha512,sha256,sha512sha256
+81
+84
+
+((^|,)(sha256|sha384|sha512))+$
+,sha512sha512,sha256sha512sha512,sha384,sha256sha384sha256sha384
+124
+128
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+@vurl/4da113beb7d67f0f07c4fe65b8e8f238-a245f89d48c97d4653d82133b76d6abd-84e41702f5dafbbdf4474b3af5ef6fd4
+6986
+6989
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+27a92a7b6f84ddb948a2c5625d67f693-3c15561e1fcf9833ceaad29b13d2f401-3d396c78bdf4f448elc2510b68fad092.vurl.
+5878
+5880
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+0b7304d4845bbe14d45eb430c9c5edbd-c21df64119ec4748bcccY9986b96a390.vurl.
+3616
+3618
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+/vurl/acf93feeda317c688b8bbfad34bfdb0f-8d4747bfdef8b34e07f0f8cff72627ba-340f4 e87a8d1b5057b5232ebe2116c4-622d198336ab75658fd6c9ee2de6351c-eb8d371ee1a23d2ed66d8d288f86f6bc-4c02cfc5db98bde2ca4c23c2ec2bf910-e2fb0011d9b934a64394e3284cea98a7-183e1d22d0d027235660c66fef1e2653-6549736128447d9121dba7e9801142de-cc7746dffb3afcb278a5c1040c384509
+18072
+18083
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+ab219c734f94e780a61f934594f2b2b9-bb86d419ebd2a16937a5bd338bcc7271-c1a8e0f9d3328beb5e34d0774d319*75-771f4979e58ba337dd1585e311bc43e9-d589cb41840115f8d789a027c1e1e7ab-a94d03581943881167477f12310b441f.vurl.
+6792
+6797
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+1d9c53e6170e4de5947b5b32456cee77-39371742090de87ac98e0cceac61dbf5-736f6c84083496c95663cdfa17c825cd-7554859dd7bb868a90c05fd735733d81-313:65b453d3ac4bbc8f930533edc0fb-91ba20199acd8e7ca37190a24ed9f755.vurl.
+11236
+11240
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+/vurl/537d935b4d0bda4d5b136af0abec9abf-8940e3ef240e271b246047b211f3f24c-02c032a083b428260a4ce856ba088c41-a6e663ae6bb12f3cea0414660b5ea1ed-3_430c79c19986e200822d96b6f396b0-6bedd40a7e453f70f45c434f8fac7662-46e6198d7cc84ba965548ee2a91d7762
+6845
+6846
+
+((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
+/vurl/3b93be6f567008147f62e88d976e9cb7-92bc14e1b02556dddacfeb2ef20de0a3-29a7f84572d10c136ec86a1266bfae8e-5b53c280f1482234d560f1240c2f6d94-e5a5837d5093a78ac87e1e9fa48f7888-eb0bdb4b8dffbe46bcffa10054ae6e49-5ea13b55f[c069d770b6d0a893f28225-11cef55c27d5fe69f63e62bf0646579f-b389d51e2beae7ffcaa0331016967298-6ef19fd5b6ed30c490893524b31bf262-3a7181e9f62ca1518bba9d067f06f97e
+10962
+10966
+
+((^|\/)index)+$
+indexindex/index/indexindexindexindexindexindexindex
+68
+71
+
+((^|\/)index)+$
+/index/indexindexindexindex
+39
+41
+
+((^|\/)index)+$
+indexindexindex
+21
+22
+
+((^|\/)index)+$
+/index/indexindex/index
+36
+38
+
+((^|\/)index)+$
+indexindex/indexindex
+32
+34
+
+((^|\/)index)+$
+/indexindexindexindex
+28
+29
+
+((^|\/)index)+$
+index/indexindexindex/index/indexindex
+59
+63
+
+((^|\/)index)+$
+/index/indexindexindex
+34
+36
+
+((^|\/)index)+$
+/indexindex/index/indexindex/indexindex/index/index
+74
+78
+
+((^|,)(album|artist|playlist|track))+$
+,playlistplaylisttrack,artist,artist,playlist,playlisttrack
+117
+122
+
+((^|,)(album|artist|playlist|track))+$
+,artist,album,tracktrack,track
+66
+69
+
+((^|,)(album|artist|playlist|track))+$
+artistplaylist,track,albumartist,album,trackalbumalbum
+99
+104
+
+((^|,)(album|artist|playlist|track))+$
+artist,playlistalbum,artist,artist
+61
+63
+
+((^|,)(album|artist|playlist|track))+$
+,artist,album,album,playlist,playlistplaylist
+100
+105
+
+((^|,)(album|artist|playlist|track))+$
+,album,artist,artist,playlistartisttrack,album,artist
+101
+105
+
+((^|,)(album|artist|playlist|track))+$
+album,albumartist,artistartisttrack
+64
+67
+
+((^|,)(album|artist|playlist|track))+$
+albumalbumalbumtrackartist
+36
+37
+
+^((IE=edge,.*|width=device-width.*|(https?:\/\/|\/)[\w@\/\.]+|@[\-\w]+@|\{[^\{\}]+\}|[^a-zA-Z]*|(&nbsp;)+)\s*)+$
+@EqhkFxGn2@
+C   
+64
+66
+
+^((IE=edge,.*|width=device-width.*|(https?:\/\/|\/)[\w@\/\.]+|@[\-\w]+@|\{[^\{\}]+\}|[^a-zA-Z]*|(&nbsp;)+)\s*)+$
+http://@.BuD
+ M`3i6q}/eLcn
+103
+108
+
+((^|\s)[\[\(]\w+)+$
+(j6wNzj(unG[xr3p	[z4WZUI[4igj9e (Xs3a[JsAy(SqD
+76
+96
+
+((^|\s)[\[\(]\w+)+$
+(5wRWfoHXY(EX9	(rlU(AY_c6t0mI(2[0RMAtssGxu [YGfve3OVV8[1I
+103
+136
+
+((^|\s)[\[\(]\w+)+$
+(hFClKtS0d[FyzKl4 (WBNeVpNq_i(_[WKZ8b2N[LdON5A78P3(OpoEWGNP(e
+110
+146
+
+((^|\s)[\[\(]\w+)+$
+
+(of[HmsL1WjlWb[WyI6s9[qgsCK9aizw
+39
+41
+
+((^|\s)[\[\(]\w+)+$
+[9v(02po[UuaCmhCo[S78(BoQTO	[K
+48
+54
+
+((^|\s)[\[\(]\w+)+$
+[zx1unkJCJj[D1pVUxDi[aGy[mC4hnTLjd(XXViHqLix_	[6tUz [KIgdAvCPz(c(6E(5x8UFKdcS
+133
+170
+
+((^|\s)[\[\(]\w+)+$
+	(a(AZNqvq
+[uHxy5q4dI6[9ek1[Jq5OcxpIwX[dUcWs2kd (2dfiK645f
+77
+88
+
+((^|\s)[\[\(]\w+)+$
+(fQdSOz(cXtDg1Z[_GGH3eLikD
+35
+41
+
+((^|\s)[\[\(]\w+)+$
+
+[htR(O[nrytvwL(wYrH
+30
+33
+
+((^|\s)[\[\(]\w+)+$
+(OdRG(U(B
+16
+20
+
+(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
+&==first-fragmen|+is-fragmentnot-a-fragment+not-a-fragmentZ4AJdG^&&
+316
+352
+
+(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
+==first8fragment0h
+240
+260
+
+(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
+&firsj-fragmentdont-fragmentlast-fragmentfirst-fragment+is-fragmentfirst-fragmentfirst-fragmentfirst-fragmentdont-fragment+not-a-fragment!$J\sg1"
+371
+379
+
+(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
+&==+is-)ragmentnot-a-fragmentdont-fragmentfirst-fragmentfirst-fragmentnot-a-fragmentfirst-fragmentfirst-fragmentlast-fragmentfirst-fragmentoB,Vw3q
+391
+412
+
+(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
+&!=+last-fragme&t+is-fragment+first-fragmentdont-fragment+last-fragment+not-a-fragmentis-fragment+dont-fragmentrBS
+381
+400
+
+(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
+!=	ot-a-fragment+is-fragments-x
+238
+250
+
+^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
++ :: :: : --------:::: :   :+|:  :---------- ::: |+::: :::: ---------- :   |  :------: + :  ---- : :   ::~----------:: :: |:  :  --------:||---+-------- : ::  :+  ::::---:  | :::  ------- : : 
+1565
+1615
+
+^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
++ :  :::---------:     : +   : ------  |:---------:: :  :  :  -------::+:  :   ::---:: + :--------    ::++ :     :----_- :: ::::: :: ------  : :: : | :::::: -:  :::: :-------+
+1715
+1807
+
+^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
++:::::---------::: :|:::: ::--- ::::  : :+ :z:::------- : :| ::: :::-:: |: ::: ------::  + : : --------+ : :  ::-----: + -----  |::   :-:  ::: +
+670
+700
+
+^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
+|::::: -::: : :: ::: -----: :: : |    -::  :   ::::   -:| -----  : :: : :------ +:     -::| :::--:::+ ------ : ::::|:: :::   -----/----:  ::: +:: :: : :-------- :  : :  :|:::::---:  :: ::  +  :--    ::+
+1627
+1677
+
+^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
+| :::     :---: +:	: ---------   ::: :+
+166
+168
+
+^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
+  :: -------- : :+ :---------: : ---  :: ::   |:  : : -----    :: ::|  :---------:::  :++:  ----:  :   :+ ::::  :::- :   :  |--------  [: :-------  +  :  :-------:  :::  :+  ::---------:: +|--- +
+1813
+1887
+
+^([-]*[0-9\.,' ]+?)((\.|,){1}([0-9-]{1,2}))*$
+-------.'4.7,37,-0.8.-1,5.7,2.=,81
+76
+79
+
+^([-]*[0-9\.,' ]+?)((\.|,){1}([0-9-]{1,2}))*$
+----29.30,3.2.73.91,y.-7.68,86,28
+69
+77
+
+^([-]*[0-9\.,' ]+?)((\.|,){1}([0-9-]{1,2}))*$
+------1,733.84.2.W2.4
+54
+59
+
+^([-]*[0-9\.,' ]+?)((\.|,){1}([0-9-]{1,2}))*$
+-'.'3154 58,7-[19.-
+45
+46
+
+^([-]*[0-9\.,' ]+?)((\.|,){1}([0-9-]{1,2}))*$
+---------73630987.42u
+55
+57
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+zEstatic	
+final  privtte	 
+
+	final		  final		static staticfinal	 function	 	 td|h(9}\g'K3j)dU@wkjB*
+166
+173
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+P*-eG0$static 
+	final
+
+ final
+  	final final
+	
+static	
+  final
+		final			static	final	
+public static 
+ static	final   static 
+
+	  static 
+ finl 
+function		F&2(]IkZo[K)Cct"pG-g+P
+728
+731
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+C'staticstatic
+
+final
+		   static static
+ private		
+staticfinal	  final	final	   static		final
+static	&staticfinal		 static
+ function/(#p0w%]0)ltV
+476
+483
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+mstaticstatic  
+staticstatic  	
+final 	 n
+static	
+ final 
+
+final	
+protectedfinal 	static	   
+
+
+static
+static	 		  
+final
+
+static
+ final function
+ 	
+MTh(eReiP)C
+253
+263
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+gk;!static 		 
+	final
+final 
+		
+	final 
+static
+ static		 
+final finalstatic 		 
+
+
+private		
+fmnal
+  		 final	 final	  staticfinalfinalfunction.{9@u,("F6~)$6
+540
+547
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+/UD3|7static	   staticfinal  		static		
+	final  
+static
+
+Zfinal	final  	 			public
+function	Y/Q8x0l*#(Yb	)6AZ+N
+464
+493
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+{.:Gt{0ostatic   
+final 	 
+
+static 	
+	
+final		  	final final			static
+final  final	static protected
+final  	static 	 		static
+
+final
+  
+ stati=		 static		 final 
+ 	final
+	static	 function	 	 gqyPtRpje(f`q!~w)	])rnA"`-`
+713
+716
+
+^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
+Vc1fDstatic 		private			static	staticstaticfinal
+
+static		
+	functQon		;?(~	p_5"6rD)/	rg6U}V~
+686
+710
+
+^((-- |#)[^\n]*\n|/\*.*?\*/)*(UNION|JOIN)
+/*]U}A0'rb(A*//*z~NSH'e*//*7^qIqKr6X`*//*i-4*//*J9Hlx^"_%*//**/-- @~F
+/*8>O@ZA*/#AAY\'
+/*lxMfcn<hZ*qUNION
+305
+306
+
+The average number of steps increased for 22 regexes.

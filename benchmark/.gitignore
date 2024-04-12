@@ -1,5 +1,4 @@
 data/
-case-study/
 data-build/*.jsonl
 data-build/intermediate
 .ipynb_checkpoints

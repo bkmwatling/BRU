@@ -211,3 +211,64 @@ for matching_type, (scheduler, memo_scheme) in options:
 
 
 # %%
+# Histogram 2D
+import importlib
+import itertools
+importlib.reload(plt)
+
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
+options = itertools.product(
+    ['full', 'partial'],
+    [('spencer', 'none'), ('spencer', 'cn'), ('spencer', 'in'), ('lockstep', 'none')]
+)
+threshold = 0
+
+for matching_type, (scheduler, memo_scheme) in options:
+    input_types = ['positive', 'negative']
+    xs = np.concatenate([
+        steps[matching_type]['thompson'][scheduler][memo_scheme][input_type]
+        for input_type in input_types
+    ])
+    xlabel = "-".join([matching_type, 'thompson', scheduler, memo_scheme])
+    ys = np.concatenate([
+        steps[matching_type]['flat'][scheduler][memo_scheme][input_type]
+        for input_type in input_types
+    ])
+    ylabel = "-".join([matching_type, 'flat', scheduler, memo_scheme])
+    zs = np.concatenate(
+        [eliminateds[memo_scheme][input_type] for input_type in input_types])
+    # Range excluding outliers
+    total = xs + ys
+    quartile_1 = np.quantile(total, 0.25)
+    quartile_3 = np.quantile(total, 0.75)
+    iqr = quartile_3 - quartile_1
+    maximum = np.max(total, where=xs <= quartile_3 + 1.5 * iqr, initial=-np.inf)
+    minimum = np.min(total, where=xs >= quartile_1 - 1.5 * iqr, initial=np.inf)
+    x_space = np.geomspace(1, max(xs+ys), 30)
+    y_space = np.geomspace(1, max(ys+ys), 30)
+    
+    fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+    
+    h, _, _, _ = axs[0].hist2d(xs[zs <= threshold], ys[zs <= threshold], bins=(x_space, y_space), vmin=1, norm='log')
+    axs[0].set_xscale('log')
+    axs[0].set_yscale('log')
+    axs[0].set_xlabel(xlabel + f" (elim. <= {threshold})")
+    axs[0].set_ylabel(ylabel)
+    axs[0].axis('square')
+    
+    vmax = np.max(h)
+    
+    axs[1].hist2d(xs[zs > threshold], ys[zs > threshold], bins=(x_space, y_space), norm='log', vmin=1, vmax=vmax)
+    axs[1].set_xscale('log')
+    axs[1].set_yscale('log')
+    axs[1].set_xlabel(xlabel + f" (elim. > {threshold})")
+    axs[1].axis('square')
+    
+    plt.subplots_adjust(wspace=0.3)
+    output_dir = Path('./outputs')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    filename = "-".join([matching_type, scheduler, memo_scheme]) + '.pdf'
+    plt.savefig(output_dir / filename)
+    plt.show()
+
+# %%
