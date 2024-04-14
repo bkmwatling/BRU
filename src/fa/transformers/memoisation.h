@@ -14,11 +14,13 @@
  * MS_CN: Memoise all states that are targets of backedges.
  * MS_IAR: Not currently supported.
  *
- * @param[in] sm   the state machine
- * @param[in] memo the memoisation scheme
+ * @param[in] sm      the state machine
+ * @param[in] memo    the memoisation scheme
+ * @param[in] logfile the file for logging output
  *
  * @return the original state machine
  */
-StateMachine *transform_memoise(StateMachine *sm, MemoScheme memo);
+StateMachine *
+transform_memoise(StateMachine *sm, MemoScheme memo, FILE *logfile);
 
 #endif /* MEMOISATION_H */

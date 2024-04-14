@@ -246,6 +246,7 @@ static int parse(BruOptions *options)
     if (res.code < PARSE_NO_MATCH) {
         regex_print_tree(re.root, options->outfile);
         regex_node_free(re.root);
+        if (res.code != PARSE_SUCCESS) exit_code = EXIT_FAILURE;
     } else {
         fprintf(options->logfile, "ERROR %d: Invalidation of regex from %s\n",
                 res.code, res.ch);
