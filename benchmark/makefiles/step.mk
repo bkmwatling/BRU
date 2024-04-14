@@ -1,8 +1,8 @@
 .PHONY: append-step
 append-step: append-all-step
 
-.PHONY: append-all-step
-append-all-step: $(STEP_ALL)
+.PHONY: append-step-all
+append-step-all: $(STEP_ALL)
 
 .PRECIOUS: $(STEP_ALL)
 $(STEP_ALL): $(BENCHMARK_ALL_FULL) $(BENCHMARK_ALL_PARTIAL) \

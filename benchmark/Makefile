@@ -24,50 +24,49 @@ default: analyze
 DATASET_DIR := $(DATA_DIR)/polyglot
 ALL_REGEX_DATASET := $(DATASET_DIR)/all_regexes.jsonl
 SL_REGEX_DATASET := $(DATASET_DIR)/sl_regexes.jsonl
+.PHONY: preprocess
+preprocess: preprocess-all-regexes preprocess-sl-regexes
 include makefiles/preprocessing.mk
 
 
 BENCHMARK_DIR := $(DATA_DIR)/benchmark
 BENCHMARK_ALL_FULL := $(addprefix $(BENCHMARK_DIR)/all-full-, \
-		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
-		$(shell echo {thompson,flat}-lockstep-none.jsonl))
+	$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+	$(shell echo {thompson,flat}-lockstep-none.jsonl))
 BENCHMARK_ALL_PARTIAL := $(addprefix $(BENCHMARK_DIR)/all-partial-, \
-		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
-		$(shell echo {thompson,flat}-lockstep-none.jsonl))
+	$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+	$(shell echo {thompson,flat}-lockstep-none.jsonl))
 BENCHMARK_SL_FULL := $(addprefix $(BENCHMARK_DIR)/sl-full-, \
-		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
-		$(shell echo {thompson,flat}-lockstep-none.jsonl))
+	$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+	$(shell echo {thompson,flat}-lockstep-none.jsonl))
 BENCHMARK_SL_PARTIAL := $(addprefix $(BENCHMARK_DIR)/sl-partial-, \
-		$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
-		$(shell echo {thompson,flat}-lockstep-none.jsonl))
+	$(shell echo {thompson,flat}-spencer-{cn,in,none}.jsonl) \
+	$(shell echo {thompson,flat}-lockstep-none.jsonl))
+.PHONY: benchmark
+benchmark: benchmark-all benchmark-sl
 include makefiles/benchmark.mk
 
 
 STATISTICS_DIR := $(DATA_DIR)/statistics
 STATISTICS := $(addprefix $(STATISTICS_DIR)/, \
-		$(shell echo {all,sl}-{thompson,flat}-{cn,in,none}.jsonl))
+	$(shell echo {all,sl}-{thompson,flat}-{cn,in,none}.jsonl))
+.PHONY: statistics
+statistics: $(STATISTICS)
 include makefiles/statistics.mk
 
 
-STEP_DIR := $(DATA_DIR)/step
-STEP_ALL := $(addprefix $(STEP_DIR)/all-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.jsonl) \
-		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.jsonl))
-STEP_SL := $(addprefix $(STEP_DIR)/sl-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in,none}.jsonl) \
-		$(shell echo {full,partial}-{thompson,flat}-lockstep-none.jsonl))
-include makefiles/step.mk
-
-
-MEMO_SIZE_DIR := $(DATA_DIR)/memo-size
-MEMO_SIZE_ALL := $(addprefix $(MEMO_SIZE_DIR)/all-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.jsonl))
-MEMO_SIZE_SL := $(addprefix $(MEMO_SIZE_DIR)/sl-, \
-		$(shell echo {full,partial}-{thompson,flat}-spencer-{cn,in}.jsonl))
-include makefiles/memo_size.mk
+BENCHMARK_RESULTS_DIR := $(DATA_DIR)/benchmark_results
+BENCHMARK_RESULTS_ALL := $(addprefix $(BENCHMARK_RESULTS_DIR)/, \
+	$(shell echo all-{full,partial}-{thompson,flat}-spencer-{cn,in,none}.jsonl) \
+	$(shell echo all-{full,partial}-{thompson,flat}-lockstep-none.jsonl))
+.PHONY: benchmark-results
+benchmark-results: benchmark-results-all
+include makefiles/benchmark_results.mk
 
 
 ANALYSIS_DIR := $(DATA_DIR)/analysis
+.PHONY: analyze
+analyze: analyze-statistics analyze-step analyze-memo-size analyze-state
 include makefiles/analysis.mk
 
 # Misc
@@ -96,13 +95,13 @@ NOTEBOOK_DIR := notebooks
 jupyter: | $(VENV) $(LOGS_DIR)/jupyter
 	$(VENV)/bin/jupyter notebook \
 		--ip=0.0.0.0 --port=50000 --no-browser \
-		2> $(LOGS_DIR)/jupyter/log.log
 
 DIRS := \
 	$(DATA_DIR) \
 	$(DATASET_DIR) \
 	$(LOGS_DIR) \
 	$(BENCHMARK_DIR) \
+	$(BENCHMARK_RESULTS_DIR) \
 	$(STATISTICS_DIR) \
 	$(STEP_DIR) \
 	$(MEMO_SIZE_DIR) \

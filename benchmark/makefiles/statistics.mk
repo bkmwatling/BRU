@@ -1,6 +1,3 @@
-.PHONY: statistics
-statistics: $(STATISTICS)
-
 .SECONDARY: $(STATISTICS_DIR)/sl-%.jsonl
 $(STATISTICS_DIR)/sl-%.jsonl: \
 		$(SL_REGEX_DATASET) \

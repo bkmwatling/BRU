@@ -64,10 +64,10 @@ def update_statistics(
 ) -> None:
 
     def update_statistics_data(data: dict[str, Any]) -> dict[str, Any]:
+        updated_data = {"pattern": data["pattern"], "statistics": None}
         result = safe_run_bru(data["pattern"], bru_args)
         if result is None:
-            data["statistics"] = None
-            return data
+            return updated_data
 
         stdout, stderr = result
         instructions = filter(
@@ -82,7 +82,7 @@ def update_statistics(
         statistics = dict(Counter(e.split()[1] for e in instructions))
         statistics["eliminated"] = eliminated
         statistics["memoised"] = memoised
-        updated_data = {"pattern": data["pattern"], "statistics": statistics}
+        updated_data["statistics"] = statistics
         return updated_data
 
     regex_dataset = jsonlines.open(input_path, mode='r')

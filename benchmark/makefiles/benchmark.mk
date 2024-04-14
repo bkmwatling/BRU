@@ -1,6 +1,3 @@
-.PHONY: benchmark
-benchmark: benchmark-all benchmark-sl
-
 .PHONY: benchmark-all
 benchmark-all: benchmark-all-full benchmark-all-partial
 

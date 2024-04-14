@@ -14,8 +14,16 @@ def compare_data(
     pattern = data1["pattern"]
     strings = data1[f"{prefix}_inputs"]
 
-    steps1 = data1[f"{prefix}_steps"]
-    steps2 = data2[f"{prefix}_steps"]
+    label = f"{prefix}_benchmark_results"
+    if data1[label] is None or data2[label] is None:
+        return False
+
+    benchmark_results_1 = [
+        e for e in data1[f"{prefix}_benchmark_results"] if e is not None]
+    benchmark_results_2 = [
+        e for e in data2[f"{prefix}_benchmark_results"] if e is not None]
+    steps1 = [result['step'] for result in benchmark_results_1]
+    steps2 = [result['step'] for result in benchmark_results_2]
 
     flag = False
     for string, step1, step2 in zip(strings, steps1, steps2):

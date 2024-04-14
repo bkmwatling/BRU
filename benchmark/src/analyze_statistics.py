@@ -30,7 +30,7 @@ def print_results(args: argparse.Namespace) -> None:
     d = df.to_dict('tight')
     keys = [
         'char', 'pred', 'begin', 'end', 'match', 'save', 'memo', 'jmp',
-        'split', 'tswitch', 'eliminated'
+        'split', 'tswitch', 'state', 'eliminated', 'memoised'
     ]
     averages = {k: statistics.mean(v) for k, v in zip(d['index'], d['data'])}
     print("Number & " + " & ".join(keys), end=" \\\\ \n")

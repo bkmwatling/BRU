@@ -5,9 +5,6 @@ RAW_SL_REGEX_DATASET := $(RAW_DATASET_DIR)/sl_regexes.jsonl
 
 INTERMEDIATE_DATASET_DIR := $(RAW_DATASET_DIR)/intermediate
 
-.PHONY: preprocess
-preprocess: preprocess-all-regexes preprocess-sl-regexes
-
 .PHONY: preprocess-all-regexes
 preprocess-all-regexes: $(ALL_REGEX_DATASET)
 
