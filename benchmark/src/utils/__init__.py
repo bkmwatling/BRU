@@ -11,7 +11,9 @@ from pathlib import Path
 import jsonlines
 import numpy as np
 
-FLATTENING_LABEL = "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING:"
+ELIMINATED_LABEL = "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING:"
+MEMOISED_LABEL = "NUMBER OF STATES MEMOISED:"
+THREAD_LABEL = "TOTAL THREADS IN POOL"
 
 
 class ConstructionOption(Enum):
@@ -84,6 +86,7 @@ def benchmark(
         '-c', construction.value,
         '-m', memo_scheme.value,
         '-s', scheduler.value,
+        '--mark-states',
         '--',
         pattern, string
     ]
@@ -98,37 +101,42 @@ def benchmark(
 
 class BenchmarkResult():
     def __init__(self, stderr: str):
-        parsed: list[tuple[int, int]] = []
-        pattern = re.compile(r"[A-Z]+: (\d+) \(FAILED: (\d+)\)")
+        self.parsed: dict[str, tuple[int, int]] = {}
+        pattern = re.compile(r"([A-Z]+): (\d+) \(FAILED: (\d+)\)")
         self.eliminated = 0
+        self.memoised = 0
+        self.thread = 0
         for line in stderr.strip().split("\n"):
-            if line.startswith(FLATTENING_LABEL):
+            if line.startswith(MEMOISED_LABEL):
+                self.eliminated = int(line.split(': ')[1])
+                continue
+            if line.startswith(ELIMINATED_LABEL):
                 self.eliminated = int(line.split(': ')[1])
                 continue
             match = pattern.match(line)
             assert match is not None
-            parsed.append((int(match.group(1)), int(match.group(2))))
-        self.match, self.match_failed = parsed[0]
-        self.memo, self.memo_failed = parsed[1]
-        self.char, self.char_failed = parsed[2]
-        self.pred, self.pred_failed = parsed[3]
+            total = int(match.group(2))
+            failed = int(match.group(3))
+            self.parsed[match.group(1)] = (total, failed)
 
     @property
-    def steps(self) -> int:
-        return self.char + self.pred
-
-    @property
-    def steps_failed(self) -> int:
-        return (
-            self.match_failed
-            + self.memo_failed
-            + self.char_failed
-            + self.pred_failed
-        )
+    def step(self) -> int:
+        return self.parsed["CHAR"][0] + self.parsed["PRED"][0]
 
     @property
     def memo_entry(self) -> int:
-        return self.memo - self.memo_failed
+        return self.parsed["MEMO"][0] - self.parsed["MEMO"][1]
+
+    @property
+    def state(self) -> int:
+        return self.parsed["STATE"][0]
+
+    def to_dict(self):
+        return {
+            'step': self.step,
+            'memo_entry': self.memo_entry,
+            'state': self.state
+        }
 
 
 @total_ordering
@@ -285,7 +293,7 @@ def get_step_from_output(output: Optional[dict[str, str]]) -> Optional[int]:
     if len(output["stderr"]) == 0:
         return None
     result = BenchmarkResult(output["stderr"])
-    return result.steps
+    return result.step
 
 
 def get_memo_size_from_output(
@@ -377,7 +385,7 @@ def load_steps_dict(data_dir: Path) -> dict[str, Any]:
     """ Return `steps` dict with the following structure:
     `steps[matching_type][construction][scheduler][memo_scheme][input_type]`
     """
-    steps = {}
+    steps: dict[str, dict] = {}
     iterator = product(MatchingType, iterate_bru_args())
     for matching_type, bru_args in iterator:
         construction = bru_args["construction"]
@@ -410,7 +418,7 @@ def load_memo_sizes_dict(data_dir: Path) -> dict[str, Any]:
     """ Return `memo_sizes` dict with the following structure:
     `memo_sizes[matching_type][construction][memo_scheme][input_type]`
     """
-    memo_sizes = {}
+    memo_sizes: dict[str, dict] = {}
     iterator = product(MatchingType, ConstructionOption, MemoSchemeOption)
     for matching_type, construction, memo_scheme in iterator:
         memo_sizes_memo_scheme = (
@@ -439,7 +447,7 @@ def load_all_eliminateds_dict(data_dir: Path) -> dict[str, Any]:
     """ Return `eliminateds` dict with the following structure:
     `eliminateds[memo_scheme][input_type]`
     """
-    eliminateds = {}
+    eliminateds: dict[str, dict] = {}
     regex_type = RegexType.ALL
     construction = ConstructionOption.GLUSHKOV
     step_filename = data_dir / 'step' / 'all-full-thompson-lockstep-none.jsonl'

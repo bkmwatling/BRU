@@ -1,7 +1,6 @@
 import argparse
 import logging
 import subprocess
-import itertools
 from typing import (TypedDict, Any, Optional, )
 from pathlib import Path
 from collections import Counter
@@ -10,7 +9,8 @@ import jsonlines  # type: ignore
 
 from utils import ConstructionOption
 from utils import MemoSchemeOption
-from utils import FLATTENING_LABEL
+from utils import ELIMINATED_LABEL
+from utils import MEMOISED_LABEL
 
 
 BruArgs = TypedDict("BruArgs", {
@@ -32,6 +32,7 @@ def run_bru(
         '-e',  # expand counter
         '-c', construction.value,
         '-m', memo_scheme.value,
+        '--mark-states',
         '--',
         pattern
     ]
@@ -72,14 +73,16 @@ def update_statistics(
         instructions = filter(
             None, map(str.strip, stdout.strip().split("\n")))
         eliminated = 0
-        if stderr.startswith(FLATTENING_LABEL):
-            eliminated = int(stderr.split(': ')[1])
+        memoised = 0
+        for line in stderr.split("\n"):
+            if line.startswith(ELIMINATED_LABEL):
+                eliminated = int(line.split(': ')[1])
+            if line.startswith(MEMOISED_LABEL):
+                memoised = int(line.split(': ')[1])
         statistics = dict(Counter(e.split()[1] for e in instructions))
         statistics["eliminated"] = eliminated
-        updated_data = {
-            "pattern": data["pattern"],
-            "statistics": statistics
-        }
+        statistics["memoised"] = memoised
+        updated_data = {"pattern": data["pattern"], "statistics": statistics}
         return updated_data
 
     regex_dataset = jsonlines.open(input_path, mode='r')

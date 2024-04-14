@@ -127,3 +127,7 @@ clean-benchmark:
 .PHONY: clean-statistics
 clean-statistics:
 	rm -rf $(STATISTICS_DIR)
+
+.PHONY: clean-analysis
+clean-analysis:
+	rm -rf $(ANALYSIS_DIR)
