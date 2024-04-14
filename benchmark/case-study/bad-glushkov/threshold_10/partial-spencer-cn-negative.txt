@@ -1,298 +1,1 @@
-(Add|Remove).*?(?:(?:To|From).+?)*(?:To|From)((?:To|From)?.*?)$
-Remove{p]FromVD )!,Zq8'FromRzBi8qFromKqFromFrom1'05=~T
-4qI?FFrom'\TOFromr7=ToAC, 
-658
-712
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
-
- 
-	 	OUTER   
-
-OUTERJOINk	 	
-247
-343
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
-		RIGHT
-JOI 
- 
-99
-131
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
-	RIGHT	
-OUT!R
-
-INNER	CROSS	 	JOIN	
- 
-140
-179
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
-	LEFT
-
- 
-
-P
-JOIN
-	
-163
-226
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
-	 OUTE 	 CROSSJOIN  	
-
-
-
-
-
-70
-82
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
-	
- 
-
-OUTER
-CROSS				 
-	 JOkN	
-270
-374
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
- 			
-TJOIN		
-139
-191
-
-\s+((?:(?:CROSS|INNER|OUTER|LEFT|RIGHT)?\s+)*?JOIN)\s+
- 
-	  	
- 	
-INNER LEFT
-
-	
-	 R	 INNER 
-	JOIN
-
-242
-334
-
-[^b]*((..)|(\2))+Sz
-8W/L0+f~f~."5,-z
-82
-98
-
-[^b]*((..)|(\2))+Sz
-r(RrK'N: T.q ~ ~ifFz
-102
-122
-
-(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
-static				cons-
-
-	 @TH	 "7G,A
-348
-359
-
-(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
-static
-const 		static
- 		
-9Cf2g::GXjztxMzS::o	j2JnKn1u::HHC1FSsG::LKzsrc::MHJ_Fa4::7ZXxcdy2t0::FLpQSdG::SyJ6Nm
- **********@2Ixh8
-		l<~PqX.
-918
-940
-
-(?:(public|protected|private)\s+)?(((static|const)\s+)*)((((\w+::)*\w+(\s+|\s*\*+\s+|\s+\*+\s*))|)([\$@%\*])([\w:]+))\s+(.*)
-static
- 
-  const		 stakic 		  
-static%7Ly-&.dcmz
-614
-631
-
-^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
-		
-
-68.*
-
-	 ||
-
- 	~711577783 ||		 
-  67526969
-
-
-|| 110P75581.80717			
-858
-870
-
-^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
-!=2926966.9238690790.*
-||
- 99|| 	 
- 	951q.5.*
- 
-559
-721
-
-^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
-574.* <=22885.*
- 
-|| 
-
-55614.* 	 ||	96
-
-23697&102.7	 	
- 		|| 80.*
-
-
-
-   ||
- 	>120  
-|| <=42
-
-||		 
- 		356>4285.5902574
-
- ||
-	
-	
-  ~773468506
-	
-749
-767
-
-^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
-	 510
-
-
-||&6643.*  
-216
-228
-
-^\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?((\s*\|\|)?\s*(>=|>|<|<=|!=|\^|~)?\d+(\.(\*|(\d+(\.(\d+|\*))?)))?)*\s*$
-062  		 >846523015
-||
-<02344	
-  
-||~94233x346.*
-   ||	^8063240  	 || 
-
-~92
-  
-535
-547
-
-^(normal|none|(\b(url\([^)]*\)|chapter_counter|attr\([^)]*\)|(no-)?(open|close)-quote|inherit)((\b\s*)|$|\s+))+)$
-url() 	 open-quote 
-url(Q)
- chapter_counter
- attr(<E]ed\Ji`D)attr(o%vN|*rq)attr(KAyS) nherit
- 		
-chapter_counter
-306
-322
-
-((([0-9]|[a-f]){32}-)*([0-9]|[a-f]){32}\.vurl\.)|(\/vurl\/([0-9]|[a-f]){32}(-([0-9]|[a-f]){32})*)
-/vurl/acf93feeda317c688b8bbfad34bfdb0f-8d4747bfdef8b34e07f0f8cff72627ba-340f4 e87a8d1b5057b5232ebe2116c4-622d198336ab75658fd6c9ee2de6351c-eb8d371ee1a23d2ed66d8d288f86f6bc-4c02cfc5db98bde2ca4c23c2ec2bf910-e2fb0011d9b934a64394e3284cea98a7-183e1d22d0d027235660c66fef1e2653-6549736128447d9121dba7e9801142de-cc7746dffb3afcb278a5c1040c384509
-18072
-18083
-
-((^|\s)[\[\(]\w+)+$
-(j6wNzj(unG[xr3p	[z4WZUI[4igj9e (Xs3a[JsAy(SqD
-76
-96
-
-((^|\s)[\[\(]\w+)+$
-(5wRWfoHXY(EX9	(rlU(AY_c6t0mI(2[0RMAtssGxu [YGfve3OVV8[1I
-103
-136
-
-((^|\s)[\[\(]\w+)+$
-(hFClKtS0d[FyzKl4 (WBNeVpNq_i(_[WKZ8b2N[LdON5A78P3(OpoEWGNP(e
-110
-146
-
-((^|\s)[\[\(]\w+)+$
-[zx1unkJCJj[D1pVUxDi[aGy[mC4hnTLjd(XXViHqLix_	[6tUz [KIgdAvCPz(c(6E(5x8UFKdcS
-133
-170
-
-((^|\s)[\[\(]\w+)+$
-	(a(AZNqvq
-[uHxy5q4dI6[9ek1[Jq5OcxpIwX[dUcWs2kd (2dfiK645f
-77
-88
-
-(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
-&==first-fragmen|+is-fragmentnot-a-fragment+not-a-fragmentZ4AJdG^&&
-316
-352
-
-(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
-==first8fragment0h
-240
-260
-
-(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
-&==+is-)ragmentnot-a-fragmentdont-fragmentfirst-fragmentfirst-fragmentnot-a-fragmentfirst-fragmentfirst-fragmentlast-fragmentfirst-fragmentoB,Vw3q
-391
-412
-
-(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
-&!=+last-fragme&t+is-fragment+first-fragmentdont-fragment+last-fragment+not-a-fragmentis-fragment+dont-fragmentrBS
-381
-400
-
-(&?)(==|=|!|!=|=!)?(((\+)?(dont|is|first|last|not-a)-fragment)+)(.*)
-!=	ot-a-fragment+is-fragments-x
-238
-250
-
-^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
-+ :: :: : --------:::: :   :+|:  :---------- ::: |+::: :::: ---------- :   |  :------: + :  ---- : :   ::~----------:: :: |:  :  --------:||---+-------- : ::  :+  ::::---:  | :::  ------- : : 
-1565
-1615
-
-^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
-+ :  :::---------:     : +   : ------  |:---------:: :  :  :  -------::+:  :   ::---:: + :--------    ::++ :     :----_- :: ::::: :: ------  : :: : | :::::: -:  :::: :-------+
-1715
-1807
-
-^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
-+:::::---------::: :|:::: ::--- ::::  : :+ :z:::------- : :| ::: :::-:: |: ::: ------::  + : : --------+ : :  ::-----: + -----  |::   :-:  ::: +
-670
-700
-
-^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
-|::::: -::: : :: ::: -----: :: : |    -::  :   ::::   -:| -----  : :: : :------ +:     -::| :::--:::+ ------ : ::::|:: :::   -----/----:  ::: +:: :: : :-------- :  : :  :|:::::---:  :: ::  +  :--    ::+
-1627
-1677
-
-^((?:(?:(?:\||\+)(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:[ :]*\-+[ :]*)(?:\||\+)(?:[ :]*\-+[ :]*))|(?:(?:[ :]*\-+[ :]*)(?:\||\+))|(?:(?:\||\+)(?:[ :]*\-+[ :]*)))+)$
-  :: -------- : :+ :---------: : ---  :: ::   |:  : : -----    :: ::|  :---------:::  :++:  ----:  :   :+ ::::  :::- :   :  |--------  [: :-------  +  :  :-------:  :::  :+  ::---------:: +|--- +
-1813
-1887
-
-^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
-/UD3|7static	   staticfinal  		static		
-	final  
-static
-
-Zfinal	final  	 			public
-function	Y/Q8x0l*#(Yb	)6AZ+N
-464
-493
-
-^(.*?(?:(?:final|static)\s+)*(?:public|private|protected)(?:\s+(?:final|static))*\s+function\s+.+?)\((.+)\)(.*)$
-Vc1fDstatic 		private			static	staticstaticfinal
-
-static		
-	functQon		;?(~	p_5"6rD)/	rg6U}V~
-686
-710
-
-The average number of steps increased for 11 regexes.
+The average number of steps increased for 0 regexes.

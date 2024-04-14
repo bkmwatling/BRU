@@ -1,4 +1,4 @@
-#!bash
+#!/bin/bash
 sed -n -e '1,2p' -e '4,5p' data/analysis/step/all-full-thompson-spencer-none.tex
 (
   for file in data/analysis/step/all-{full,partial}-{thompson,flat}-{spencer-{none,cn,in},lockstep-none}.tex; do

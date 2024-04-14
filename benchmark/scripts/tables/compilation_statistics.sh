@@ -1,4 +1,4 @@
-#!bash
+#!/bin/bash
 (
 sed -n '1p' data/analysis/statistics/all-thompson-none.tex
 for file in data/analysis/statistics/{all,sl}-{thompson,flat}-{none,cn,in}.tex; do
