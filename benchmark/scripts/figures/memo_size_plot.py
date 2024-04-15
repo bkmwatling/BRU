@@ -31,16 +31,16 @@ data_dir = Path('../../data/')
 # %%
 importlib.reload(utils.figures)
 from utils.figures import load_all_eliminateds_dict  # noqa: E402
-logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, force=True)
 eliminateds = load_all_eliminateds_dict(data_dir)
-logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr, force=True)
 
 # %%
 importlib.reload(utils.figures)
 from utils.figures import load_memo_sizes_dict  # noqa: E402
-logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, force=True)
 memo_sizes = load_memo_sizes_dict(data_dir)
-logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr, force=True)
 
 # %%
 # Histogram 2D
@@ -64,6 +64,7 @@ for matching_type, memo_scheme in options:
     ylabel = "-".join([matching_type, 'flat', memo_scheme])
     zs = np.concatenate(
         [eliminateds[memo_scheme][input_type] for input_type in input_types])
+
     # Range excluding outliers
     total = xs + ys
     quartile_1 = np.quantile(total, 0.25)
@@ -75,11 +76,17 @@ for matching_type, memo_scheme in options:
     x_space = np.geomspace(1, max(xs+ys), 50)
     y_space = np.geomspace(1, max(ys+ys), 50)
 
+    _h1, _, _ = np.histogram2d(
+        xs[zs <= threshold], ys[zs <= threshold], bins=(x_space, y_space))
+    _h2, _, _ = np.histogram2d(
+        xs[zs > threshold], ys[zs > threshold], bins=(x_space, y_space))
+    vmax = max(np.max(_h1), np.max(_h2))
+
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     h, _, _, cmap = axes[0].hist2d(
         xs[zs <= threshold], ys[zs <= threshold],
-        bins=(x_space, y_space), norm='log'
+        bins=(x_space, y_space), norm='log', vmin=1, vmax=vmax
     )
     axes[0].set_xscale('symlog')
     axes[0].set_yscale('symlog')
@@ -87,15 +94,16 @@ for matching_type, memo_scheme in options:
     axes[0].set_ylabel(ylabel)
     axes[0].axis('square')
 
-    vmax = np.max(h)
-
     axes[1].hist2d(xs[zs > threshold], ys[zs > threshold], bins=(
-        x_space, y_space), norm='log', vmax=vmax)
+        x_space, y_space), norm='log', vmin=1, vmax=vmax)
     axes[1].set_xscale('symlog')
     axes[1].set_yscale('symlog')
     axes[1].set_xlabel(xlabel + f" (elim. > {threshold})")
     axes[1].axis('square')
 
+    axes[0].plot([0, max(xs+ys)*2], [0, max(xs+ys)*2], alpha=0.5, color='black', linestyle='--')
+    axes[1].plot([0, max(xs+ys)*2], [0, max(xs+ys)*2], alpha=0.5, color='black', linestyle='--')
+    
     fig.subplots_adjust(right=0.8)
     axes[1].get_position()
     pos = axes[1].get_position()
@@ -112,3 +120,5 @@ for matching_type, memo_scheme in options:
         plt.show()
     except Exception:
         continue
+
+# %%

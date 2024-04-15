@@ -14,12 +14,19 @@ from .options import RegexType
 from .options import SchedulerOption
 
 
-def load_average(filename: Path, prefix: str, key: str) -> np.array:
-    logging.debug(f"Loading {prefix}-{key} from {filename}")
-    label = f"avg_{prefix}_benchmark_results"
+def load_average(filename: Path, input_type: str, key: str) -> np.array:
+    logging.debug(f"Loading {input_type}-{key} from {filename}")
+    label = f"avg_{input_type}_benchmark_results"
     with jsonlines.open(filename) as dataset:
         return np.array([
             data[label][key] for data in dataset if data[label] is not None])
+
+
+def load_mask(filename: Path, input_type: str) -> np.array:
+    logging.debug(f"Loading {input_type}-mask from {filename}")
+    label = f"avg_{input_type}_benchmark_results"
+    with jsonlines.open(filename) as dataset:
+        return np.array([data[label] is not None for data in dataset])
 
 
 def load_states_dict(data_dir: Path) -> dict[str, Any]:
@@ -153,6 +160,28 @@ def load_memory_usage_dict(data_dir: Path) -> dict[str, Any]:
     return memory_usage
 
 
+def _load_eliminateds(
+    data_dir: Path,
+    regex_type: RegexType,
+    construction: ConstructionOption,
+    memo_scheme: MemoSchemeOption
+) -> np.array:
+    basename = '-'.join([
+        regex_type.value,
+        construction.value,
+        memo_scheme.value
+    ])
+    basename += '.jsonl'
+    filename = data_dir / 'statistics' / basename
+    with jsonlines.open(filename) as dataset:
+        return np.array([
+            data['statistics']['eliminated']
+            if data['statistics'] is not None
+            else 0
+            for data in dataset
+        ])
+
+
 def load_all_eliminateds_dict(data_dir: Path) -> dict[str, Any]:
     """ Return `eliminateds` dict with the following structure:
     `eliminateds[memo_scheme][input_type]`
@@ -173,8 +202,10 @@ def load_all_eliminateds_dict(data_dir: Path) -> dict[str, Any]:
         ])
         basename += '.jsonl'
         filename = data_dir / 'benchmark_results' / basename
-        eliminated = load_average(filename, 'positive', 'eliminated')
+        eliminated = _load_eliminateds(
+            data_dir, regex_type, construction, memo_scheme)
         eliminateds_memo_scheme = eliminateds.setdefault(memo_scheme.value, {})
         for input_type in input_types:
-            eliminateds_memo_scheme[input_type] = eliminated
+            mask = load_mask(filename, input_type)
+            eliminateds_memo_scheme[input_type] = eliminated[mask]
     return eliminateds
