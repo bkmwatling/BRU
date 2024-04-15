@@ -189,6 +189,8 @@ static Thread *spencer_thread_manager_next_thread(void *impl)
 
 static void spencer_thread_manager_notify_thread_match(void *impl, Thread *t)
 {
+    // record matched sp from this point
+    ((SpencerThreadManager *) impl)->sp = spencer_thread_sp(impl, t);
     // empty the scheduler
     spencer_thread_manager_kill_thread(impl, t);
     spencer_thread_manager_reset(impl);
