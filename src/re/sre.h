@@ -67,6 +67,7 @@ struct regex_node {
 
     cntr_t min; /**< minimum value for counter                                */
     cntr_t max; /**< maximum value for counter                                */
+    byte nullable; /**< whether the tree rooted at this node matches epsilon  */
 };
 
 #define IS_UNARY_OP(type) \

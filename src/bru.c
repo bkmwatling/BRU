@@ -146,6 +146,10 @@ static void add_parsing_args(StcArgParser *ap, BruOptions *options)
         ap, NULL, "--log-unsupported",
         "whether to log unsupported features in the regex",
         &options->parser_opts.log_unsupported, FALSE);
+    stc_argparser_add_bool_option(
+        ap, NULL, "--flag-problematic",
+        "whether to flag expressions like E* with E matching epsilon",
+        &options->parser_opts.allow_repeated_nullability, TRUE);
 }
 
 static void add_compilation_args(StcArgParser *ap, BruOptions *options)

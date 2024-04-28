@@ -109,7 +109,8 @@ RegexNode *regex_new(RegexType type)
     /* check `type` to make sure correct node type */
     assert(type == CARET || type == DOLLAR || /* type == MEMOISE || */
            type == EPSILON);
-    re->type = type;
+    re->type     = type;
+    re->nullable = TRUE;
 
     return re;
 }
@@ -118,8 +119,9 @@ RegexNode *regex_literal(const char *ch)
 {
     RegexNode *re = malloc(sizeof(*re));
 
-    re->type = LITERAL;
-    re->ch   = ch;
+    re->type     = LITERAL;
+    re->ch       = ch;
+    re->nullable = FALSE;
 
     return re;
 }
@@ -130,6 +132,7 @@ RegexNode *regex_cc(Intervals *intervals)
 
     re->type      = CC;
     re->intervals = intervals;
+    re->nullable  = FALSE;
 
     return re;
 }
@@ -140,9 +143,11 @@ RegexNode *regex_branch(RegexType type, RegexNode *left, RegexNode *right)
 
     /* check `type` to make sure correct node type */
     assert(type == ALT || type == CONCAT);
-    re->type  = type;
-    re->left  = left;
-    re->right = right;
+    re->type     = type;
+    re->left     = left;
+    re->right    = right;
+    re->nullable = (type == ALT) ? left->nullable || right->nullable
+                                 : left->nullable && right->nullable;
 
     return re;
 }
@@ -154,6 +159,7 @@ RegexNode *regex_capture(RegexNode *child, len_t idx)
     re->type        = CAPTURE;
     re->left        = child;
     re->capture_idx = idx;
+    re->nullable    = child->nullable;
 
     return re;
 }
@@ -164,6 +170,7 @@ RegexNode *regex_backreference(len_t idx)
 
     re->type        = BACKREFERENCE;
     re->capture_idx = idx;
+    assert(FALSE && "TODO: Are backreferences nullable?");
 
     return re;
 }
@@ -174,9 +181,10 @@ RegexNode *regex_repetition(RegexType type, RegexNode *child, byte greedy)
 
     /* check `type` to make sure correct node type */
     assert(type == STAR || type == PLUS || type == QUES);
-    re->type   = type;
-    re->left   = child;
-    re->greedy = greedy;
+    re->type     = type;
+    re->left     = child;
+    re->greedy   = greedy;
+    re->nullable = (type == PLUS) ? child->nullable : TRUE;
 
     return re;
 }
@@ -185,11 +193,12 @@ RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max)
 {
     RegexNode *re = malloc(sizeof(*re));
 
-    re->type   = COUNTER;
-    re->left   = child;
-    re->greedy = greedy;
-    re->min    = min;
-    re->max    = max;
+    re->type     = COUNTER;
+    re->left     = child;
+    re->greedy   = greedy;
+    re->min      = min;
+    re->max      = max;
+    re->nullable = min == 0 || child->nullable;
 
     return re;
 }
@@ -201,6 +210,7 @@ RegexNode *regex_lookahead(RegexNode *child, byte positive)
     re->type     = LOOKAHEAD;
     re->left     = child;
     re->positive = positive;
+    assert(FALSE && "TODO: Are lookaheads nullable?");
 
     return re;
 }
@@ -282,6 +292,7 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
     if (re == NULL) return;
 
     fprintf(stream, "%*s", indent, "");
+    fprintf(stream, "%s", re->nullable ? "*" : "");
     fprintf(stream, "%06lu: ", re->rid);
 
     switch (re->type) {

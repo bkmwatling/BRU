@@ -4,12 +4,13 @@
 #include "sre.h"
 
 typedef struct {
-    int only_counters;       /**< whether to convert *, +, and ? to counters  */
-    int unbounded_counters;  /**< whether to allow counters to be unbounded   */
-    int expand_counters;     /**< whether to expand counters                  */
-    int whole_match_capture; /**< whether to save entire match into capture 0 */
-    int log_unsupported; /**< whether to log unsupported features in the expr */
-    FILE *logfile;       /**< the file for logging                            */
+    int only_counters;              /**< convert *, +, and ? to counters      */
+    int unbounded_counters;         /**< allow counters to be unbounded       */
+    int expand_counters;            /**< expand counters                      */
+    int whole_match_capture;        /**< save entire match into capture 0     */
+    int log_unsupported;            /**< log unsupported features in the expr */
+    int allow_repeated_nullability; /**< allow expressions like (a?)*         */
+    FILE *logfile;                  /**< the file for logging                 */
 } ParserOpts;
 
 typedef struct {
@@ -31,6 +32,7 @@ typedef enum {
     PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ,
     PARSE_NON_EXISTENT_REF,
     PARSE_END_OF_STRING,
+    PARSE_REPEATED_NULLABILITY,
 } ParseResultCode;
 
 typedef struct {

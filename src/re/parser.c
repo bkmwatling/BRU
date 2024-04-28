@@ -11,7 +11,7 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 0, 0, 1, 0, stderr })
+#define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 1, 0, 0, 1, 0, stderr })
 
 #define SET_RID(node, ps) \
     if (node) (node)->rid = (ps)->next_rid++
@@ -97,11 +97,12 @@ typedef struct {
 
 typedef struct {
     UnsupportedFeatureCode (*unsupported_features)[NUM_UNSUPPORTED_CODES];
-    const char            *ch;
-    int                    in_group;
-    int                    in_lookahead;
-    len_t                  ncaptures;
-    regex_id               next_rid;
+    byte allow_repeated_nullability; /*<< allow expressions like (a?)*        */
+    const char *ch;
+    int         in_group;
+    int         in_lookahead;
+    len_t       ncaptures;
+    regex_id    next_rid;
 } ParseState;
 
 /* --- Helper function prototypes ------------------------------------------- */
@@ -189,6 +190,7 @@ ParseResult parser_parse(const Parser *self, Regex *re)
     RegexNode             *r                                           = NULL;
     UnsupportedFeatureCode unsupported_features[NUM_UNSUPPORTED_CODES] = { 0 };
     ParseState             ps  = { &unsupported_features,
+                                   self->opts.allow_repeated_nullability,
                                    self->regex,
                                    0,
                                    0,
@@ -449,7 +451,12 @@ static ParseResult parse_quantifier(const Parser *self,
         case QUES:
         case COUNTER:
         case LOOKAHEAD:
-        case BACKREFERENCE: break;
+        case BACKREFERENCE:
+            if (!ps->allow_repeated_nullability && max == CNTR_MAX &&
+                (*re)->nullable) {
+                return PARSE_RES(PARSE_REPEATED_NULLABILITY, ps->ch);
+            }
+            break;
 
         case NREGEXTYPES: assert(0 && "unreachable");
     }
@@ -647,10 +654,13 @@ static ParseResult parse_paren(const Parser *self,
                     goto unsupported_group;
             }
             ps->ch++;
-            ps_tmp = (ParseState){
-                ps->unsupported_features,         ps->ch,        TRUE,
-                ps->in_lookahead || is_lookahead, ps->ncaptures, ps->next_rid
-            };
+            ps_tmp        = (ParseState){ ps->unsupported_features,
+                                          ps->allow_repeated_nullability,
+                                          ps->ch,
+                                          TRUE,
+                                          ps->in_lookahead || is_lookahead,
+                                          ps->ncaptures,
+                                          ps->next_rid };
             res           = parse_alt(self, &ps_tmp, re);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
@@ -668,10 +678,13 @@ static ParseResult parse_paren(const Parser *self,
         /* capture group */
         default:
             if (!ps->in_lookahead) ncaptures = ps->ncaptures++;
-            ps_tmp = (ParseState){
-                ps->unsupported_features, ps->ch,        TRUE,
-                ps->in_lookahead,         ps->ncaptures, ps->next_rid
-            };
+            ps_tmp        = (ParseState){ ps->unsupported_features,
+                                          ps->allow_repeated_nullability,
+                                          ps->ch,
+                                          TRUE,
+                                          ps->in_lookahead,
+                                          ps->ncaptures,
+                                          ps->next_rid };
             res           = parse_alt(self, &ps_tmp, re);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
