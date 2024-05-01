@@ -361,9 +361,7 @@ static ThompsonScheduler *thompson_scheduler_new(void)
 
 static int thompson_scheduler_schedule(ThompsonScheduler *self, Thread *thread)
 {
-    if (thompson_threads_contain(self->next, thread) ||
-        thompson_threads_contain(self->sync, thread))
-        return FALSE;
+    if (thompson_threads_contain(self->sync, thread)) return FALSE;
 
     switch (*thread->pc) {
         case CHAR:
