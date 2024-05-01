@@ -42,9 +42,9 @@ def postprocess_filename_to_outputs(
 
     filename_to_filtered_benchmark_results = {
         filename: [
-            benchmark_result
-            for benchmark_result, mask_value in zip(benchmark_results, mask)
-            if mask_value
+            benchmark_result if mask_value else None
+            for benchmark_result, mask_value
+            in zip(benchmark_results, mask)
         ]
         for filename, benchmark_results
         in filename_to_benchmark_results.items()
