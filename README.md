@@ -38,7 +38,7 @@ if using the internal Stellenbosch Computer Science GitLab repository, or if
 using the mirrored GitHub repository, simply run:
 
 ```bash
-git clone git@github.com:bkmwatling/BRU.git --recurse-submodules
+git clone https://github.com/bkmwatling/BRU.git --recurse-submodules
 ```
 
 ### Working with submodule after cloning
