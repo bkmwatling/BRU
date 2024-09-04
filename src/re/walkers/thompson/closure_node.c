@@ -1,35 +1,37 @@
 #include "closure_node.h"
 
-/* --- walk routines ------------------------------------------------------- */
+/* --- Walk functions ------------------------------------------------------- */
 
-WALKER_F(STAR)
+BRU_WALKER_F(BRU_STAR)
 {
-    WALK_LEFT();
+    BRU_WALK_LEFT();
     // insert memoisation instruction behind child of star
     // F* -> (#F)*
-    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
+    BRU_SET_CHILD(
+        bru_regex_branch(BRU_CONCAT, bru_regex_new(BRU_MEMOISE), BRU_CHILD));
 }
 
-WALKER_F(PLUS)
+BRU_WALKER_F(BRU_PLUS)
 {
-    WALK_LEFT();
+    BRU_WALK_LEFT();
     // insert memoisation instruction behind child of plus
     // F+ -> (#F)+
-    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
+    BRU_SET_CHILD(
+        bru_regex_branch(BRU_CONCAT, bru_regex_new(BRU_MEMOISE), BRU_CHILD));
 }
 
-/* --- API routines -------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-void closure_node_thompson(RegexNode **r)
+void bru_closure_node_thompson(BruRegexNode **r)
 {
-    Walker *w;
+    BruWalker *w;
 
     if (!r || !(*r)) return;
 
-    w = walker_init();
-    SET_WALKER_F(w, STAR);
-    SET_WALKER_F(w, PLUS);
+    w = bru_walker_new();
+    BRU_SET_WALKER_F(w, BRU_STAR);
+    BRU_SET_WALKER_F(w, BRU_PLUS);
 
-    walker_walk(w, r);
-    walker_release(w);
+    bru_walker_walk(w, r);
+    bru_walker_free(w);
 }

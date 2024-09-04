@@ -6,10 +6,10 @@
 #include "../../utils.h"
 #include "regex_to_string.h"
 
-/* --- data structures ----------------------------------------------------- */
+/* --- Type definitions ----------------------------------------------------- */
 
 #define SB_ENSURE_SPACE(sb, n) \
-    ENSURE_SPACE((sb)->s, (sb)->len, (sb)->cap, sizeof(char))
+    BRU_ENSURE_SPACE((sb)->s, (sb)->len, (sb)->cap, sizeof(char))
 
 #define DEFAULT_CAP 32
 
@@ -17,21 +17,21 @@ typedef struct {
     char  *s;
     size_t len;
     size_t cap;
-} StringBuilder;
+} BruStringBuilder;
 
-static void appendn(StringBuilder *sb, const char *s, size_t n)
+static void appendn(BruStringBuilder *sb, const char *s, size_t n)
 {
     SB_ENSURE_SPACE(sb, n);
     strncpy(sb->s + sb->len, s, n);
     sb->len += n;
 }
 
-static void append(StringBuilder *sb, const char *s)
+static void append(BruStringBuilder *sb, const char *s)
 {
     appendn(sb, s, strlen(s));
 }
 
-static void appendf(StringBuilder *sb, const char *fmt, ...)
+static void appendf(BruStringBuilder *sb, const char *fmt, ...)
 {
     char   *s;
     size_t  len;
@@ -57,9 +57,9 @@ static void appendf(StringBuilder *sb, const char *fmt, ...)
     free(s);
 }
 
-static StringBuilder *string_builder(void)
+static BruStringBuilder *string_builder(void)
 {
-    StringBuilder *sb = malloc(sizeof(StringBuilder));
+    BruStringBuilder *sb = malloc(sizeof(BruStringBuilder));
 
     if (!sb) return NULL;
 
@@ -70,245 +70,248 @@ static StringBuilder *string_builder(void)
     return sb;
 }
 
-/* --- listener routines --------------------------------------------------- */
+/* --- Listener functions --------------------------------------------------- */
 
-LISTEN_TERMINAL_F()
+BRU_LISTEN_TERMINAL_F()
 {
-    GET_STATE(StringBuilder *, sb);
-    switch (REGEX->type) {
-        case CARET: append(sb, "^"); break;
-        case DOLLAR: append(sb, "$"); break;
-        case MEMOISE: append(sb, "#"); break;
-        case LITERAL: appendn(sb, REGEX->ch, stc_utf8_nbytes(REGEX->ch)); break;
+    BRU_GET_STATE(BruStringBuilder *, sb);
+    switch (BRU_REGEX->type) {
+        case BRU_CARET: append(sb, "^"); break;
+        case BRU_DOLLAR: append(sb, "$"); break;
+        case BRU_MEMOISE: append(sb, "#"); break;
+        case BRU_LITERAL:
+            appendn(sb, BRU_REGEX->ch, stc_utf8_nbytes(BRU_REGEX->ch));
+            break;
 
-        case CC: printf("CC printer not supported"); // TODO
+        case BRU_CC: printf("CC printer not supported"); // TODO
         default: break;
     }
 }
 
-/* --- ALT ----------------------------------------------------------------- */
+/* --- ALT ------------------------------------------------------------------ */
 
-LISTENER_F(INORDER, ALT)
+BRU_LISTENER_F(BRU_INORDER, BRU_ALT)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
     append(sb, "|");
-    if (REGEX->right->type == ALT) {
+    if (BRU_REGEX->right->type == BRU_ALT) {
         // assoiativity was overridden -- insert (?:
         append(sb, "(?:");
     }
 }
 
-LISTENER_F(POSTORDER, ALT)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_ALT)
 {
-    GET_STATE(StringBuilder *, sb);
-    if (REGEX->right->type == ALT) {
+    BRU_GET_STATE(BruStringBuilder *, sb);
+    if (BRU_REGEX->right->type == BRU_ALT) {
         // assoiativity was overridden -- insert closing )
         append(sb, ")");
     }
 }
 
-/* --- CONCAT -------------------------------------------------------------- */
+/* --- CONCAT --------------------------------------------------------------- */
 
-LISTENER_F(PREORDER, CONCAT)
+BRU_LISTENER_F(BRU_PREORDER, BRU_CONCAT)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // lower priority operators as child must have parenthesis
-    if (REGEX->left->type == ALT) append(sb, "(?:");
+    if (BRU_REGEX->left->type == BRU_ALT) append(sb, "(?:");
 }
 
-LISTENER_F(INORDER, CONCAT)
+BRU_LISTENER_F(BRU_INORDER, BRU_CONCAT)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // lower priority operators as child must have parenthesis
-    if (REGEX->left->type == ALT) append(sb, ")");
+    if (BRU_REGEX->left->type == BRU_ALT) append(sb, ")");
 
-    if (IS_BINARY_OP(REGEX->right->type)) {
+    if (BRU_IS_BINARY_OP(BRU_REGEX->right->type)) {
         // ALT => as above
         // CONCAT => associativity was overriden
         append(sb, "(?:");
     }
 }
 
-LISTENER_F(POSTORDER, CONCAT)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_CONCAT)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
-    if (IS_BINARY_OP(REGEX->right->type)) append(sb, ")");
+    if (BRU_IS_BINARY_OP(BRU_REGEX->right->type)) append(sb, ")");
 }
 
-/* --- CAPTURE ------------------------------------------------------------- */
+/* --- CAPTURE -------------------------------------------------------------- */
 
-LISTENER_F(PREORDER, CAPTURE)
+BRU_LISTENER_F(BRU_PREORDER, BRU_CAPTURE)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
     append(sb, "(");
 
-    (void) REGEX;
+    (void) BRU_REGEX;
 }
 
-LISTENER_F(POSTORDER, CAPTURE)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_CAPTURE)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
     append(sb, ")");
 
-    (void) REGEX;
+    (void) BRU_REGEX;
 }
 
-/* --- STAR ---------------------------------------------------------------- */
+/* --- STAR ----------------------------------------------------------------- */
 
-LISTENER_F(PREORDER, STAR)
+BRU_LISTENER_F(BRU_PREORDER, BRU_STAR)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, "(?:");
 }
 
-LISTENER_F(POSTORDER, STAR)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_STAR)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type)) append(sb, ")");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, ")");
 
     append(sb, "*");
-    if (!REGEX->greedy) append(sb, "?"); // lazy
+    if (!BRU_REGEX->greedy) append(sb, "?"); // lazy
 }
 
-/* --- PLUS ---------------------------------------------------------------- */
+/* --- PLUS ----------------------------------------------------------------- */
 
-LISTENER_F(PREORDER, PLUS)
+BRU_LISTENER_F(BRU_PREORDER, BRU_PLUS)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, "(?:");
 }
 
-LISTENER_F(POSTORDER, PLUS)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_PLUS)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type)) append(sb, ")");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, ")");
 
     append(sb, "+");
-    if (!REGEX->greedy) append(sb, "?"); // lazy
+    if (!BRU_REGEX->greedy) append(sb, "?"); // lazy
 }
 
-/* --- QUES ---------------------------------------------------------------- */
+/* --- QUES ----------------------------------------------------------------- */
 
-LISTENER_F(PREORDER, QUES)
+BRU_LISTENER_F(BRU_PREORDER, BRU_QUES)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, "(?:");
 }
 
-LISTENER_F(POSTORDER, QUES)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_QUES)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type)) append(sb, ")");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, ")");
 
     append(sb, "?");
-    if (!REGEX->greedy) append(sb, "?"); // lazy
+    if (!BRU_REGEX->greedy) append(sb, "?"); // lazy
 }
 
-/* --- COUNTER ------------------------------------------------------------- */
+/* --- COUNTER -------------------------------------------------------------- */
 
-LISTENER_F(PREORDER, COUNTER)
+BRU_LISTENER_F(BRU_PREORDER, BRU_COUNTER)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // not terminal or parenthetical
-    if (IS_OP(REGEX->left->type)) append(sb, "(?:");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, "(?:");
 }
 
-LISTENER_F(POSTORDER, COUNTER)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_COUNTER)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     // see above
-    if (IS_OP(REGEX->left->type)) append(sb, ")");
+    if (BRU_IS_OP(BRU_REGEX->left->type)) append(sb, ")");
 
-    appendf(sb, "{" CNTR_FMT ", " CNTR_FMT "}", REGEX->min, REGEX->max);
-    if (!REGEX->greedy) append(sb, "?"); // lazy
+    appendf(sb, "{" BRU_CNTR_FMT ", " BRU_CNTR_FMT "}", BRU_REGEX->min,
+            BRU_REGEX->max);
+    if (!BRU_REGEX->greedy) append(sb, "?"); // lazy
 }
 
-/* --- LOOKAHEAD ----------------------------------------------------------- */
+/* --- LOOKAHEAD ------------------------------------------------------------ */
 
-LISTENER_F(PREORDER, LOOKAHEAD)
+BRU_LISTENER_F(BRU_PREORDER, BRU_LOOKAHEAD)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     append(sb, "(?");
-    if (REGEX->positive)
+    if (BRU_REGEX->positive)
         append(sb, "=");
     else
         append(sb, "!");
 }
 
-LISTENER_F(POSTORDER, LOOKAHEAD)
+BRU_LISTENER_F(BRU_POSTORDER, BRU_LOOKAHEAD)
 {
-    GET_STATE(StringBuilder *, sb);
+    BRU_GET_STATE(BruStringBuilder *, sb);
 
     append(sb, ")");
-    (void) REGEX;
+    (void) BRU_REGEX;
 }
 
-/* --- API routine --------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-char *regex_to_string(RegexNode *re)
+char *bru_regex_to_string(BruRegexNode *re)
 {
-    Walker        *w;
-    StringBuilder *sb;
-    char          *str;
+    BruWalker        *w;
+    BruStringBuilder *sb;
+    char             *str;
 
     if (!re) return NULL;
 
-    w = walker_init();
-    REGISTER_LISTEN_TERMINAL_F(w);
-    REGISTER_LISTENER_F(w, INORDER, ALT);
-    REGISTER_LISTENER_F(w, POSTORDER, ALT);
+    w = bru_walker_new();
+    BRU_REGISTER_LISTEN_TERMINAL_F(w);
+    BRU_REGISTER_LISTENER_F(w, BRU_INORDER, BRU_ALT);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_ALT);
 
-    REGISTER_LISTENER_F(w, PREORDER, CONCAT);
-    REGISTER_LISTENER_F(w, INORDER, CONCAT);
-    REGISTER_LISTENER_F(w, POSTORDER, CONCAT);
+    BRU_REGISTER_LISTENER_F(w, BRU_PREORDER, BRU_CONCAT);
+    BRU_REGISTER_LISTENER_F(w, BRU_INORDER, BRU_CONCAT);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_CONCAT);
 
-    REGISTER_LISTENER_F(w, PREORDER, CAPTURE);
-    REGISTER_LISTENER_F(w, POSTORDER, CAPTURE);
+    BRU_REGISTER_LISTENER_F(w, BRU_PREORDER, BRU_CAPTURE);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_CAPTURE);
 
-    REGISTER_LISTENER_F(w, PREORDER, STAR);
-    REGISTER_LISTENER_F(w, POSTORDER, STAR);
+    BRU_REGISTER_LISTENER_F(w, BRU_PREORDER, BRU_STAR);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_STAR);
 
-    REGISTER_LISTENER_F(w, PREORDER, PLUS);
-    REGISTER_LISTENER_F(w, POSTORDER, PLUS);
+    BRU_REGISTER_LISTENER_F(w, BRU_PREORDER, BRU_PLUS);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_PLUS);
 
-    REGISTER_LISTENER_F(w, PREORDER, QUES);
-    REGISTER_LISTENER_F(w, POSTORDER, QUES);
+    BRU_REGISTER_LISTENER_F(w, BRU_PREORDER, BRU_QUES);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_QUES);
 
-    REGISTER_LISTENER_F(w, PREORDER, COUNTER);
-    REGISTER_LISTENER_F(w, POSTORDER, COUNTER);
+    BRU_REGISTER_LISTENER_F(w, BRU_PREORDER, BRU_COUNTER);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_COUNTER);
 
-    REGISTER_LISTENER_F(w, PREORDER, LOOKAHEAD);
-    REGISTER_LISTENER_F(w, POSTORDER, LOOKAHEAD);
+    BRU_REGISTER_LISTENER_F(w, BRU_PREORDER, BRU_LOOKAHEAD);
+    BRU_REGISTER_LISTENER_F(w, BRU_POSTORDER, BRU_LOOKAHEAD);
 
     w->state = (void *) string_builder();
-    walker_walk(w, &re);
+    bru_walker_walk(w, &re);
 
-    sb = (StringBuilder *) w->state;
+    sb = (BruStringBuilder *) w->state;
     SB_ENSURE_SPACE(sb, 1);
     sb->s[sb->len] = '\0';
 
     str = sb->s;
 
     // clean up
-    walker_release(w);
+    bru_walker_free(w);
     free(sb);
 
     return str;

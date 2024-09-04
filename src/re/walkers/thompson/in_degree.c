@@ -1,58 +1,62 @@
 #include "in_degree.h"
 
-/* --- walk routines (Thompson) -------------------------------------------- */
+/* --- Walk functions (Thompson) -------------------------------------------- */
 
-WALKER_F(STAR)
+BRU_WALKER_F(BRU_STAR)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 
     // insert memoisation instruction behind child of star and after star
     // F* -> (#F)*#
-    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
-    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_new(MEMOISE)));
+    BRU_SET_CHILD(
+        bru_regex_branch(BRU_CONCAT, bru_regex_new(BRU_MEMOISE), BRU_CHILD));
+    BRU_SET_CURRENT(
+        bru_regex_branch(BRU_CONCAT, BRU_CURRENT, bru_regex_new(BRU_MEMOISE)));
 }
 
-WALKER_F(ALT)
+BRU_WALKER_F(BRU_ALT)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    WALK_RIGHT();
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_WALK_RIGHT();
+    BRU_TRIGGER(BRU_POSTORDER);
 
     // insert memoisation instruction after alternation
     // (A|B) -> (A|B)#
-    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_new(MEMOISE)));
+    BRU_SET_CURRENT(
+        bru_regex_branch(BRU_CONCAT, BRU_CURRENT, bru_regex_new(BRU_MEMOISE)));
 }
 
-WALKER_F(QUES)
+BRU_WALKER_F(BRU_QUES)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 
     // insert memoisation instruction after optional expression
     // E? -> E?#
-    SET_CURRENT(regex_branch(CONCAT, CURRENT, regex_new(MEMOISE)));
+    BRU_SET_CURRENT(
+        bru_regex_branch(BRU_CONCAT, BRU_CURRENT, bru_regex_new(BRU_MEMOISE)));
 }
 
-/* --- API routines -------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-void in_degree_thompson(RegexNode **r)
+void bru_in_degree_thompson(BruRegexNode **r)
 {
-    Walker *w;
+    BruWalker *w;
 
     if (!r || !(*r)) return;
 
-    w = walker_init();
-    SET_WALKER_F(w, STAR);
-    SET_WALKER_F(w, ALT);
-    SET_WALKER_F(w, QUES);
+    w = bru_walker_new();
+    BRU_SET_WALKER_F(w, BRU_STAR);
+    BRU_SET_WALKER_F(w, BRU_ALT);
+    BRU_SET_WALKER_F(w, BRU_QUES);
 
-    walker_walk(w, r);
-    walker_release(w);
+    bru_walker_walk(w, r);
+    bru_walker_free(w);
 }

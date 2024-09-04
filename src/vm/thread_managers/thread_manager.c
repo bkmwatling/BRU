@@ -3,94 +3,94 @@
 
 /* --- Thread manager NO-OP functions --------------------------------------- */
 
-void thread_manager_init_memoisation_noop(void       *thread_manager_impl,
-                                          size_t      nmemo_insts,
-                                          const char *text)
+void bru_thread_manager_init_memoisation_noop(void       *thread_manager_impl,
+                                              size_t      nmemo_insts,
+                                              const char *text)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(nmemo_insts);
-    UNUSED(text);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(nmemo_insts);
+    BRU_UNUSED(text);
 }
 
-int thread_manager_memoise_noop(void   *thread_manager_impl,
-                                Thread *thread,
-                                len_t   idx)
+int bru_thread_manager_memoise_noop(void      *thread_manager_impl,
+                                    BruThread *thread,
+                                    bru_len_t  idx)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(idx);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
 
     return TRUE;
 }
 
-cntr_t thread_manager_counter_noop(void         *thread_manager_impl,
-                                   const Thread *thread,
-                                   len_t         idx)
+bru_cntr_t bru_thread_manager_counter_noop(void            *thread_manager_impl,
+                                           const BruThread *thread,
+                                           bru_len_t        idx)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(idx);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
     return 0;
 }
 
-void thread_manager_set_counter_noop(void   *thread_manager_impl,
-                                     Thread *thread,
-                                     len_t   idx,
-                                     cntr_t  val)
+void bru_thread_manager_set_counter_noop(void      *thread_manager_impl,
+                                         BruThread *thread,
+                                         bru_len_t  idx,
+                                         bru_cntr_t val)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(idx);
-    UNUSED(val);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
+    BRU_UNUSED(val);
 }
 
-void thread_manager_inc_counter_noop(void   *thread_manager_impl,
-                                     Thread *thread,
-                                     len_t   idx)
+void bru_thread_manager_inc_counter_noop(void      *thread_manager_impl,
+                                         BruThread *thread,
+                                         bru_len_t  idx)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(idx);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
 }
 
-void *thread_manager_memory_noop(void         *thread_manager_impl,
-                                 const Thread *thread,
-                                 len_t         idx)
+void *bru_thread_manager_memory_noop(void            *thread_manager_impl,
+                                     const BruThread *thread,
+                                     bru_len_t        idx)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(idx);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
     return NULL;
 }
 
-void thread_manager_set_memory_noop(void       *thread_manager_impl,
-                                    Thread     *thread,
-                                    len_t       idx,
-                                    const void *val,
-                                    size_t      size)
+void bru_thread_manager_set_memory_noop(void       *thread_manager_impl,
+                                        BruThread  *thread,
+                                        bru_len_t   idx,
+                                        const void *val,
+                                        size_t      size)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(idx);
-    UNUSED(val);
-    UNUSED(size);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
+    BRU_UNUSED(val);
+    BRU_UNUSED(size);
 }
 
-const char *const *thread_manager_captures_noop(void *thread_manager_impl,
-                                                const Thread *thread,
-                                                len_t        *ncaptures)
+const char *const *bru_thread_manager_captures_noop(void *thread_manager_impl,
+                                                    const BruThread *thread,
+                                                    bru_len_t       *ncaptures)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(ncaptures);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(ncaptures);
     return NULL;
 }
 
-void thread_manager_set_capture_noop(void   *thread_manager_impl,
-                                     Thread *thread,
-                                     len_t   idx)
+void bru_thread_manager_set_capture_noop(void      *thread_manager_impl,
+                                         BruThread *thread,
+                                         bru_len_t  idx)
 {
-    UNUSED(thread_manager_impl);
-    UNUSED(thread);
-    UNUSED(idx);
+    BRU_UNUSED(thread_manager_impl);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
 }

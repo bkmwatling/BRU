@@ -1,9 +1,17 @@
-#ifndef ALL_MATCHES_H
-#define ALL_MATCHES_H
+#ifndef BRU_VM_THREAD_MANAGER_ALL_MATCHES_H
+#define BRU_VM_THREAD_MANAGER_ALL_MATCHES_H
 
 #include <stdio.h>
 
 #include "thread_manager.h"
+
+#if !defined(BRU_VM_THREAD_MANAGER_ALL_MATCHES_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_THREAD_MANAGER_ALL_MATCHES_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                           \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                        \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+#    define all_matches_thread_manager_new bru_all_matches_thread_manager_new
+#endif /* BRU_VM_THREAD_MANAGER_ALL_MATCHES_ENABLE_SHORT_NAMES */
 
 /**
  * Construct a thread manager that tracks and reports all matches by the
@@ -15,8 +23,9 @@
  *
  * @return the constructed all matches thread manager
  */
-ThreadManager *all_matches_thread_manager_new(ThreadManager *thread_manager,
-                                              FILE          *logfile,
-                                              const char    *text);
+BruThreadManager *
+bru_all_matches_thread_manager_new(BruThreadManager *thread_manager,
+                                   FILE             *logfile,
+                                   const char       *text);
 
-#endif
+#endif /* BRU_VM_THREAD_MANAGER_ALL_MATCHES_H */

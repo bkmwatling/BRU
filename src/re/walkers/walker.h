@@ -1,5 +1,4 @@
 /**
- *
  * The Walker struct loosely mimics ANTLR4 visitors and listeners (in one).
  *
  * It maintains a map from Regex node types to walk() functions.
@@ -7,7 +6,7 @@
  * Walker currently only supports DFS exploration; see TODO at bottom.
  * Altering the parse tree (in-place!) should happen in these functions.
  *
- * The default walker created when calling walker_init() will walk the parse
+ * The default walker created when calling bru_walker_new() will walk the parse
  * tree in-order, but will trigger all events (pre-order, in-order,
  * post-order) where appropriate.
  *
@@ -28,118 +27,185 @@
  *
  * TODO: The Walker currently uses the function call stack for traversal --
  * this may change in the future.
- *
  */
 
-#ifndef WALKER_H
-#define WALKER_H
+#ifndef BRU_WALKER_H
+#define BRU_WALKER_H
 
 #include "../sre.h"
 
-/* --- data structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
-typedef struct walker Walker;
-typedef void          (*listener_f)(void *state, RegexNode *curr);
+typedef struct bru_walker BruWalker;
+typedef void              bru_listener_f(void *state, BruRegexNode *curr);
 
 // double pointer to facilitate replacing current node in tree
-typedef void (*walker_f)(Walker *w, RegexNode **curr);
+typedef void bru_walker_f(BruWalker *w, BruRegexNode **curr);
 
-typedef enum { PREORDER, INORDER, POSTORDER, NEVENTS } ListenerEvent;
+typedef enum {
+    BRU_PREORDER,
+    BRU_INORDER,
+    BRU_POSTORDER,
+    BRU_NEVENTS
+} BruListenerEvent;
 
-struct walker {
-    RegexNode **regex;
+struct bru_walker {
+    BruRegexNode **regex;
 
     // visitor API
-    walker_f walk[NREGEXTYPES];
-    walker_f walk_terminal;
+    bru_walker_f *walk[BRU_NREGEXTYPES];
+    bru_walker_f *walk_terminal;
 
     // listener API
-    listener_f trigger[NEVENTS][NREGEXTYPES];
-    listener_f listen_terminal;
+    bru_listener_f *trigger[BRU_NEVENTS][BRU_NREGEXTYPES];
+    bru_listener_f *listen_terminal;
 
     // global state accessible to walker and listener functions
     void *state;
 };
 
-/* --- convenience macros --------------------------------------------------- */
+#if !defined(BRU_RE_WALKER_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_RE_WALKER_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_RE_DISABLE_SHORT_NAMES) &&       \
+         (defined(BRU_RE_ENABLE_SHORT_NAMES) ||    \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+typedef bru_walker_f     walker_f;
+typedef bru_listener_f   listener_f;
+typedef BruListenerEvent ListenerEvent;
+#    define PREORDER  BRU_PREORDER
+#    define INORDER   BRU_INORDER
+#    define POSTORDER BRU_POSTORDER
+#    define NEVENTS   BRU_NEVENTS
 
-#define WALKER _w
-#define REGEX  _r
-#define WALKER_F(type) \
-    static void __walk_##type(Walker *WALKER, RegexNode **REGEX)
+typedef BruWalker Walker;
 
-#define SET_WALKER_F(w, type) (w)->walk[type] = __walk_##type
-#define WALK(w, r)            (w)->walk[(r)->type]((w), &(r))
+#    define WALKER BRU_WALKER
+#    define REGEX  BRU_REGEX
 
-#define WALK_TERMINAL_F() \
-    static void __walk_terminal(Walker *WALKER, RegexNode **REGEX)
+#    define WALK         BRU_WALK
+#    define WALKER_F     BRU_WALKER_F
+#    define SET_WALKER_F BRU_SET_WALKER_F
 
-#define SET_WALK_TERMINAL_F(w) (w)->walk_terminal = __walk_terminal
-#define WALK_TERMINAL()        WALKER->walk_terminal(WALKER, REGEX)
+#    define WALK_TERMINAL       BRU_WALK_TERMINAL
+#    define WALK_TERMINAL_F     BRU_WALK_TERMINAL_F
+#    define SET_WALK_TERMINAL_F BRU_SET_WALK_TERMINAL_F
 
-#define CURRENT (*REGEX)
-#define LEFT    CURRENT->left
-#define RIGHT   CURRENT->right
-#define CHILD   LEFT
+#    define CURRENT BRU_CURRENT
+#    define LEFT    BRU_LEFT
+#    define RIGHT   BRU_RIGHT
+#    define CHILD   BRU_CHILD
 
-#define WALK_LEFT() \
-    if (LEFT) WALK(WALKER, LEFT)
-#define WALK_RIGHT() \
-    if (RIGHT) WALK(WALKER, RIGHT)
+#    define WALK_LEFT  BRU_WALK_LEFT
+#    define WALK_RIGHT BRU_WALK_RIGHT
 
-#define TRIGGER(event)                         \
-    if (WALKER->trigger[event][CURRENT->type]) \
-    WALKER->trigger[event][CURRENT->type](WALKER->state, CURRENT)
+#    define TRIGGER          BRU_TRIGGER
+#    define TRIGGER_TERMINAL BRU_TRIGGER_TERMINAL
 
-#define TRIGGER_TERMINAL() \
-    if (WALKER->listen_terminal) WALKER->listen_terminal(WALKER->state, CURRENT)
+#    define SET_CURRENT BRU_SET_CURRENT
+#    define SET_LEFT    BRU_SET_LEFT
+#    define SET_RIGHT   BRU_SET_RIGHT
+#    define SET_CHILD   BRU_SET_CHILD
 
-#define SET_CURRENT(exp) *REGEX = exp
-#define SET_LEFT(exp)    LEFT = exp
-#define SET_RIGHT(exp)   RIGHT = exp
-#define SET_CHILD(exp)   CHILD = exp
+#    define STATE     BRU_STATE
+#    define GET_STATE BRU_GET_STATE
 
-#define STATE _state
-#define LISTENER_F(event, type) \
-    static void __listen_##event##_##type(void *STATE, RegexNode *REGEX)
+#    define LISTENER_F                 BRU_LISTENER_F
+#    define REGISTER_LISTENER_F        BRU_REGISTER_LISTENER_F
+#    define LISTEN_TERMINAL_F          BRU_LISTEN_TERMINAL_F
+#    define REGISTER_LISTEN_TERMINAL_F BRU_REGISTER_LISTEN_TERMINAL_F
 
-#define GET_STATE(cast, varname) cast varname = (cast) (STATE)
+#    define walker_new  bru_walker_new
+#    define walker_walk bru_walker_walk
+#    define walker_free bru_walker_free
+#endif /* BRU_WALKER_ENABLE_SHORT_NAMES */
 
-#define REGISTER_LISTENER_F(w, event, type) \
+/* --- Convenience macros --------------------------------------------------- */
+
+#define BRU_WALKER _w
+#define BRU_REGEX  _r
+
+#define BRU_WALK(w, r) (w)->walk[(r)->type]((w), &(r))
+#define BRU_WALKER_F(type) \
+    static void __walk_##type(BruWalker *BRU_WALKER, BruRegexNode **BRU_REGEX)
+#define BRU_SET_WALKER_F(w, type) (w)->walk[type] = __walk_##type
+
+#define BRU_WALK_TERMINAL() BRU_WALKER->walk_terminal(BRU_WALKER, BRU_REGEX)
+#define BRU_WALK_TERMINAL_F() \
+    static void __walk_terminal(BruWalker *BRU_WALKER, BruRegexNode **BRU_REGEX)
+#define BRU_SET_WALK_TERMINAL_F(w) (w)->walk_terminal = __walk_terminal
+
+#define BRU_CURRENT (*BRU_REGEX)
+#define BRU_LEFT    BRU_CURRENT->left
+#define BRU_RIGHT   BRU_CURRENT->right
+#define BRU_CHILD   BRU_LEFT
+
+#define BRU_WALK_LEFT() \
+    if (BRU_LEFT) BRU_WALK(BRU_WALKER, BRU_LEFT)
+#define BRU_WALK_RIGHT() \
+    if (BRU_RIGHT) BRU_WALK(BRU_WALKER, BRU_RIGHT)
+
+#define BRU_TRIGGER(event)                                           \
+    if (BRU_WALKER->trigger[event][BRU_CURRENT->type])               \
+    BRU_WALKER->trigger[event][BRU_CURRENT->type](BRU_WALKER->state, \
+                                                  BRU_CURRENT)
+
+#define BRU_TRIGGER_TERMINAL()       \
+    if (BRU_WALKER->listen_terminal) \
+    BRU_WALKER->listen_terminal(BRU_WALKER->state, BRU_CURRENT)
+
+#define BRU_SET_CURRENT(exp) *BRU_REGEX = exp
+#define BRU_SET_LEFT(exp)    BRU_LEFT = exp
+#define BRU_SET_RIGHT(exp)   BRU_RIGHT = exp
+#define BRU_SET_CHILD(exp)   BRU_CHILD = exp
+
+#define BRU_STATE _state
+#define BRU_LISTENER_F(event, type)                                \
+    static void __listen_##event##_##type(void         *BRU_STATE, \
+                                          BruRegexNode *BRU_REGEX)
+
+#define BRU_GET_STATE(cast, varname) cast varname = (cast) (BRU_STATE)
+
+#define BRU_REGISTER_LISTENER_F(w, event, type) \
     (w)->trigger[event][type] = __listen_##event##_##type
 
-#define LISTEN_TERMINAL_F() \
-    static void __listen_terminal(void *STATE, RegexNode *REGEX)
+#define BRU_LISTEN_TERMINAL_F() \
+    static void __listen_terminal(void *BRU_STATE, BruRegexNode *BRU_REGEX)
 
-#define REGISTER_LISTEN_TERMINAL_F(w) (w)->listen_terminal = __listen_terminal
+#define BRU_REGISTER_LISTEN_TERMINAL_F(w) \
+    (w)->listen_terminal = __listen_terminal
 
-/* --- API ------------------------------------------------------------------ */
+/* --- API function prototypes ---------------------------------------------- */
 
 /**
- * Creates a generic walker.
+ * Create a generic walker.
+ *
+ * @return the constructed generic walker
  */
-Walker *walker_init(void);
+BruWalker *bru_walker_new(void);
 
 /**
- * Walks the given walker from the root node.
+ * Walk the given walker from the root node.
  *
  * The return value is for convenience in using the walker consecutively,
  * although in general one should pass a pointer to the variable that is the
  * tree. The walker should then update the variable in place, meaning the
  * return value here is likely not necessary.
  *
- * @param walker The walker
- * @param r      A pointer to the parsed regular expression to walk
- * @returns      NULL if any arguments are NULL (including *r), else the
- *               previously walked regex (NULL on the first call)
+ * @param[in] walker the walker
+ * @param[in] regex  a pointer to the parsed regular expression to walk
+ *
+ * @return NULL if any arguments are NULL (including *r), else the previously
+ *         walked regex (NULL on the first call)
  */
-RegexNode *walker_walk(Walker *walker, RegexNode **r);
+BruRegexNode *bru_walker_walk(BruWalker *walker, BruRegexNode **regex);
 
 /**
- * Release the memory used by the given walker, returning the underlying regex.
+ * Free the memory used by the given walker, returning the underlying regex.
  *
- * @param walker The walker
+ * @param[in] walker the walker
+ *
+ * @return the underlying regex
  */
-RegexNode *walker_release(Walker *walker);
+BruRegexNode *bru_walker_free(BruWalker *walker);
 
-#endif /* WALKER_H */
+#endif /* BRU_WALKER_H */

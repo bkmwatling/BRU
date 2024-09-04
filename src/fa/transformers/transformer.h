@@ -1,12 +1,27 @@
-#ifndef TRANSFORMER_H
-#define TRANSFORMER_H
+#ifndef BRU_FA_TRANSFORMER_H
+#define BRU_FA_TRANSFORMER_H
 
 #include "../smir.h"
 
-typedef StateMachine *transformer_f(StateMachine *);
+typedef BruStateMachine *bru_transformer_f(BruStateMachine *);
 
-typedef int state_predicate_f(StateMachine *, state_id);
-typedef int trans_predicate_f(StateMachine *, trans_id);
+typedef int bru_state_predicate_f(BruStateMachine *, bru_state_id);
+typedef int bru_trans_predicate_f(BruStateMachine *, bru_trans_id);
+
+typedef bru_transformer_f     transformer_f;
+typedef bru_state_predicate_f state_predicate_f;
+typedef bru_trans_predicate_f trans_predicate_f;
+
+#if !defined(BRU_FA_TRANSFORMER_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_FA_TRANSFORMER_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_FA_DISABLE_SHORT_NAMES) &&            \
+         (defined(BRU_FA_ENABLE_SHORT_NAMES) ||         \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+#    define transform_from_states      bru_transform_from_states
+#    define transform_from_transitions bru_transform_from_transitions
+#    define transform_with_states      bru_transform_with_states
+#    define transform_with_trans       bru_transform_with_trans
+#endif /* BRU_FA_TRANSFORMER_ENABLE_SHORT_NAMES */
 
 /**
  * Create the submachine induced by a set of state identifiers.
@@ -20,14 +35,15 @@ typedef int trans_predicate_f(StateMachine *, trans_id);
  * states in the transformed state machine.
  *
  * @param[in]     sm     the state machine
- * @param[in,out] states the boolean vector indicating which states to keep/
- *                       the map of old state identifiers to new state
+ * @param[in,out] states the boolean vector indicating which states to keep,
+ *                       i.e., the map of old state identifiers to new state
  *                       identifiers where 0 indicates the state does not
- *                       exist.
+ *                       exist
  *
  * @return the submachine
  */
-StateMachine *transform_from_states(StateMachine *sm, state_id *states);
+BruStateMachine *bru_transform_from_states(BruStateMachine *sm,
+                                           bru_state_id    *states);
 
 /**
  * Create the submachine induced by a set of transition identifiers.
@@ -47,8 +63,8 @@ StateMachine *transform_from_states(StateMachine *sm, state_id *states);
  *
  * @return the submachine
  */
-StateMachine *transform_from_transitions(StateMachine *sm,
-                                         trans_id     *tranitions);
+BruStateMachine *bru_transform_from_transitions(BruStateMachine *sm,
+                                                bru_trans_id    *tranitions);
 
 /**
  * Create the submachine induced by the states matching a predicate.
@@ -60,7 +76,8 @@ StateMachine *transform_from_transitions(StateMachine *sm,
  *
  * @return the submachine (possibly the original)
  */
-StateMachine *transform_with_states(StateMachine *sm, state_predicate_f *spf);
+BruStateMachine *bru_transform_with_states(BruStateMachine       *sm,
+                                           bru_state_predicate_f *spf);
 
 /**
  * Create the submachine induced by the transitions matching a predicate.
@@ -72,6 +89,7 @@ StateMachine *transform_with_states(StateMachine *sm, state_predicate_f *spf);
  *
  * @return the submachine (possibly the original)
  */
-StateMachine *transform_with_trans(StateMachine *sm, trans_predicate_f *tpf);
+BruStateMachine *bru_transform_with_trans(BruStateMachine       *sm,
+                                          bru_trans_predicate_f *tpf);
 
-#endif /* TRANSFORMER_H */
+#endif /* BRU_FA_TRANSFORMER_H */

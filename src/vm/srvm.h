@@ -1,5 +1,5 @@
-#ifndef SRVM_H
-#define SRVM_H
+#ifndef BRU_VM_SRVM_H
+#define BRU_VM_SRVM_H
 
 #include "../stc/fatp/string_view.h"
 
@@ -7,13 +7,33 @@
 
 /* --- Preprocessor constants ----------------------------------------------- */
 
-#define NO_MATCH          0
-#define MATCH             1
-#define MATCHES_EXHAUSTED 2
+#define BRU_NO_MATCH          0
+#define BRU_MATCH             1
+#define BRU_MATCHES_EXHAUSTED 2
 
 /* --- Type definitions ----------------------------------------------------- */
 
-typedef struct srvm SRVM;
+typedef struct bru_srvm BruSRVM;
+
+#if !defined(BRU_VM_SRVM_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_SRVM_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&     \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||  \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+#    define NO_MATCH          BRU_NO_MATCH
+#    define MATCH             BRU_MATCH
+#    define MATCHES_EXHAUSTED BRU_MATCHES_EXHAUSTED
+
+typedef BruSRVM SRVM;
+
+#    define srvm_new      bru_srvm_new
+#    define srvm_free     bru_srvm_free
+#    define srvm_match    bru_srvm_match
+#    define srvm_find     bru_srvm_find
+#    define srvm_capture  bru_srvm_capture
+#    define srvm_captures bru_srvm_captures
+#    define srvm_matches  bru_srvm_matches
+#endif /* BRU_VM_SRVM_ENABLE_SHORT_NAMES */
 
 /* --- SRVM function prototypes --------------------------------------------- */
 
@@ -26,14 +46,14 @@ typedef struct srvm SRVM;
  *
  * @return the constructed SRVM
  */
-SRVM *srvm_new(ThreadManager *thread_manager, const Program *prog);
+BruSRVM *bru_srvm_new(BruThreadManager *thread_manager, const BruProgram *prog);
 
 /**
  * Free the memory allocated for the SRVM.
  *
  * @param[in] self the SRVM to free
  */
-void srvm_free(SRVM *self);
+void bru_srvm_free(BruSRVM *self);
 
 /**
  * Execute the SRVM against an input string.
@@ -43,7 +63,7 @@ void srvm_free(SRVM *self);
  *
  * @return truthy value if the SRVM matched against the input string; else 0
  */
-int srvm_match(SRVM *self, const char *text);
+int bru_srvm_match(BruSRVM *self, const char *text);
 
 /**
  * Find the next match of the regex of the SRVM inside the input string if
@@ -54,7 +74,7 @@ int srvm_match(SRVM *self, const char *text);
  *
  * @return truthy value if the SRVM found a match in the input string; else 0
  */
-int srvm_find(SRVM *self, const char *text);
+int bru_srvm_find(BruSRVM *self, const char *text);
 
 /**
  * Get the string view into the input string of the capture at the given index
@@ -65,7 +85,7 @@ int srvm_find(SRVM *self, const char *text);
  *
  * @return the string view of the capture
  */
-StcStringView srvm_capture(SRVM *self, len_t idx);
+StcStringView bru_srvm_capture(BruSRVM *self, bru_len_t idx);
 
 /**
  * Get the string views of all the captures from the previous match of the SRVM.
@@ -75,7 +95,7 @@ StcStringView srvm_capture(SRVM *self, len_t idx);
  *
  * @return the array of capture string views from the SRVM
  */
-StcStringView *srvm_captures(SRVM *self, len_t *ncaptures);
+StcStringView *bru_srvm_captures(BruSRVM *self, bru_len_t *ncaptures);
 
 /**
  * Determine whether the regex represented by the program matches the input text
@@ -90,8 +110,8 @@ StcStringView *srvm_captures(SRVM *self, len_t *ncaptures);
  *
  * @return truthy value if the program matched against the input string; else 0
  */
-int srvm_matches(ThreadManager *thread_manager,
-                 const Program *prog,
-                 const char    *text);
+int bru_srvm_matches(BruThreadManager *thread_manager,
+                     const BruProgram *prog,
+                     const char       *text);
 
-#endif /* SRVM_H */
+#endif /* BRU_VM_SRVM_H */

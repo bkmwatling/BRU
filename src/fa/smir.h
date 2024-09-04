@@ -1,5 +1,5 @@
-#ifndef SMIR_H
-#define SMIR_H
+#ifndef BRU_FA_SMIR_H
+#define BRU_FA_SMIR_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -9,42 +9,137 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define NULL_STATE       0
-#define INITIAL_STATE_ID NULL_STATE
-#define FINAL_STATE_ID   NULL_STATE
+#define BRU_NULL_STATE       0
+#define BRU_INITIAL_STATE_ID BRU_NULL_STATE
+#define BRU_FINAL_STATE_ID   BRU_NULL_STATE
 
-#define IS_INITIAL_STATE(sid) (sid == INITIAL_STATE_ID)
-#define IS_FINAL_STATE(sid)   (sid == FINAL_STATE_ID)
+#define BRU_IS_INITIAL_STATE(sid) ((sid) == BRU_INITIAL_STATE_ID)
+#define BRU_IS_FINAL_STATE(sid)   ((sid) == BRU_FINAL_STATE_ID)
 
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef enum {
-    ACT_BEGIN,
-    ACT_END,
+    BRU_ACT_BEGIN,
+    BRU_ACT_END,
 
-    ACT_CHAR,
-    ACT_PRED,
+    BRU_ACT_CHAR,
+    BRU_ACT_PRED,
 
-    ACT_MEMO,
-    ACT_SAVE,
-    ACT_EPSCHK,
-    ACT_EPSSET,
-} ActionType;
+    BRU_ACT_MEMO,
+    BRU_ACT_SAVE,
+    BRU_ACT_EPSCHK,
+    BRU_ACT_EPSSET,
+} BruActionType;
 
-typedef ActionType PredicateType;
+typedef BruActionType BruPredicateType;
 
-typedef struct action               Action;
-typedef Action                      Predicate;
-typedef struct action_list          ActionList;
-typedef struct action_list_iterator ActionListIterator;
-typedef struct state_machine        StateMachine;
+typedef struct bru_action               BruAction;
+typedef BruAction                       BruPredicate;
+typedef struct bru_action_list          BruActionList;
+typedef struct bru_action_list_iterator BruActionListIterator;
+typedef struct bru_state_machine        BruStateMachine;
 
-typedef uint32_t state_id; // 0 => nonexistent
-typedef uint64_t trans_id; // (src state_id, idx into outgoing transitions)
+typedef uint32_t bru_state_id; // 0 => nonexistent
+typedef uint64_t bru_trans_id; // (src state_id, idx into outgoing transitions)
 
-typedef void compile_f(void *meta, Program *prog);
+typedef void bru_compile_f(void *meta, BruProgram *prog);
 
-/* --- API ------------------------------------------------------------------ */
+#if !defined(BRU_FA_SMIR_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_FA_SMIR_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_FA_DISABLE_SHORT_NAMES) &&     \
+         (defined(BRU_FA_ENABLE_SHORT_NAMES) ||  \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+typedef BruActionType ActionType;
+#    define ACT_BEGIN  BRU_ACT_BEGIN
+#    define ACT_END    BRU_ACT_END
+#    define ACT_CHAR   BRU_ACT_CHAR
+#    define ACT_PRED   BRU_ACT_PRED
+#    define ACT_MEMO   BRU_ACT_MEMO
+#    define ACT_SAVE   BRU_ACT_SAVE
+#    define ACT_EPSCHK BRU_ACT_EPSCHK
+#    define ACT_EPSSET BRU_ACT_EPSSET
+
+typedef BruPredicateType      PredicateType;
+typedef BruAction             Action;
+typedef BruPredicate          Predicate;
+typedef BruActionList         ActionList;
+typedef BruActionListIterator ActionListIterator;
+typedef BruStateMachine       StateMachine;
+
+typedef bru_state_id  state_id;
+typedef bru_trans_id  trans_id;
+typedef bru_compile_f compile_f;
+
+#    define smir_default bru_smir_default
+#    define smir_new     bru_smir_new
+#    define smir_free    bru_smir_free
+#    define smir_compile bru_smir_compile
+
+#    define smir_add_state             bru_smir_add_state
+#    define smir_get_num_states        bru_smir_get_num_states
+#    define smir_get_regex             bru_smir_get_regex
+#    define smir_set_initial           bru_smir_set_initial
+#    define smir_get_initial           bru_smir_get_initial
+#    define smir_set_final             bru_smir_set_final
+#    define smir_add_transition        bru_smir_add_transition
+#    define smir_get_out_transitions   bru_smir_get_out_transitions
+#    define smir_state_get_num_actions bru_smir_state_get_num_actions
+#    define smir_state_get_actions     bru_smir_state_get_actions
+#    define smir_state_append_action   bru_smir_state_append_action
+#    define smir_state_prepend_action  bru_smir_state_prepend_action
+#    define smir_state_set_actions     bru_smir_state_set_actions
+#    define smir_state_clone_actions   bru_smir_state_clone_actions
+
+#    define smir_get_src               bru_smir_get_src
+#    define smir_get_dst               bru_smir_get_dst
+#    define smir_set_dst               bru_smir_set_dst
+#    define smir_trans_get_num_actions bru_smir_trans_get_num_actions
+#    define smir_trans_get_actions     bru_smir_trans_get_actions
+#    define smir_trans_append_action   bru_smir_trans_append_action
+#    define smir_trans_prepend_action  bru_smir_trans_prepend_action
+#    define smir_trans_set_actions     bru_smir_trans_set_actions
+#    define smir_trans_clone_actions   bru_smir_trans_clone_actions
+
+#    define smir_print bru_smir_print
+
+#    define smir_action_zwa       bru_smir_action_zwa
+#    define smir_action_char      bru_smir_action_char
+#    define smir_action_predicate bru_smir_action_predicate
+#    define smir_action_num       bru_smir_action_num
+#    define smir_action_clone     bru_smir_action_clone
+#    define smir_action_free      bru_smir_action_free
+#    define smir_action_type      bru_smir_action_type
+#    define smir_action_get_num   bru_smir_action_get_num
+#    define smir_action_print     bru_smir_action_print
+
+#    define smir_action_list_new        bru_smir_action_list_new
+#    define smir_action_list_clone      bru_smir_action_list_clone
+#    define smir_action_list_clone_into bru_smir_action_list_clone_into
+#    define smir_action_list_clear      bru_smir_action_list_clear
+#    define smir_action_list_free       bru_smir_action_list_free
+#    define smir_action_list_len        bru_smir_action_list_len
+#    define smir_action_list_push_back  bru_smir_action_list_push_back
+#    define smir_action_list_push_front bru_smir_action_list_push_front
+#    define smir_action_list_append     bru_smir_action_list_append
+#    define smir_action_list_prepend    bru_smir_action_list_prepend
+
+#    define smir_action_list_iter          bru_smir_action_list_iter
+#    define smir_action_list_iterator_next bru_smir_action_list_iterator_next
+#    define smir_action_list_iterator_prev bru_smir_action_list_iterator_prev
+#    define smir_action_list_iterator_remove \
+        bru_smir_action_list_iterator_remove
+#    define smir_action_list_print bru_smir_action_list_print
+
+#    define smir_set_pre_meta      bru_smir_set_pre_meta
+#    define smir_get_pre_meta      bru_smir_get_pre_meta
+#    define smir_set_post_meta     bru_smir_set_post_meta
+#    define smir_get_post_meta     bru_smir_get_post_meta
+#    define smir_compile_with_meta bru_smir_compile_with_meta
+
+#    define smir_reorder_states bru_smir_reorder_states
+#endif /* BRU_FA_SMIR_ENABLE_SHORT_NAMES */
+
+/* --- API function prototypes ---------------------------------------------- */
 
 /**
  * Create a blank state machine.
@@ -53,7 +148,7 @@ typedef void compile_f(void *meta, Program *prog);
  *
  * @return the blank state machine
  */
-StateMachine *smir_default(const char *regex);
+BruStateMachine *bru_smir_default(const char *regex);
 
 /**
  * Create a new state machine with a given number of states.
@@ -65,14 +160,14 @@ StateMachine *smir_default(const char *regex);
  *
  * @return the new state machine
  */
-StateMachine *smir_new(const char *regex, uint32_t nstates);
+BruStateMachine *bru_smir_new(const char *regex, uint32_t nstates);
 
 /**
  * Free all memory used by the state machine.
  *
  * @param[in] self the state machine
  */
-void smir_free(StateMachine *self);
+void bru_smir_free(BruStateMachine *self);
 
 /**
  * Compile a state machine.
@@ -81,7 +176,7 @@ void smir_free(StateMachine *self);
  *
  * @return the compiled program
  */
-Program *smir_compile(StateMachine *self);
+BruProgram *bru_smir_compile(BruStateMachine *self);
 
 /**
  * Create a new state in the state machine.
@@ -90,7 +185,7 @@ Program *smir_compile(StateMachine *self);
  *
  * @return the unique state identifier
  */
-state_id smir_add_state(StateMachine *self);
+bru_state_id bru_smir_add_state(BruStateMachine *self);
 
 /**
  * Get the current number of states in the state machine.
@@ -99,7 +194,7 @@ state_id smir_add_state(StateMachine *self);
  *
  * @return the number of states
  */
-size_t smir_get_num_states(StateMachine *self);
+size_t bru_smir_get_num_states(BruStateMachine *self);
 
 /**
  * Get the underlying reguler expression of a state machine.
@@ -108,7 +203,7 @@ size_t smir_get_num_states(StateMachine *self);
  *
  * @return the underlying regular expression
  */
-const char *smir_get_regex(StateMachine *self);
+const char *bru_smir_get_regex(BruStateMachine *self);
 
 /**
  * Mark a state as initial by inserting a blank initial transition to the state.
@@ -121,20 +216,20 @@ const char *smir_get_regex(StateMachine *self);
  *
  * @return the unique transition identifier of the initialisation transition
  */
-trans_id smir_set_initial(StateMachine *self, state_id sid);
+bru_trans_id bru_smir_set_initial(BruStateMachine *self, bru_state_id sid);
 
 /**
  * Get the initial transitions of the state machine.
  *
  * Convenience function equivalent to calling @ref smir_get_out_transitions
- * with @ref INITIAL_STATE_ID.
+ * with @ref BRU_INITIAL_STATE_ID.
  *
  * @param[in]  self the state machine
  * @param[out] n    the number of initial transitions
  *
  * @return the identifiers representing the initial transitions
  */
-trans_id *smir_get_initial(StateMachine *self, size_t *n);
+bru_trans_id *bru_smir_get_initial(BruStateMachine *self, size_t *n);
 
 /**
  * Mark a state as final.
@@ -148,7 +243,7 @@ trans_id *smir_get_initial(StateMachine *self, size_t *n);
  *
  * @return the unique transition identifier of the finalisation transition
  */
-trans_id smir_set_final(StateMachine *self, state_id sid);
+bru_trans_id bru_smir_set_final(BruStateMachine *self, bru_state_id sid);
 
 /**
  * Add an outgoing transition to a state.
@@ -161,7 +256,7 @@ trans_id smir_set_final(StateMachine *self, state_id sid);
  *
  * @return the unique transition identifer
  */
-trans_id smir_add_transition(StateMachine *self, state_id sid);
+bru_trans_id bru_smir_add_transition(BruStateMachine *self, bru_state_id sid);
 
 /**
  * Get the outgoing transitions of a state.
@@ -176,7 +271,9 @@ trans_id smir_add_transition(StateMachine *self, state_id sid);
  * @return an array of transition identifiers representing the outgoing
  *         transitions
  */
-trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n);
+bru_trans_id *bru_smir_get_out_transitions(BruStateMachine *self,
+                                           bru_state_id     sid,
+                                           size_t          *n);
 
 /**
  * Get the number of actions on a state.
@@ -186,18 +283,19 @@ trans_id *smir_get_out_transitions(StateMachine *self, state_id sid, size_t *n);
  *
  * @return the number of actions
  */
-size_t smir_state_get_num_actions(StateMachine *self, state_id sid);
+size_t bru_smir_state_get_num_actions(BruStateMachine *self, bru_state_id sid);
 
 /**
- * Get the actions of a state. Will return NULL if the `sid` is INITIAL_STATE_ID
- * or FINAL_STATE_ID.
+ * Get the actions of a state. Will return NULL if the `sid` is
+ * BRU_INITIAL_STATE_ID or BRU_FINAL_STATE_ID.
  *
  * @param[in] self the state machine
  * @param[in] sid  the unique state identifier
  *
  * @return the actions of the state, or NULL
  */
-const ActionList *smir_state_get_actions(StateMachine *self, state_id sid);
+const BruActionList *bru_smir_state_get_actions(BruStateMachine *self,
+                                                bru_state_id     sid);
 
 /**
  * Append an action to a state.
@@ -206,9 +304,9 @@ const ActionList *smir_state_get_actions(StateMachine *self, state_id sid);
  * @param[in] sid  the unique state identifier
  * @param[in] act  the action to append
  */
-void smir_state_append_action(StateMachine *self,
-                              state_id      sid,
-                              const Action *act);
+void bru_smir_state_append_action(BruStateMachine *self,
+                                  bru_state_id     sid,
+                                  const BruAction *act);
 
 /**
  * Prepend an action to a state.
@@ -217,9 +315,9 @@ void smir_state_append_action(StateMachine *self,
  * @param[in] sid  the unique state identifier
  * @param[in] act  the action to prepend
  */
-void smir_state_prepend_action(StateMachine *self,
-                               state_id      sid,
-                               const Action *act);
+void bru_smir_state_prepend_action(BruStateMachine *self,
+                                   bru_state_id     sid,
+                                   const BruAction *act);
 
 /**
  * Set the actions of a state.
@@ -231,7 +329,9 @@ void smir_state_prepend_action(StateMachine *self,
  * @param[in] sid  the unique state identifier
  * @param[in] acts the list of actions
  */
-void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts);
+void bru_smir_state_set_actions(BruStateMachine *self,
+                                bru_state_id     sid,
+                                BruActionList   *acts);
 
 /**
  * Clone the list of actions of a state.
@@ -242,7 +342,8 @@ void smir_state_set_actions(StateMachine *self, state_id sid, ActionList *acts);
  *
  * @return the cloned list of actions
  */
-ActionList *smir_state_clone_actions(StateMachine *self, state_id sid);
+BruActionList *bru_smir_state_clone_actions(BruStateMachine *self,
+                                            bru_state_id     sid);
 
 /**
  * Get the source state of a transition.
@@ -252,7 +353,7 @@ ActionList *smir_state_clone_actions(StateMachine *self, state_id sid);
  *
  * @return the unique state identifier of the source state
  */
-state_id smir_get_src(StateMachine *self, trans_id tid);
+bru_state_id bru_smir_get_src(BruStateMachine *self, bru_trans_id tid);
 
 /**
  * Get the destination state of a transition.
@@ -262,7 +363,7 @@ state_id smir_get_src(StateMachine *self, trans_id tid);
  *
  * @return the unique state identifier of the destination state
  */
-state_id smir_get_dst(StateMachine *self, trans_id tid);
+bru_state_id bru_smir_get_dst(BruStateMachine *self, bru_trans_id tid);
 
 /**
  * Set the destination state of a transition.
@@ -271,7 +372,9 @@ state_id smir_get_dst(StateMachine *self, trans_id tid);
  * @param[in] tid  the unique transition identifier
  * @param[in] dst  the unique state identifier of the destination state
  */
-void smir_set_dst(StateMachine *self, trans_id tid, state_id dst);
+void bru_smir_set_dst(BruStateMachine *self,
+                      bru_trans_id     tid,
+                      bru_state_id     dst);
 
 /**
  * Get the number of actions on a transition.
@@ -281,7 +384,7 @@ void smir_set_dst(StateMachine *self, trans_id tid, state_id dst);
  *
  * @return the number of actions
  */
-size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid);
+size_t bru_smir_trans_get_num_actions(BruStateMachine *self, bru_trans_id tid);
 
 /**
  * Get the actions of a transition.
@@ -291,7 +394,8 @@ size_t smir_trans_get_num_actions(StateMachine *self, trans_id tid);
  *
  * @return the actions of the transition
  */
-const ActionList *smir_trans_get_actions(StateMachine *self, trans_id tid);
+const BruActionList *bru_smir_trans_get_actions(BruStateMachine *self,
+                                                bru_trans_id     tid);
 
 /**
  * Append an action to a transition.
@@ -300,9 +404,9 @@ const ActionList *smir_trans_get_actions(StateMachine *self, trans_id tid);
  * @param[in] tid  the unique transition identifier
  * @param[in] act  the action to append
  */
-void smir_trans_append_action(StateMachine *self,
-                              trans_id      tid,
-                              const Action *act);
+void bru_smir_trans_append_action(BruStateMachine *self,
+                                  bru_trans_id     tid,
+                                  const BruAction *act);
 
 /**
  * Prepend an action to a transition.
@@ -311,9 +415,9 @@ void smir_trans_append_action(StateMachine *self,
  * @param[in] tid  the unique transition identifier
  * @param[in] act  the action to prepend
  */
-void smir_trans_prepend_action(StateMachine *self,
-                               trans_id      tid,
-                               const Action *act);
+void bru_smir_trans_prepend_action(BruStateMachine *self,
+                                   bru_trans_id     tid,
+                                   const BruAction *act);
 
 /**
  * Set the actions of a transition.
@@ -325,7 +429,9 @@ void smir_trans_prepend_action(StateMachine *self,
  * @param[in] tid  the unique transition identifier
  * @param[in] acts the list of actions
  */
-void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
+void bru_smir_trans_set_actions(BruStateMachine *self,
+                                bru_trans_id     tid,
+                                BruActionList   *acts);
 
 /**
  * Clone the list of actions of a transition.
@@ -336,7 +442,8 @@ void smir_trans_set_actions(StateMachine *self, trans_id tid, ActionList *acts);
  *
  * @return the cloned list of actions
  */
-ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid);
+BruActionList *bru_smir_trans_clone_actions(BruStateMachine *self,
+                                            bru_trans_id     tid);
 
 /**
  * Print the state machine.
@@ -344,7 +451,7 @@ ActionList *smir_trans_clone_actions(StateMachine *self, trans_id tid);
  * @param[in] self   the state machine
  * @param[in] stream the file stream to print to
  */
-void smir_print(StateMachine *self, FILE *stream);
+void bru_smir_print(BruStateMachine *self, FILE *stream);
 
 /* --- Action and ActionList functions -------------------------------------- */
 
@@ -357,7 +464,7 @@ void smir_print(StateMachine *self, FILE *stream);
  *
  * @return the action
  */
-const Action *smir_action_zwa(ActionType type);
+const BruAction *bru_smir_action_zwa(BruActionType type);
 
 /**
  * Create an action for matching against a character.
@@ -366,7 +473,7 @@ const Action *smir_action_zwa(ActionType type);
  *
  * @return the action
  */
-const Action *smir_action_char(const char *ch);
+const BruAction *bru_smir_action_char(const char *ch);
 
 /**
  * Create an action for matching against a predicate.
@@ -375,7 +482,7 @@ const Action *smir_action_char(const char *ch);
  *
  * @return the action
  */
-const Action *smir_action_predicate(const Intervals *pred);
+const BruAction *bru_smir_action_predicate(const BruIntervals *pred);
 
 /**
  * Create an action which require relative pointers into memory.
@@ -390,7 +497,7 @@ const Action *smir_action_predicate(const Intervals *pred);
  *
  * @return the action
  */
-const Action *smir_action_num(ActionType type, size_t k);
+const BruAction *bru_smir_action_num(BruActionType type, size_t k);
 
 /**
  * Clone an action.
@@ -399,14 +506,14 @@ const Action *smir_action_num(ActionType type, size_t k);
  *
  * @return the cloned action
  */
-const Action *smir_action_clone(const Action *self);
+const BruAction *bru_smir_action_clone(const BruAction *self);
 
 /**
  * Free the memory of the action.
  *
  * @param[in] self the action to free
  */
-void smir_action_free(const Action *self);
+void bru_smir_action_free(const BruAction *self);
 
 /**
  * Get the type of the action.
@@ -415,7 +522,7 @@ void smir_action_free(const Action *self);
  *
  * @return the type of the action
  */
-ActionType smir_action_type(const Action *self);
+BruActionType bru_smir_action_type(const BruAction *self);
 
 /**
  * Get the number associated with an action if possible.
@@ -427,7 +534,7 @@ ActionType smir_action_type(const Action *self);
  *
  * @return the number associated with the action
  */
-size_t smir_action_get_num(const Action *self);
+size_t bru_smir_action_get_num(const BruAction *self);
 
 /**
  * Print the action.
@@ -435,14 +542,14 @@ size_t smir_action_get_num(const Action *self);
  * @param[in] self   the action
  * @param[in] stream the file stream to print to
  */
-void smir_action_print(const Action *self, FILE *stream);
+void bru_smir_action_print(const BruAction *self, FILE *stream);
 
 /**
  * Create an empty list of actions.
  *
  * @return the empty list of actions
  */
-ActionList *smir_action_list_new(void);
+BruActionList *bru_smir_action_list_new(void);
 
 /**
  * Clone the list of actions.
@@ -451,7 +558,7 @@ ActionList *smir_action_list_new(void);
  *
  * @return the cloned list of actions
  */
-ActionList *smir_action_list_clone(const ActionList *self);
+BruActionList *bru_smir_action_list_clone(const BruActionList *self);
 
 /**
  * Clone the list of actions into an existing list.
@@ -462,21 +569,22 @@ ActionList *smir_action_list_clone(const ActionList *self);
  * @param[in] self  the list of actions to clone
  * @param[in] clone the preallocated list to clone into
  */
-void smir_action_list_clone_into(const ActionList *self, ActionList *clone);
+void bru_smir_action_list_clone_into(const BruActionList *self,
+                                     BruActionList       *clone);
 
 /**
  * Remove (and free) the elements of a list of actions.
  *
  * @param[in] self the list of actions
  */
-void smir_action_list_clear(ActionList *self);
+void bru_smir_action_list_clear(BruActionList *self);
 
 /**
  * Free the list of actions.
  *
  * @param[in] self the list of actions
  */
-void smir_action_list_free(ActionList *self);
+void bru_smir_action_list_free(BruActionList *self);
 
 /**
  * Get the number of actions in a list of actions.
@@ -487,7 +595,7 @@ void smir_action_list_free(ActionList *self);
  *
  * @return the number of actions in the list (0 if the list is NULL or empty)
  */
-size_t smir_action_list_len(const ActionList *self);
+size_t bru_smir_action_list_len(const BruActionList *self);
 
 /**
  * Push an action to the back of a list of actions.
@@ -495,7 +603,7 @@ size_t smir_action_list_len(const ActionList *self);
  * @param[in] self the list of actions
  * @param[in] act  the action to push to the back
  */
-void smir_action_list_push_back(ActionList *self, const Action *act);
+void bru_smir_action_list_push_back(BruActionList *self, const BruAction *act);
 
 /**
  * Push an action to the front of a list of actions.
@@ -503,7 +611,7 @@ void smir_action_list_push_back(ActionList *self, const Action *act);
  * @param[in] self the list of actions
  * @param[in] act  the action to push to the front
  */
-void smir_action_list_push_front(ActionList *self, const Action *act);
+void bru_smir_action_list_push_front(BruActionList *self, const BruAction *act);
 
 /**
  * Append a list of actions to another list of actions.
@@ -513,7 +621,7 @@ void smir_action_list_push_front(ActionList *self, const Action *act);
  * @param[in] self the list of actions to append to
  * @param[in] acts the list of actions to append
  */
-void smir_action_list_append(ActionList *self, ActionList *acts);
+void bru_smir_action_list_append(BruActionList *self, BruActionList *acts);
 
 /**
  * Prepend a list of actions to another list of actions.
@@ -523,7 +631,7 @@ void smir_action_list_append(ActionList *self, ActionList *acts);
  * @param[in] self the list of actions to prepend to
  * @param[in] acts the list of actions to prepend
  */
-void smir_action_list_prepend(ActionList *self, ActionList *acts);
+void bru_smir_action_list_prepend(BruActionList *self, BruActionList *acts);
 
 /**
  * Create an interator for a list of actions to be able to go over the actions
@@ -535,7 +643,7 @@ void smir_action_list_prepend(ActionList *self, ActionList *acts);
  *
  * @return the interator for the list of actions
  */
-ActionListIterator *smir_action_list_iter(const ActionList *self);
+BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self);
 
 /**
  * Get the next action in the action list iterator.
@@ -550,7 +658,8 @@ ActionListIterator *smir_action_list_iter(const ActionList *self);
  * @return the next action in the action list iterator if there is one;
  *         else NULL
  */
-const Action *smir_action_list_iterator_next(ActionListIterator *self);
+const BruAction *
+bru_smir_action_list_iterator_next(BruActionListIterator *self);
 
 /**
  * Get the previous action in the action list iterator.
@@ -565,7 +674,8 @@ const Action *smir_action_list_iterator_next(ActionListIterator *self);
  * @return the previous action in the action list iterator if there is one;
  *         else NULL
  */
-const Action *smir_action_list_iterator_prev(ActionListIterator *self);
+const BruAction *
+bru_smir_action_list_iterator_prev(BruActionListIterator *self);
 
 /**
  * Remove and free the memory of the current iteration action for the iterator
@@ -577,7 +687,7 @@ const Action *smir_action_list_iterator_prev(ActionListIterator *self);
  *
  * @param[in] self the action list iterator
  */
-void smir_action_list_iterator_remove(ActionListIterator *self);
+void bru_smir_action_list_iterator_remove(BruActionListIterator *self);
 
 /**
  * Print the list of actions.
@@ -585,9 +695,9 @@ void smir_action_list_iterator_remove(ActionListIterator *self);
  * @param[in] self   the list of actions
  * @param[in] stream the file stream to print to
  */
-void smir_action_list_print(const ActionList *self, FILE *stream);
+void bru_smir_action_list_print(const BruActionList *self, FILE *stream);
 
-/* --- Extendable API ------------------------------------------------------- */
+/* --- Extendable API function prototypes ----------------------------------- */
 
 /**
  * Set the pre-predicate meta data of a state.
@@ -598,7 +708,8 @@ void smir_action_list_print(const ActionList *self, FILE *stream);
  *
  * @return the previous pre-predicate meta data (initially NULL)
  */
-void *smir_set_pre_meta(StateMachine *self, state_id sid, void *meta);
+void *
+bru_smir_set_pre_meta(BruStateMachine *self, bru_state_id sid, void *meta);
 
 /**
  * Get the pre-predicate meta data of a state.
@@ -608,7 +719,7 @@ void *smir_set_pre_meta(StateMachine *self, state_id sid, void *meta);
  *
  * @return the pre-predicate meta data
  */
-void *smir_get_pre_meta(StateMachine *self, state_id sid);
+void *bru_smir_get_pre_meta(BruStateMachine *self, bru_state_id sid);
 
 /**
  * Set the post-predicate meta data of a state.
@@ -619,7 +730,8 @@ void *smir_get_pre_meta(StateMachine *self, state_id sid);
  *
  * @return the previous post-predicate meta data (initially NULL)
  */
-void *smir_set_post_meta(StateMachine *self, state_id sid, void *meta);
+void *
+bru_smir_set_post_meta(BruStateMachine *self, bru_state_id sid, void *meta);
 
 /**
  * Get the post-predicate meta data of a state.
@@ -629,7 +741,7 @@ void *smir_set_post_meta(StateMachine *self, state_id sid, void *meta);
  *
  * @return the post-predicate meta data
  */
-void *smir_get_post_meta(StateMachine *self, state_id sid);
+void *bru_smir_get_post_meta(BruStateMachine *self, bru_state_id sid);
 
 /**
  * Compile the state machine to VM instructions, including the meta data.
@@ -640,9 +752,9 @@ void *smir_get_post_meta(StateMachine *self, state_id sid);
  *
  * @return the compiled program
  */
-Program *smir_compile_with_meta(StateMachine *self,
-                                compile_f    *pre_meta,
-                                compile_f    *post_meta);
+BruProgram *bru_smir_compile_with_meta(BruStateMachine *self,
+                                       bru_compile_f   *pre_meta,
+                                       bru_compile_f   *post_meta);
 
 /**
  * Reorder the states of the state machine with the given ordering.
@@ -657,6 +769,6 @@ Program *smir_compile_with_meta(StateMachine *self,
  * @param[in] self         the state machine
  * @param[in] sid_ordering the new order of the states
  */
-void smir_reorder_states(StateMachine *self, state_id *sid_ordering);
+void bru_smir_reorder_states(BruStateMachine *self, bru_state_id *sid_ordering);
 
-#endif /* SMIR_H */
+#endif /* BRU_FA_SMIR_H */

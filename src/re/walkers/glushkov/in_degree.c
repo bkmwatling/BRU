@@ -13,169 +13,174 @@
 #define SET_FLAG(x, f)     x |= (f)
 #define CLEAR_FLAG(x, f)   x &= ~(f)
 
-/* --- walk routines (Glushkov) -------------------------------------------- */
+/* --- Walk functions (Glushkov) -------------------------------------------- */
 
-WALKER_F(ALT)
+BRU_WALKER_F(BRU_ALT)
 {
-    byte *state = WALKER->state;
-    byte  left;
+    bru_byte_t *state = BRU_WALKER->state;
+    bru_byte_t  left;
 
-    TRIGGER(PREORDER);
-    WALK_LEFT();
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
 
     // save info
     left = *state;
 
-    TRIGGER(INORDER);
-    WALK_RIGHT();
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_WALK_RIGHT();
+    BRU_TRIGGER(BRU_POSTORDER);
 
     SET_NULLABLE(*state, (left OR * state) HAS NULLABLE);
     SET_FLAG(*state, LAST1);
 }
 
-WALKER_F(CONCAT)
+BRU_WALKER_F(BRU_CONCAT)
 {
-    byte *state = WALKER->state;
-    byte  left;
+    bru_byte_t *state = BRU_WALKER->state;
+    bru_byte_t  left;
 
-    TRIGGER(PREORDER);
-    WALK_LEFT();
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
 
     // save left state
     left = *state;
 
     if (left HAS LAST1)
-        SET_LEFT(regex_branch(CONCAT, LEFT, regex_new(MEMOISE)));
+        BRU_SET_LEFT(
+            bru_regex_branch(BRU_CONCAT, BRU_LEFT, bru_regex_new(BRU_MEMOISE)));
 
-    TRIGGER(INORDER);
-    WALK_RIGHT();
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_WALK_RIGHT();
+    BRU_TRIGGER(BRU_POSTORDER);
 
     SET_NULLABLE(*state, (left AND * state)
                              HAS NULLABLE AND NOT((left HAS LAST1) >> 1));
     SET_LAST1(*state, (*state HAS NULLABLE) << 1);
 }
 
-WALKER_F(CAPTURE)
+BRU_WALKER_F(BRU_CAPTURE)
 {
-    byte *state = WALKER->state;
+    bru_byte_t *state = BRU_WALKER->state;
 
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 
     if (*state HAS LAST1)
-        SET_CHILD(regex_branch(CONCAT, CHILD, regex_new(MEMOISE)));
+        BRU_SET_CHILD(bru_regex_branch(BRU_CONCAT, BRU_CHILD,
+                                       bru_regex_new(BRU_MEMOISE)));
 
     CLEAR_FLAG(*state, NULLABLE OR LAST1);
 }
 
-WALKER_F(STAR)
+BRU_WALKER_F(BRU_STAR)
 {
-    byte *state = WALKER->state;
+    bru_byte_t *state = BRU_WALKER->state;
 
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 
-    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
+    BRU_SET_CHILD(
+        bru_regex_branch(BRU_CONCAT, bru_regex_new(BRU_MEMOISE), BRU_CHILD));
     SET_FLAG(*state, NULLABLE);
 }
 
-WALKER_F(PLUS)
+BRU_WALKER_F(BRU_PLUS)
 {
-    byte *state = WALKER->state;
+    bru_byte_t *state = BRU_WALKER->state;
 
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 
-    SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
+    BRU_SET_CHILD(
+        bru_regex_branch(BRU_CONCAT, bru_regex_new(BRU_MEMOISE), BRU_CHILD));
     // child no longer nullable thanks to memoisation
     CLEAR_FLAG(*state, NULLABLE);
 }
 
-WALKER_F(QUES)
+BRU_WALKER_F(BRU_QUES)
 {
-    byte *state = WALKER->state;
+    bru_byte_t *state = BRU_WALKER->state;
 
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 
     SET_FLAG(*state, NULLABLE);
 }
 
-WALKER_F(COUNTER)
+BRU_WALKER_F(BRU_COUNTER)
 {
-    byte *state = WALKER->state;
+    bru_byte_t *state = BRU_WALKER->state;
 
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 
     // if we can match more than once, then we can enter
     // the subexpression through multiple paths -> prepend
     // memoisation instruction
     // (ab{0,5} => a(?:#b){0,5})
 
-    if (CURRENT->max > 1) {
+    if (BRU_CURRENT->max > 1) {
         // can match multiple times; requires memoisation
-        SET_CHILD(regex_branch(CONCAT, regex_new(MEMOISE), CHILD));
+        BRU_SET_CHILD(bru_regex_branch(BRU_CONCAT, bru_regex_new(BRU_MEMOISE),
+                                       BRU_CHILD));
 
         // child is no longer nullable
         CLEAR_FLAG(*state, NULLABLE);
     }
 
-    if (CURRENT->min == 0) {
+    if (BRU_CURRENT->min == 0) {
         // nullable
         SET_FLAG(*state, NULLABLE);
     }
 }
 
-WALKER_F(LOOKAHEAD)
+BRU_WALKER_F(BRU_LOOKAHEAD)
 {
     // TODO: no idea how lookahead is implemented
-    TRIGGER(PREORDER);
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-LISTEN_TERMINAL_F()
+BRU_LISTEN_TERMINAL_F()
 {
-    GET_STATE(byte *, state);
+    BRU_GET_STATE(bru_byte_t *, state);
     CLEAR_FLAG(*state, NULLABLE OR LAST1);
 
-    (void) REGEX;
+    (void) BRU_REGEX;
 }
 
-void in_degree_glushkov(RegexNode **r)
+void bru_in_degree_glushkov(BruRegexNode **r)
 {
-    Walker *w;
-    byte    last;
+    BruWalker *w;
+    bru_byte_t last;
 
     if (!r || !(*r)) return;
 
-    w        = walker_init();
+    w        = bru_walker_new();
     w->state = &last;
 
-    SET_WALKER_F(w, ALT);
-    SET_WALKER_F(w, CONCAT);
-    SET_WALKER_F(w, CAPTURE);
-    SET_WALKER_F(w, STAR);
-    SET_WALKER_F(w, PLUS);
-    SET_WALKER_F(w, QUES);
-    SET_WALKER_F(w, COUNTER);
-    SET_WALKER_F(w, LOOKAHEAD);
+    BRU_SET_WALKER_F(w, BRU_ALT);
+    BRU_SET_WALKER_F(w, BRU_CONCAT);
+    BRU_SET_WALKER_F(w, BRU_CAPTURE);
+    BRU_SET_WALKER_F(w, BRU_STAR);
+    BRU_SET_WALKER_F(w, BRU_PLUS);
+    BRU_SET_WALKER_F(w, BRU_QUES);
+    BRU_SET_WALKER_F(w, BRU_COUNTER);
+    BRU_SET_WALKER_F(w, BRU_LOOKAHEAD);
 
-    REGISTER_LISTEN_TERMINAL_F(w);
+    BRU_REGISTER_LISTEN_TERMINAL_F(w);
 
-    walker_walk(w, r);
-    walker_release(w);
+    bru_walker_walk(w, r);
+    bru_walker_free(w);
 }

@@ -6,19 +6,19 @@
 
 /* --- Helper functions ----------------------------------------------------- */
 
-static byte *memoise_in(StateMachine *sm)
+static bru_byte_t *memoise_in(BruStateMachine *sm)
 {
-    size_t    i, n, nstates = smir_get_num_states(sm);
-    size_t   *in_degrees = calloc(nstates, sizeof(size_t));
-    byte     *memo_sids  = calloc(nstates, sizeof(byte));
-    state_id  sid, dst;
-    trans_id *out_transitions;
+    size_t        i, n, nstates = bru_smir_get_num_states(sm);
+    size_t       *in_degrees = calloc(nstates, sizeof(size_t));
+    bru_byte_t   *memo_sids  = calloc(nstates, sizeof(bru_byte_t));
+    bru_state_id  sid, dst;
+    bru_trans_id *out_transitions;
 
     for (sid = 0; sid <= nstates; sid++) {
-        out_transitions = smir_get_out_transitions(sm, sid, &n);
+        out_transitions = bru_smir_get_out_transitions(sm, sid, &n);
         for (i = 0; i < n; i++) {
-            dst = smir_get_dst(sm, out_transitions[i]);
-            if (!IS_FINAL_STATE(dst)) in_degrees[dst - 1]++;
+            dst = bru_smir_get_dst(sm, out_transitions[i]);
+            if (!BRU_IS_FINAL_STATE(dst)) in_degrees[dst - 1]++;
         }
         if (out_transitions) free(out_transitions);
     }
@@ -31,19 +31,21 @@ static byte *memoise_in(StateMachine *sm)
     return memo_sids;
 }
 
-static void
-cn_dfs(StateMachine *sm, state_id sid, byte *has_backedge, byte *on_path)
+static void cn_dfs(BruStateMachine *sm,
+                   bru_state_id     sid,
+                   bru_byte_t      *has_backedge,
+                   bru_byte_t      *on_path)
 {
-    trans_id *out_transitions;
-    size_t    i, n;
-    state_id  dst;
+    bru_trans_id *out_transitions;
+    size_t        i, n;
+    bru_state_id  dst;
 
     if (sid) on_path[sid - 1] = TRUE;
-    out_transitions = smir_get_out_transitions(sm, sid, &n);
+    out_transitions = bru_smir_get_out_transitions(sm, sid, &n);
     for (i = 0; i < n; i++) {
-        dst = smir_get_dst(sm, out_transitions[i]);
+        dst = bru_smir_get_dst(sm, out_transitions[i]);
 
-        if (IS_FINAL_STATE(dst)) continue;
+        if (BRU_IS_FINAL_STATE(dst)) continue;
 
         if (on_path[dst - 1]) {
             has_backedge[dst - 1] = TRUE;
@@ -57,15 +59,15 @@ cn_dfs(StateMachine *sm, state_id sid, byte *has_backedge, byte *on_path)
     if (sid) on_path[sid - 1] = FALSE;
 }
 
-static byte *memoise_cn(StateMachine *sm)
+static bru_byte_t *memoise_cn(BruStateMachine *sm)
 {
-    size_t nstates   = smir_get_num_states(sm);
-    byte  *memo_sids = calloc(nstates, sizeof(byte));
-    byte  *on_path;
+    size_t      nstates   = bru_smir_get_num_states(sm);
+    bru_byte_t *memo_sids = calloc(nstates, sizeof(bru_byte_t));
+    bru_byte_t *on_path;
 
     if (nstates > 0) {
-        on_path = calloc(nstates, sizeof(byte));
-        cn_dfs(sm, INITIAL_STATE_ID, memo_sids, on_path);
+        on_path = calloc(nstates, sizeof(bru_byte_t));
+        cn_dfs(sm, BRU_INITIAL_STATE_ID, memo_sids, on_path);
         free(on_path);
     }
 
@@ -85,37 +87,38 @@ static byte *memoise_cn(StateMachine *sm)
  *                    memoised
  * @param[in] logfile the file for logging output
  */
-static void memoise_states(StateMachine *sm, byte *sids, FILE *logfile)
+static void memoise_states(BruStateMachine *sm, bru_byte_t *sids, FILE *logfile)
 {
-    state_id sid;
-    size_t   nstates, k = SIZE_MAX;
+    bru_state_id sid;
+    size_t       nstates, k = SIZE_MAX;
     // NOTE: `k` can be any value -- it must only be unique amongst MEMO
     // actions. Of course, if there is already memoisation then there could be
     // overlap. It is expected that starting at the maximum possible value for k
     // and decrementing should give the least overlap.
 
-    for (sid = 1, nstates = smir_get_num_states(sm); sid <= nstates; sid++)
+    for (sid = 1, nstates = bru_smir_get_num_states(sm); sid <= nstates; sid++)
         if (sids[sid - 1])
-            smir_state_prepend_action(sm, sid, smir_action_num(ACT_MEMO, k--));
+            bru_smir_state_prepend_action(
+                sm, sid, bru_smir_action_num(BRU_ACT_MEMO, k--));
 
     if (logfile)
         fprintf(logfile, "NUMBER OF STATES MEMOISED: %zu\n", SIZE_MAX - k);
 }
 
-/* --- API function --------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-StateMachine *
-transform_memoise(StateMachine *sm, MemoScheme memo, FILE *logfile)
+BruStateMachine *
+bru_transform_memoise(BruStateMachine *sm, BruMemoScheme memo, FILE *logfile)
 {
-    byte *memo_sids;
+    bru_byte_t *memo_sids;
 
     if (!sm) return sm;
 
     switch (memo) {
-        case MS_NONE: return sm;
-        case MS_IN: memo_sids = memoise_in(sm); break;
-        case MS_CN: memo_sids = memoise_cn(sm); break;
-        case MS_IAR: return sm;
+        case BRU_MS_NONE: return sm;
+        case BRU_MS_IN: memo_sids = memoise_in(sm); break;
+        case BRU_MS_CN: memo_sids = memoise_cn(sm); break;
+        case BRU_MS_IAR: return sm;
     }
 
     memoise_states(sm, memo_sids, logfile);

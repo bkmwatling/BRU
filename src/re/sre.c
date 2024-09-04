@@ -9,16 +9,16 @@
 #define INTERVAL_MAX_BUF 26
 
 static void
-regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent);
+regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent);
 
-/* --- Interval ------------------------------------------------------------- */
+/* --- BruInterval ---------------------------------------------------------- */
 
-Interval interval(const char *lbound, const char *ubound)
+BruInterval bru_interval(const char *lbound, const char *ubound)
 {
-    return (Interval){ lbound, ubound };
+    return (BruInterval){ lbound, ubound };
 }
 
-char *interval_to_str(const Interval *self)
+char *bru_interval_to_str(const BruInterval *self)
 {
     char  *s = malloc(INTERVAL_MAX_BUF * sizeof(*s));
     size_t codepoint, len = 0;
@@ -43,9 +43,9 @@ char *interval_to_str(const Interval *self)
     return s;
 }
 
-Intervals *intervals_new(int neg, size_t len)
+BruIntervals *bru_intervals_new(int neg, size_t len)
 {
-    Intervals *intervals =
+    BruIntervals *intervals =
         malloc(sizeof(*intervals) + len * sizeof(*intervals->intervals));
 
     intervals->neg = neg ? TRUE : FALSE;
@@ -54,11 +54,11 @@ Intervals *intervals_new(int neg, size_t len)
     return intervals;
 }
 
-void intervals_free(Intervals *self) { free(self); }
+void bru_intervals_free(BruIntervals *self) { free(self); }
 
-Intervals *intervals_clone(const Intervals *self)
+BruIntervals *bru_intervals_clone(const BruIntervals *self)
 {
-    Intervals *clone = intervals_new(self->neg, self->len);
+    BruIntervals *clone = bru_intervals_new(self->neg, self->len);
 
     memcpy(clone->intervals, self->intervals,
            self->len * sizeof(*self->intervals));
@@ -66,18 +66,18 @@ Intervals *intervals_clone(const Intervals *self)
     return clone;
 }
 
-int intervals_predicate(const Intervals *self, const char *ch)
+int bru_intervals_predicate(const BruIntervals *self, const char *ch)
 {
     size_t i;
     int    pred = 0;
 
     for (i = 0; i < self->len; i++)
-        if ((pred = interval_predicate(self->intervals[i], ch))) break;
+        if ((pred = bru_interval_predicate(self->intervals[i], ch))) break;
 
     return pred != self->neg;
 }
 
-char *intervals_to_str(const Intervals *self)
+char *bru_intervals_to_str(const BruIntervals *self)
 {
     size_t i, slen = 0, alloc = 4 + 2 * INTERVAL_MAX_BUF;
     char  *s = malloc(alloc * sizeof(*s)), *p;
@@ -85,78 +85,79 @@ char *intervals_to_str(const Intervals *self)
     if (self->neg) s[slen++] = '^';
     s[slen++] = '[';
     for (i = 0; i < self->len; ++i) {
-        p = interval_to_str(self->intervals + i);
-        ENSURE_SPACE(s, slen + INTERVAL_MAX_BUF + 3, alloc, sizeof(char));
+        p = bru_interval_to_str(self->intervals + i);
+        BRU_ENSURE_SPACE(s, slen + INTERVAL_MAX_BUF + 3, alloc, sizeof(char));
         if (i < self->len - 1)
             slen += snprintf(s + slen, alloc - slen, "%s, ", p);
         else
             slen += snprintf(s + slen, alloc - slen, "%s", p);
         free(p);
     }
-    ENSURE_SPACE(s, slen + 2, alloc, sizeof(char));
+    BRU_ENSURE_SPACE(s, slen + 2, alloc, sizeof(char));
     s[slen++] = ']';
     s[slen]   = '\0';
 
     return s;
 }
 
-/* --- Regex ---------------------------------------------------------------- */
+/* --- BruRegex ------------------------------------------------------------- */
 
-RegexNode *regex_new(RegexType type)
+BruRegexNode *bru_regex_new(BruRegexType type)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
     /* check `type` to make sure correct node type */
-    assert(type == CARET || type == DOLLAR || /* type == MEMOISE || */
-           type == EPSILON);
+    assert(type == BRU_CARET || type == BRU_DOLLAR || /* type == MEMOISE || */
+           type == BRU_EPSILON);
     re->type     = type;
     re->nullable = TRUE;
 
     return re;
 }
 
-RegexNode *regex_literal(const char *ch)
+BruRegexNode *bru_regex_literal(const char *ch)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
-    re->type     = LITERAL;
+    re->type     = BRU_LITERAL;
     re->ch       = ch;
     re->nullable = FALSE;
 
     return re;
 }
 
-RegexNode *regex_cc(Intervals *intervals)
+BruRegexNode *bru_regex_cc(BruIntervals *intervals)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
-    re->type      = CC;
+    re->type      = BRU_CC;
     re->intervals = intervals;
     re->nullable  = FALSE;
 
     return re;
 }
 
-RegexNode *regex_branch(RegexType type, RegexNode *left, RegexNode *right)
+BruRegexNode *
+bru_regex_branch(BruRegexType type, BruRegexNode *left, BruRegexNode *right)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
     /* check `type` to make sure correct node type */
-    assert(type == ALT || type == CONCAT);
+    assert(type == BRU_ALT || type == BRU_CONCAT);
     re->type     = type;
     re->left     = left;
     re->right    = right;
-    re->nullable = (type == ALT) ? left->nullable || right->nullable
-                                 : left->nullable && right->nullable;
+    re->nullable = (type == BRU_ALT) ? left->nullable || right->nullable
+                                     : left->nullable && right->nullable;
 
     return re;
 }
 
-RegexNode *regex_capture(RegexNode *child, len_t idx)
+BruRegexNode *bru_regex_capture(BruRegexNode *child, bru_len_t idx)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
-    re->type        = CAPTURE;
+    re->type        = BRU_CAPTURE;
     re->left        = child;
     re->capture_idx = idx;
     re->nullable    = child->nullable;
@@ -164,36 +165,40 @@ RegexNode *regex_capture(RegexNode *child, len_t idx)
     return re;
 }
 
-RegexNode *regex_backreference(len_t idx)
+BruRegexNode *bru_regex_backreference(bru_len_t idx)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
-    re->type        = BACKREFERENCE;
+    re->type        = BRU_BACKREFERENCE;
     re->capture_idx = idx;
     assert(FALSE && "TODO: Are backreferences nullable?");
 
     return re;
 }
 
-RegexNode *regex_repetition(RegexType type, RegexNode *child, byte greedy)
+BruRegexNode *
+bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
     /* check `type` to make sure correct node type */
-    assert(type == STAR || type == PLUS || type == QUES);
+    assert(type == BRU_STAR || type == BRU_PLUS || type == BRU_QUES);
     re->type     = type;
     re->left     = child;
     re->greedy   = greedy;
-    re->nullable = (type == PLUS) ? child->nullable : TRUE;
+    re->nullable = (type == BRU_PLUS) ? child->nullable : TRUE;
 
     return re;
 }
 
-RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max)
+BruRegexNode *bru_regex_counter(BruRegexNode *child,
+                                bru_byte_t    greedy,
+                                bru_cntr_t    min,
+                                bru_cntr_t    max)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
-    re->type     = COUNTER;
+    re->type     = BRU_COUNTER;
     re->left     = child;
     re->greedy   = greedy;
     re->min      = min;
@@ -203,11 +208,11 @@ RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max)
     return re;
 }
 
-RegexNode *regex_lookahead(RegexNode *child, byte positive)
+BruRegexNode *bru_regex_lookahead(BruRegexNode *child, bru_byte_t positive)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
-    re->type     = LOOKAHEAD;
+    re->type     = BRU_LOOKAHEAD;
     re->left     = child;
     re->positive = positive;
     assert(FALSE && "TODO: Are lookaheads nullable?");
@@ -215,77 +220,79 @@ RegexNode *regex_lookahead(RegexNode *child, byte positive)
     return re;
 }
 
-void regex_node_free(RegexNode *self)
+void bru_regex_node_free(BruRegexNode *self)
 {
     switch (self->type) {
-        case EPSILON: /* fallthrough */
-        case CARET:   /* fallthrough */
-        case DOLLAR:  /* fallthrough */
+        case BRU_EPSILON: /* fallthrough */
+        case BRU_CARET:   /* fallthrough */
+        case BRU_DOLLAR:  /* fallthrough */
         // case MEMOISE: /* fallthrough */
-        case LITERAL: /* fallthrough */
-        case BACKREFERENCE: break;
+        case BRU_LITERAL: /* fallthrough */
+        case BRU_BACKREFERENCE: break;
 
-        case CC: intervals_free(self->intervals); break;
+        case BRU_CC: bru_intervals_free(self->intervals); break;
 
-        case ALT: /* fallthrough */
-        case CONCAT:
-            regex_node_free(self->left);
-            regex_node_free(self->right);
+        case BRU_ALT: /* fallthrough */
+        case BRU_CONCAT:
+            bru_regex_node_free(self->left);
+            bru_regex_node_free(self->right);
             break;
 
-        case CAPTURE: /* fallthrough */
-        case STAR:    /* fallthrough */
-        case PLUS:    /* fallthrough */
-        case QUES:    /* fallthrough */
-        case COUNTER: /* fallthrough */
-        case LOOKAHEAD: regex_node_free(self->left); break;
-        case NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_CAPTURE: /* fallthrough */
+        case BRU_STAR:    /* fallthrough */
+        case BRU_PLUS:    /* fallthrough */
+        case BRU_QUES:    /* fallthrough */
+        case BRU_COUNTER: /* fallthrough */
+        case BRU_LOOKAHEAD: bru_regex_node_free(self->left); break;
+        case BRU_NREGEXTYPES: assert(0 && "unreachable");
     }
 
     free(self);
 }
 
-RegexNode *regex_clone(RegexNode *self)
+BruRegexNode *bru_regex_clone(const BruRegexNode *self)
 {
-    RegexNode *re = malloc(sizeof(*re));
+    BruRegexNode *re = malloc(sizeof(*re));
 
     memcpy(re, self, sizeof(*re));
     switch (re->type) {
-        case EPSILON: /* fallthrough */
-        case CARET:   /* fallthrough */
-        case DOLLAR:  /* fallthrough */
-        // case MEMOISE: /* fallthrough */
-        case LITERAL: /* fallthrough */
-        case BACKREFERENCE: break;
+        case BRU_EPSILON: /* fallthrough */
+        case BRU_CARET:   /* fallthrough */
+        case BRU_DOLLAR:  /* fallthrough */
+        // case BRU_MEMOISE: /* fallthrough */
+        case BRU_LITERAL: /* fallthrough */
+        case BRU_BACKREFERENCE: break;
 
-        case CC: re->intervals = intervals_clone(self->intervals); break;
-
-        case ALT: /* fallthrough */
-        case CONCAT:
-            re->left  = regex_clone(self->left);
-            re->right = regex_clone(self->right);
+        case BRU_CC:
+            re->intervals = bru_intervals_clone(self->intervals);
             break;
 
-        case CAPTURE: /* fallthrough */
-        case STAR:    /* fallthrough */
-        case PLUS:    /* fallthrough */
-        case QUES:    /* fallthrough */
-        case COUNTER: /* fallthrough */
-        case LOOKAHEAD: re->left = regex_clone(self->left); break;
-        case NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_ALT: /* fallthrough */
+        case BRU_CONCAT:
+            re->left  = bru_regex_clone(self->left);
+            re->right = bru_regex_clone(self->right);
+            break;
+
+        case BRU_CAPTURE: /* fallthrough */
+        case BRU_STAR:    /* fallthrough */
+        case BRU_PLUS:    /* fallthrough */
+        case BRU_QUES:    /* fallthrough */
+        case BRU_COUNTER: /* fallthrough */
+        case BRU_LOOKAHEAD: re->left = bru_regex_clone(self->left); break;
+        case BRU_NREGEXTYPES: assert(0 && "unreachable");
     }
 
     return re;
 }
 
-void regex_print_tree(const RegexNode *self, FILE *stream)
+void bru_regex_print_tree(const BruRegexNode *self, FILE *stream)
 {
     regex_print_tree_indent(stream, self, 0);
     fputc('\n', stream);
 }
 
 static void
-regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
+regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
 {
     char *p;
 
@@ -296,25 +303,25 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
     fprintf(stream, "%06lu: ", re->rid);
 
     switch (re->type) {
-        case EPSILON: fputs("Epsilon", stream); break;
-        case CARET: fputs("Caret", stream); break;
-        case DOLLAR:
+        case BRU_EPSILON: fputs("Epsilon", stream); break;
+        case BRU_CARET: fputs("Caret", stream); break;
+        case BRU_DOLLAR:
             fputs("Dollar", stream);
             break;
             // case MEMOISE: fputs("Memoise", stream); break;
 
-        case LITERAL:
+        case BRU_LITERAL:
             fprintf(stream, "Literal(%.*s)", stc_utf8_nbytes(re->ch), re->ch);
             break;
 
-        case CC:
-            p = intervals_to_str(re->intervals);
+        case BRU_CC:
+            p = bru_intervals_to_str(re->intervals);
             fprintf(stream, "CharClass(%s)", p);
             free(p);
             break;
 
-        case ALT: fputs("Alternation", stream); goto concat_body;
-        case CONCAT:
+        case BRU_ALT: fputs("Alternation", stream); goto concat_body;
+        case BRU_CONCAT:
             fputs("Concatenation", stream);
         concat_body:
             if (re->left) {
@@ -328,20 +335,21 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
             }
             break;
 
-        case CAPTURE:
+        case BRU_CAPTURE:
             fprintf(stream, "Capture(%d)", re->capture_idx);
             goto body;
-        case STAR: fprintf(stream, "Star(%d)", re->greedy); goto body;
-        case PLUS: fprintf(stream, "Plus(%d)", re->greedy); goto body;
-        case QUES: fprintf(stream, "Ques(%d)", re->greedy); goto body;
-        case COUNTER:
-            fprintf(stream, "Counter(%d, " CNTR_FMT ", ", re->greedy, re->min);
-            if (re->max < CNTR_MAX)
-                fprintf(stream, CNTR_FMT ")", re->max);
+        case BRU_STAR: fprintf(stream, "Star(%d)", re->greedy); goto body;
+        case BRU_PLUS: fprintf(stream, "Plus(%d)", re->greedy); goto body;
+        case BRU_QUES: fprintf(stream, "Ques(%d)", re->greedy); goto body;
+        case BRU_COUNTER:
+            fprintf(stream, "Counter(%d, " BRU_CNTR_FMT ", ", re->greedy,
+                    re->min);
+            if (re->max < BRU_CNTR_MAX)
+                fprintf(stream, BRU_CNTR_FMT ")", re->max);
             else
                 fprintf(stream, "inf)");
             goto body;
-        case LOOKAHEAD:
+        case BRU_LOOKAHEAD:
             fprintf(stream, "Lookahead(%d)", re->positive);
         body:
             if (re->left) {
@@ -350,10 +358,10 @@ regex_print_tree_indent(FILE *stream, const RegexNode *re, int indent)
             }
             break;
 
-        case BACKREFERENCE:
+        case BRU_BACKREFERENCE:
             fprintf(stream, "Backreference(%d)", re->capture_idx);
             break;
 
-        case NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_NREGEXTYPES: assert(0 && "unreachable");
     }
 }

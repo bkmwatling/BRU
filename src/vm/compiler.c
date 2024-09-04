@@ -9,19 +9,20 @@
 #include "compiler.h"
 
 #define COMPILER_OPTS_DEFAULT \
-    ((CompilerOpts){ THOMPSON, FALSE, CS_PCRE, MS_NONE, FALSE })
+    ((BruCompilerOpts){ BRU_THOMPSON, FALSE, BRU_CS_PCRE, BRU_MS_NONE, FALSE })
 
 #define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) + 1))
 
-static void compile_state_markers(void *meta, Program *prog)
+static void compile_state_markers(void *meta, BruProgram *prog)
 {
-    UNUSED(meta);
-    BCPUSH(prog->insts, STATE);
+    BRU_UNUSED(meta);
+    BRU_BCPUSH(prog->insts, BRU_STATE);
 }
 
-Compiler *compiler_new(const Parser *parser, const CompilerOpts opts)
+BruCompiler *bru_compiler_new(const BruParser      *parser,
+                              const BruCompilerOpts opts)
 {
-    Compiler *compiler = malloc(sizeof(*compiler));
+    BruCompiler *compiler = malloc(sizeof(*compiler));
 
     compiler->parser = parser;
     compiler->opts   = opts;
@@ -29,49 +30,49 @@ Compiler *compiler_new(const Parser *parser, const CompilerOpts opts)
     return compiler;
 }
 
-Compiler *compiler_default(const Parser *parser)
+BruCompiler *bru_compiler_default(const BruParser *parser)
 {
-    return compiler_new(parser, COMPILER_OPTS_DEFAULT);
+    return bru_compiler_new(parser, COMPILER_OPTS_DEFAULT);
 }
 
-void compiler_free(Compiler *self)
+void bru_compiler_free(BruCompiler *self)
 {
-    parser_free((Parser *) self->parser);
+    bru_parser_free((BruParser *) self->parser);
     free(self);
 }
 
-const Program *compiler_compile(const Compiler *self)
+const BruProgram *bru_compiler_compile(const BruCompiler *self)
 {
-    Regex          re;
-    ParseResult    res;
-    const Program *prog;
-    StateMachine  *sm = NULL, *tmp = NULL;
+    BruRegex          re;
+    BruParseResult    res;
+    const BruProgram *prog;
+    BruStateMachine  *sm = NULL, *tmp = NULL;
 
-    res = parser_parse(self->parser, &re);
-    if (res.code != PARSE_SUCCESS) return NULL;
+    res = bru_parser_parse(self->parser, &re);
+    if (res.code != BRU_PARSE_SUCCESS) return NULL;
 
     switch (self->opts.construction) {
-        case THOMPSON: sm = thompson_construct(re, &self->opts); break;
-        case GLUSHKOV: sm = glushkov_construct(re, &self->opts); break;
-        case FLAT:
-            tmp = thompson_construct(re, &self->opts);
-            sm  = transform_flatten(tmp, self->parser->opts.logfile);
-            smir_free(tmp);
+        case BRU_THOMPSON: sm = bru_thompson_construct(re, &self->opts); break;
+        case BRU_GLUSHKOV: sm = bru_glushkov_construct(re, &self->opts); break;
+        case BRU_FLAT:
+            tmp = bru_thompson_construct(re, &self->opts);
+            sm  = bru_transform_flatten(tmp, self->parser->opts.logfile);
+            bru_smir_free(tmp);
             break;
     }
-    regex_node_free(re.root);
+    bru_regex_node_free(re.root);
 
-    if (self->opts.memo_scheme != MS_NONE)
-        sm = transform_memoise(sm, self->opts.memo_scheme,
-                               self->parser->opts.logfile);
+    if (self->opts.memo_scheme != BRU_MS_NONE)
+        sm = bru_transform_memoise(sm, self->opts.memo_scheme,
+                                   self->parser->opts.logfile);
 
 #ifdef DEBUG
-    smir_print(sm, stderr);
+    bru_smir_print(sm, stderr);
 #endif
 
-    prog = smir_compile_with_meta(
+    prog = bru_smir_compile_with_meta(
         sm, self->opts.mark_states ? compile_state_markers : NULL, NULL);
-    smir_free(sm);
+    bru_smir_free(sm);
 
     return prog;
 }

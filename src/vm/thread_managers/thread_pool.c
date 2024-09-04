@@ -4,24 +4,24 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-typedef struct thread_list ThreadList;
+typedef struct bru_thread_list BruThreadList;
 
-struct thread_list {
-    Thread     *thread;
-    ThreadList *next;
+struct bru_thread_list {
+    BruThread     *thread;
+    BruThreadList *next;
 };
 
-struct thread_pool {
-    ThreadList *pool;
+struct bru_thread_pool {
+    BruThreadList *pool;
 
     FILE *logfile;
 };
 
 /* --- API function definitions --------------------------------------------- */
 
-ThreadPool *thread_pool_new(FILE *logfile)
+BruThreadPool *bru_thread_pool_new(FILE *logfile)
 {
-    ThreadPool *pool = malloc(sizeof(*pool));
+    BruThreadPool *pool = malloc(sizeof(*pool));
 
     pool->pool    = NULL;
     pool->logfile = logfile;
@@ -29,10 +29,11 @@ ThreadPool *thread_pool_new(FILE *logfile)
     return pool;
 }
 
-void thread_pool_free(ThreadPool *self, void (*thread_free)(Thread *t))
+void bru_thread_pool_free(BruThreadPool *self,
+                          void           (*thread_free)(BruThread *t))
 {
-    size_t      nthreads = 0;
-    ThreadList *p;
+    size_t         nthreads = 0;
+    BruThreadList *p;
 
     while ((p = self->pool)) {
         self->pool = p->next;
@@ -45,10 +46,10 @@ void thread_pool_free(ThreadPool *self, void (*thread_free)(Thread *t))
     free(self);
 }
 
-Thread *thread_pool_get_thread(ThreadPool *self)
+BruThread *bru_thread_pool_get_thread(BruThreadPool *self)
 {
-    Thread     *t;
-    ThreadList *p;
+    BruThread     *t;
+    BruThreadList *p;
 
     if ((p = self->pool)) {
         self->pool = p->next;
@@ -61,9 +62,9 @@ Thread *thread_pool_get_thread(ThreadPool *self)
     return t;
 }
 
-void thread_pool_add_thread(ThreadPool *self, Thread *t)
+void bru_thread_pool_add_thread(BruThreadPool *self, BruThread *t)
 {
-    ThreadList *p;
+    BruThreadList *p;
 
     if (t) {
         p          = malloc(sizeof(*p));
