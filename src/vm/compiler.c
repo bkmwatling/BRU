@@ -66,9 +66,9 @@ const BruProgram *bru_compiler_compile(const BruCompiler *self)
         sm = bru_transform_memoise(sm, self->opts.memo_scheme,
                                    self->parser->opts.logfile);
 
-#ifdef DEBUG
+#ifdef BRU_DEBUG
     bru_smir_print(sm, stderr);
-#endif
+#endif /* BRU_DEBUG */
 
     prog = bru_smir_compile_with_meta(
         sm, self->opts.mark_states ? compile_state_markers : NULL, NULL);

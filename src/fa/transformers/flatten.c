@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../../utils.h"
 #include "flatten.h"
 
 /* --- Preprocessor macros -------------------------------------------------- */
@@ -421,8 +422,13 @@ flatten(BruStateMachine *original, BruStateMachine *new, FILE *logfile)
         stc_vec_remove(globals->state_queue, 0);
         flatten_dfs(src, src, path_actions, globals);
     }
+
+#ifdef BRU_BENCHMARK
     fprintf(logfile, "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING: %zu\n",
             globals->eliminated_path_count);
+#else
+    BRU_UNUSED(logfile);
+#endif /* BRU_BENCHMARK */
 
     bru_smir_action_list_free(path_actions);
     stc_vec_free(globals->state_queue);

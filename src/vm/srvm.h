@@ -5,12 +5,6 @@
 
 #include "thread_managers/thread_manager.h"
 
-/* --- Preprocessor constants ----------------------------------------------- */
-
-#define BRU_NO_MATCH          0
-#define BRU_MATCH             1
-#define BRU_MATCHES_EXHAUSTED 2
-
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct bru_srvm BruSRVM;

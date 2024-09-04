@@ -299,17 +299,15 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
     if (re == NULL) return;
 
     fprintf(stream, "%*s", indent, "");
-    fprintf(stream, "%s", re->nullable ? "*" : "");
     fprintf(stream, "%06lu: ", re->rid);
+    fputs(re->nullable ? "*" : "", stream);
 
     switch (re->type) {
         case BRU_EPSILON: fputs("Epsilon", stream); break;
         case BRU_CARET: fputs("Caret", stream); break;
-        case BRU_DOLLAR:
-            fputs("Dollar", stream);
-            break;
-            // case MEMOISE: fputs("Memoise", stream); break;
+        case BRU_DOLLAR: fputs("Dollar", stream); break;
 
+        // case BRU_MEMOISE: fputs("Memoise", stream); break;
         case BRU_LITERAL:
             fprintf(stream, "Literal(%.*s)", stc_utf8_nbytes(re->ch), re->ch);
             break;

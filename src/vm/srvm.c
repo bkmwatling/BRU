@@ -107,7 +107,7 @@ int bru_srvm_matches(BruThreadManager *thread_manager,
 static int srvm_run(BruSRVM *self, const char *text)
 {
     void             *null    = NULL;
-    int               matched = BRU_NO_MATCH, cond;
+    int               matched = FALSE, cond;
     const BruProgram *prog    = self->program;
     BruThreadManager *tm      = self->thread_manager;
     void             *thread, *t;
@@ -118,7 +118,7 @@ static int srvm_run(BruSRVM *self, const char *text)
     bru_cntr_t        cval, n;
     BruIntervals     *intervals;
 
-    if (self->matching_finished) return BRU_MATCHES_EXHAUSTED;
+    if (self->matching_finished) return FALSE;
 
     bru_thread_manager_init_memoisation(self->thread_manager,
                                         self->program->nmemo_insts, text);

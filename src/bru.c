@@ -324,26 +324,28 @@ static int match(BruOptions *options)
     //         thread_manager, options->logfile, options->text);
 
     srvm = bru_srvm_new(thread_manager, prog);
-    while ((matched = bru_srvm_find(srvm, options->text)) !=
-           BRU_MATCHES_EXHAUSTED) {
-        fprintf(options->outfile, "matched = %d\n", matched);
-        fprintf(options->outfile, "captures:\n");
-        captures = bru_srvm_captures(srvm, &ncaptures);
-        fprintf(options->outfile, "  input: '%s'\n", options->text);
-        for (i = 0; i < ncaptures; i++) {
-            capture = captures[i];
-            fprintf(options->outfile, "%7hu: ", i);
-            if (capture.str) {
-                ncodepoints = stc_utf8_str_ncodepoints(options->text) -
-                              stc_utf8_str_ncodepoints(capture.str);
-                fprintf(options->outfile, "%*s'" STC_SV_FMT "'\n",
-                        (int) ncodepoints, "", STC_SV_ARG(capture));
-            } else {
-                fprintf(options->outfile, "not captured\n");
+    if (!(matched = bru_srvm_find(srvm, options->text)))
+        fputs("No match\n", options->outfile);
+    else
+        do {
+            fputs("Found match\n", options->outfile);
+            fprintf(options->outfile, "captures:\n");
+            captures = bru_srvm_captures(srvm, &ncaptures);
+            fprintf(options->outfile, "  input: '%s'\n", options->text);
+            for (i = 0; i < ncaptures; i++) {
+                capture = captures[i];
+                fprintf(options->outfile, "%7hu: ", i);
+                if (capture.str) {
+                    ncodepoints = stc_utf8_str_ncodepoints(options->text) -
+                                  stc_utf8_str_ncodepoints(capture.str);
+                    fprintf(options->outfile, "%*s'" STC_SV_FMT "'\n",
+                            (int) ncodepoints, "", STC_SV_ARG(capture));
+                } else {
+                    fprintf(options->outfile, "not captured\n");
+                }
             }
-        }
-        free(captures);
-    }
+            free(captures);
+        } while ((matched = bru_srvm_find(srvm, options->text)));
     bru_program_free((BruProgram *) prog);
     bru_srvm_free(srvm);
 

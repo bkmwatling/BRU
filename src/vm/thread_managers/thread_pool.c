@@ -32,16 +32,23 @@ BruThreadPool *bru_thread_pool_new(FILE *logfile)
 void bru_thread_pool_free(BruThreadPool *self,
                           void           (*thread_free)(BruThread *t))
 {
-    size_t         nthreads = 0;
+#ifdef BRU_BENCHMARK
+    size_t nthreads = 0;
+#endif /* BRU_BENCHMARK */
     BruThreadList *p;
 
     while ((p = self->pool)) {
         self->pool = p->next;
+#ifdef BRU_BENCHMARK
         nthreads++;
+#endif /* BRU_BENCHMARK */
         thread_free(p->thread);
         free(p);
     }
+
+#ifdef BRU_BENCHMARK
     fprintf(self->logfile, "TOTAL THREADS IN POOL: %zu\n", nthreads);
+#endif /* BRU_BENCHMARK */
 
     free(self);
 }

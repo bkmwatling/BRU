@@ -90,13 +90,13 @@ static void rfa_merge_outgoing(Rfa *rfa, size_t pos, bru_len_t *visited);
 static size_t count(const BruRegexNode *re);
 static void   emit(BruStateMachine *sm, const Rfa *rfa);
 
-#if defined(DEBUG) || defined(DEBUG_GLUSHKOV)
+#if defined(BRU_DEBUG) || defined(BRU_DEBUG_GLUSHKOV)
 static void ppl_print(PosPairList *self, FILE *stream);
 static void rfa_print(Rfa *self, FILE *stream);
 #else
 #    define ppl_print(...)
 #    define rfa_print(...)
-#endif
+#endif /* BRU_DEBUG || BRU_DEBUG_GLUSHKOV */
 
 /* --- API function definitions --------------------------------------------- */
 
@@ -635,7 +635,7 @@ static void emit(BruStateMachine *sm, const Rfa *rfa)
 
 /* --- Debug functions ------------------------------------------------------ */
 
-#if defined(DEBUG) || defined(DEBUG_GLUSHKOV)
+#if defined(BRU_DEBUG) || defined(BRU_DEBUG_GLUSHKOV)
 static void ppl_print(PosPairList *self, FILE *stream)
 {
     PosPair               *pp;
@@ -684,4 +684,4 @@ static void rfa_print(Rfa *rfa, FILE *stream)
     ppl_print(rfa->last, stream);
     fprintf(stream, "\n");
 }
-#endif
+#endif /* BRU_DEBUG || BRU_DEBUG_GLUSHKOV */
