@@ -1,5 +1,5 @@
-#ifndef BRU_WALKER_MEMOISATION_H
-#define BRU_WALKER_MEMOISATION_H
+#ifndef BRU_RE_WALKER_MEMOISATION_H
+#define BRU_RE_WALKER_MEMOISATION_H
 
 // header aggregator for memoisation schemes
 
@@ -17,4 +17,4 @@ typedef void bru_memoise_f(BruRegexNode **r);
 typedef bru_memoise_f memoise_f;
 #endif /* BRU_RE_WALKER_MEMOISATION_ENABLE_SHORT_NAMES */
 
-#endif /* BRU_WALKER_MEMOISATION_H */
+#endif /* BRU_RE_WALKER_MEMOISATION_H */

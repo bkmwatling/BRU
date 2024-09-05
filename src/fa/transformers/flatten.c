@@ -4,7 +4,7 @@
 #include "../../utils.h"
 #include "flatten.h"
 
-/* --- Preprocessor macros -------------------------------------------------- */
+/* --- Preprocessor directives ---------------------------------------------- */
 
 #define ACTION_TO_IDX(type)    ((unsigned int) (type))
 #define ACTION_TO_BIT(type)    (1 << ACTION_TO_IDX(type))

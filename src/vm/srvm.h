@@ -14,10 +14,6 @@ typedef struct bru_srvm BruSRVM;
      !defined(BRU_VM_DISABLE_SHORT_NAMES) &&     \
          (defined(BRU_VM_ENABLE_SHORT_NAMES) ||  \
           defined(BRU_ENABLE_SHORT_NAMES)))
-#    define NO_MATCH          BRU_NO_MATCH
-#    define MATCH             BRU_MATCH
-#    define MATCHES_EXHAUSTED BRU_MATCHES_EXHAUSTED
-
 typedef BruSRVM SRVM;
 
 #    define srvm_new      bru_srvm_new

@@ -226,7 +226,7 @@ void bru_regex_node_free(BruRegexNode *self)
         case BRU_EPSILON: /* fallthrough */
         case BRU_CARET:   /* fallthrough */
         case BRU_DOLLAR:  /* fallthrough */
-        // case MEMOISE: /* fallthrough */
+        // case BRU_MEMOISE: /* fallthrough */
         case BRU_LITERAL: /* fallthrough */
         case BRU_BACKREFERENCE: break;
 

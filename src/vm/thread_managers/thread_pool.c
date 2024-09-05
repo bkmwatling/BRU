@@ -13,8 +13,7 @@ struct bru_thread_list {
 
 struct bru_thread_pool {
     BruThreadList *pool;
-
-    FILE *logfile;
+    FILE          *logfile;
 };
 
 /* --- API function definitions --------------------------------------------- */

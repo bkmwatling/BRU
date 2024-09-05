@@ -42,53 +42,54 @@
 #define RFA_NEW_FROM(rfa) \
     rfa_new((rfa)->follow, (rfa)->npositions, (rfa)->positions)
 
-typedef struct pos_pair PosPair;
+typedef struct bru_pos_pair BruPosPair;
 
-struct pos_pair {
+struct bru_pos_pair {
     size_t         pos;     /**< linearised position for Glushkov             */
     BruActionList *actions; /**< list of actions on transition                */
-    PosPair       *prev;
-    PosPair       *next;
+    BruPosPair    *prev;
+    BruPosPair    *next;
 };
 
 typedef struct {
-    size_t   len;      /**< length of (number of elements in) the list        */
-    PosPair *sentinel; /**< sentinel for circly linked list                   */
-    PosPair *gamma;    /**< shortcut to gamma pair in linked list             */
-} PosPairList;
+    size_t      len; /**< length of (number of elements in) the list        */
+    BruPosPair *sentinel; /**< sentinel for circly linked list */
+    BruPosPair *gamma; /**< shortcut to gamma pair in linked list             */
+} BruPosPairList;
 
 typedef struct {
-    PosPairList      *last;       /**< last *set* for Glushkov                */
-    PosPairList     **follow;     /**< map of positions to follow lists       */
+    BruPosPairList   *last;       /**< last *set* for Glushkov                */
+    BruPosPairList  **follow;     /**< map of positions to follow lists       */
     size_t            npositions; /**< number of linearised positions         */
     const BruAction **positions;  /**< map of positions to actual info        */
-} Rfa;
+} BruRfa;
 
-static void     pp_free(PosPair *self);
-static PosPair *pp_clone(const PosPair *self);
-static void     pp_insert_after(PosPair *self, PosPair *pp);
-static PosPair *pp_insert_pos_after(PosPair *self, size_t pos);
-static PosPair *pp_remove(PosPair *self);
+static void        pp_free(BruPosPair *self);
+static BruPosPair *pp_clone(const BruPosPair *self);
+static void        pp_insert_after(BruPosPair *self, BruPosPair *pp);
+static BruPosPair *pp_insert_pos_after(BruPosPair *self, size_t pos);
+static BruPosPair *pp_remove(BruPosPair *self);
 
-static PosPairList *ppl_new(void);
-static void         ppl_free(PosPairList *self);
-static void         ppl_clone_into(const PosPairList *self, PosPairList *clone);
-static void         ppl_clear(PosPairList *self);
-static void         ppl_remove(PosPairList *self, size_t pos);
-static void         ppl_replace_gamma(PosPairList *self, PosPairList *ppl);
-static void         ppl_append(PosPairList *self, PosPairList *ppl);
+static BruPosPairList *ppl_new(void);
+static void            ppl_free(BruPosPairList *self);
+static void ppl_clone_into(const BruPosPairList *self, BruPosPairList *clone);
+static void ppl_clear(BruPosPairList *self);
+static void ppl_remove(BruPosPairList *self, size_t pos);
+static void ppl_replace_gamma(BruPosPairList *self, BruPosPairList *ppl);
+static void ppl_append(BruPosPairList *self, BruPosPairList *ppl);
 
-static Rfa *
-rfa_new(PosPairList **follow, size_t npositions, const BruAction **positions);
-static void rfa_free(Rfa *self);
-static void rfa_construct(Rfa                   *self,
-                          const BruRegexNode    *re,
-                          PosPairList           *first,
-                          const BruCompilerOpts *opts);
-static void rfa_merge_outgoing(Rfa *rfa, size_t pos, bru_len_t *visited);
+static BruRfa *rfa_new(BruPosPairList  **follow,
+                       size_t            npositions,
+                       const BruAction **positions);
+static void    rfa_free(BruRfa *self);
+static void    rfa_construct(BruRfa                *self,
+                             const BruRegexNode    *re,
+                             BruPosPairList        *first,
+                             const BruCompilerOpts *opts);
+static void    rfa_merge_outgoing(BruRfa *rfa, size_t pos, bru_len_t *visited);
 
 static size_t count(const BruRegexNode *re);
-static void   emit(BruStateMachine *sm, const Rfa *rfa);
+static void   emit(BruStateMachine *sm, const BruRfa *rfa);
 
 #if defined(BRU_DEBUG) || defined(BRU_DEBUG_GLUSHKOV)
 static void ppl_print(PosPairList *self, FILE *stream);
@@ -105,11 +106,11 @@ BruStateMachine *bru_glushkov_construct(BruRegex               re,
 {
     bru_len_t         npositions;
     size_t            i;
-    PosPair          *pp;
-    PosPairList     **follow;
+    BruPosPair       *pp;
+    BruPosPairList  **follow;
     const BruAction **positions;
     bru_len_t        *visited;
-    Rfa              *rfa;
+    BruRfa           *rfa;
     BruStateMachine  *sm;
 
     npositions = count(re.root) + 1; /* + 1 so that 0 is gamma/start */
@@ -150,9 +151,9 @@ BruStateMachine *bru_glushkov_construct(BruRegex               re,
     return sm;
 }
 
-static PosPair *pos_pair_new(size_t pos)
+static BruPosPair *pos_pair_new(size_t pos)
 {
-    PosPair *pp = malloc(sizeof(*pp));
+    BruPosPair *pp = malloc(sizeof(*pp));
 
     pp->pos     = pos;
     pp->actions = bru_smir_action_list_new();
@@ -161,16 +162,16 @@ static PosPair *pos_pair_new(size_t pos)
     return pp;
 }
 
-static void pp_free(PosPair *self)
+static void pp_free(BruPosPair *self)
 {
     bru_smir_action_list_free(self->actions);
     self->prev = self->next = NULL;
     free(self);
 }
 
-static PosPair *pp_clone(const PosPair *self)
+static BruPosPair *pp_clone(const BruPosPair *self)
 {
-    PosPair *pp = malloc(sizeof(*pp));
+    BruPosPair *pp = malloc(sizeof(*pp));
 
     pp->pos     = self->pos;
     pp->actions = bru_smir_action_list_clone(self->actions);
@@ -179,7 +180,7 @@ static PosPair *pp_clone(const PosPair *self)
     return pp;
 }
 
-static void pp_insert_after(PosPair *self, PosPair *pp)
+static void pp_insert_after(BruPosPair *self, BruPosPair *pp)
 {
     pp->prev       = self;
     pp->next       = self->next;
@@ -187,16 +188,16 @@ static void pp_insert_after(PosPair *self, PosPair *pp)
     pp->next->prev = pp;
 }
 
-static PosPair *pp_insert_pos_after(PosPair *self, size_t pos)
+static BruPosPair *pp_insert_pos_after(BruPosPair *self, size_t pos)
 {
-    PosPair *pp = pos_pair_new(pos);
+    BruPosPair *pp = pos_pair_new(pos);
     pp_insert_after(self, pp);
     return pp;
 }
 
-static PosPair *pp_remove(PosPair *self)
+static BruPosPair *pp_remove(BruPosPair *self)
 {
-    PosPair *next = self->next;
+    BruPosPair *next = self->next;
 
     if (self->prev) self->prev->next = self->next;
     if (self->next) self->next->prev = self->prev;
@@ -206,9 +207,9 @@ static PosPair *pp_remove(PosPair *self)
     return next;
 }
 
-static PosPairList *ppl_new(void)
+static BruPosPairList *ppl_new(void)
 {
-    PosPairList *ppl = malloc(sizeof(*ppl));
+    BruPosPairList *ppl = malloc(sizeof(*ppl));
 
     ppl->len            = 0;
     ppl->sentinel       = pos_pair_new(START_POS);
@@ -218,16 +219,16 @@ static PosPairList *ppl_new(void)
     return ppl;
 }
 
-static void ppl_free(PosPairList *self)
+static void ppl_free(BruPosPairList *self)
 {
     ppl_clear(self);
     pp_free(self->sentinel);
     free(self);
 }
 
-static void ppl_clone_into(const PosPairList *self, PosPairList *clone)
+static void ppl_clone_into(const BruPosPairList *self, BruPosPairList *clone)
 {
-    PosPair *pp;
+    BruPosPair *pp;
 
     clone->len = self->len;
     FOREACH(pp, self->sentinel) {
@@ -236,9 +237,9 @@ static void ppl_clone_into(const PosPairList *self, PosPairList *clone)
     }
 }
 
-static void ppl_clear(PosPairList *self)
+static void ppl_clear(BruPosPairList *self)
 {
-    PosPair *pp;
+    BruPosPair *pp;
 
     while (self->sentinel->next != self->sentinel) {
         pp                   = self->sentinel->next;
@@ -252,9 +253,9 @@ static void ppl_clear(PosPairList *self)
     self->gamma                                 = NULL;
 }
 
-static void ppl_remove(PosPairList *self, size_t pos)
+static void ppl_remove(BruPosPairList *self, size_t pos)
 {
-    PosPair *pp;
+    BruPosPair *pp;
 
     if (pos == GAMMA_POS) {
         pp = self->gamma ? self->gamma : self->sentinel;
@@ -271,7 +272,7 @@ static void ppl_remove(PosPairList *self, size_t pos)
     if (pos == GAMMA_POS) self->gamma = NULL;
 }
 
-static void ppl_replace_gamma(PosPairList *self, PosPairList *ppl)
+static void ppl_replace_gamma(BruPosPairList *self, BruPosPairList *ppl)
 {
     if (self->gamma == NULL) return;
     if (IS_EMPTY(ppl)) {
@@ -293,7 +294,7 @@ static void ppl_replace_gamma(PosPairList *self, PosPairList *ppl)
     ppl->gamma  = NULL;
 }
 
-static void ppl_append(PosPairList *self, PosPairList *ppl)
+static void ppl_append(BruPosPairList *self, BruPosPairList *ppl)
 {
     if (IS_EMPTY(ppl)) return;
 
@@ -309,10 +310,10 @@ static void ppl_append(PosPairList *self, PosPairList *ppl)
     ppl->gamma = NULL;
 }
 
-static Rfa *
-rfa_new(PosPairList **follow, size_t npositions, const BruAction **positions)
+static BruRfa *
+rfa_new(BruPosPairList **follow, size_t npositions, const BruAction **positions)
 {
-    Rfa *rfa = malloc(sizeof(*rfa));
+    BruRfa *rfa = malloc(sizeof(*rfa));
 
     rfa->last       = ppl_new();
     rfa->follow     = follow;
@@ -322,15 +323,15 @@ rfa_new(PosPairList **follow, size_t npositions, const BruAction **positions)
     return rfa;
 }
 
-static void rfa_free(Rfa *self)
+static void rfa_free(BruRfa *self)
 {
     ppl_free(self->last);
     free(self);
 }
 
-static void rfa_construct(Rfa                   *self,
+static void rfa_construct(BruRfa                *self,
                           const BruRegexNode    *re,
-                          PosPairList           *first,
+                          BruPosPairList        *first,
                           const BruCompilerOpts *opts)
 {
 #define APPEND_POSITION(action)                               \
@@ -343,11 +344,11 @@ static void rfa_construct(Rfa                   *self,
         self->last->len++;                                    \
     } while (0)
 
-    Rfa           *rfa_r2  = NULL;
-    PosPairList   *ppl_tmp = NULL, *first_r2 = NULL;
-    PosPair       *pp, *pp_tmp;
-    BruActionList *al_tmp = NULL;
-    size_t         pos    = 0;
+    BruRfa         *rfa_r2  = NULL;
+    BruPosPairList *ppl_tmp = NULL, *first_r2 = NULL;
+    BruPosPair     *pp, *pp_tmp;
+    BruActionList  *al_tmp = NULL;
+    size_t          pos    = 0;
 
     if (first == NULL) first = FIRST(self);
     switch (re->type) {
@@ -362,12 +363,13 @@ static void rfa_construct(Rfa                   *self,
             bru_smir_action_list_push_back(first->gamma->actions,
                                            bru_smir_action_zwa(BRU_ACT_END));
             break;
-        // case MEMOISE:
+
+        // case BRU_MEMOISE:
         //     APPEND_GAMMA(first);
-        //     smir_action_list_push_back(first->gamma->actions,
-        //                                smir_action_num(ACT_MEMO, re->rid));
+        //     bru_smir_action_list_push_back(
+        //         first->gamma->actions, smir_action_num(BRU_ACT_MEMO,
+        //         re->rid));
         //     break;
-        //
         case BRU_LITERAL: APPEND_POSITION(bru_smir_action_char(re->ch)); break;
         case BRU_CC:
             APPEND_POSITION(
@@ -535,11 +537,11 @@ cleanup:
 #undef APPEND_POSITION
 }
 
-static void rfa_merge_outgoing(Rfa *rfa, size_t pos, bru_len_t *visited)
+static void rfa_merge_outgoing(BruRfa *rfa, size_t pos, bru_len_t *visited)
 {
-    bru_len_t   *seen;
-    PosPair     *t, *e;
-    PosPairList *follow = rfa->follow[pos];
+    bru_len_t      *seen;
+    BruPosPair     *t, *e;
+    BruPosPairList *follow = rfa->follow[pos];
 
     visited[pos] = TRUE;
     FOREACH(t, follow->sentinel)
@@ -567,7 +569,7 @@ static size_t count(const BruRegexNode *re)
     switch (re->type) {
         case BRU_CARET:  /* fallthrough */
         case BRU_DOLLAR: /* fallthrough */
-        // case MEMOISE: /* fallthrough */
+        // case BRU_MEMOISE: /* fallthrough */
         case BRU_EPSILON: break;
 
         case BRU_LITERAL: /* fallthrough */
@@ -593,9 +595,9 @@ static size_t count(const BruRegexNode *re)
     return npos;
 }
 
-static void emit(BruStateMachine *sm, const Rfa *rfa)
+static void emit(BruStateMachine *sm, const BruRfa *rfa)
 {
-    PosPair      *pp;
+    BruPosPair   *pp;
     bru_trans_id  tid;
     size_t        i;
     bru_state_id *pos_map  = calloc(rfa->npositions, sizeof(*pos_map));

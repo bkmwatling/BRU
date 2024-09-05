@@ -1,7 +1,7 @@
-#ifndef BRU_WALKER_IAR_H
-#define BRU_WALKER_IAR_H
+#ifndef BRU_RE_WALKER_IAR_H
+#define BRU_RE_WALKER_IAR_H
 
 // #include "glushkov/infinite_ambiguity_removal.h"
 #include "thompson/infinite_ambiguity_removal.h"
 
-#endif /* BRU_WALKER_IAR_H */
+#endif /* BRU_RE_WALKER_IAR_H */

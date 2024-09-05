@@ -1,5 +1,5 @@
-#ifndef BRU_WALKER_IN_DEGREE_GLUSHKOV_H
-#define BRU_WALKER_IN_DEGREE_GLUSHKOV_H
+#ifndef BRU_RE_WALKER_IN_DEGREE_GLUSHKOV_H
+#define BRU_RE_WALKER_IN_DEGREE_GLUSHKOV_H
 
 #include "../walker.h"
 
@@ -19,4 +19,4 @@
  */
 void bru_in_degree_glushkov(BruRegexNode **r);
 
-#endif /* BRU_WALKER_IN_DEGREE_GLUSHKOV_H */
+#endif /* BRU_RE_WALKER_IN_DEGREE_GLUSHKOV_H */

@@ -1,5 +1,5 @@
-#ifndef BRU_WALKER_CLOSURE_NODE_THOMPSON_H
-#define BRU_WALKER_CLOSURE_NODE_THOMPSON_H
+#ifndef BRU_RE_WALKER_CLOSURE_NODE_THOMPSON_H
+#define BRU_RE_WALKER_CLOSURE_NODE_THOMPSON_H
 
 #include "../walker.h"
 
@@ -18,4 +18,4 @@
  */
 void bru_closure_node_thompson(BruRegexNode **r);
 
-#endif /* BRU_WALKER_CLOSURE_NODE_THOMPSON_H */
+#endif /* BRU_RE_WALKER_CLOSURE_NODE_THOMPSON_H */

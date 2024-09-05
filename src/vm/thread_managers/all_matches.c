@@ -8,7 +8,7 @@ typedef struct {
     const char *text;    /**< the input string being matched against          */
 
     BruThreadManager *__manager; /**< the thread manager being wrapped        */
-} AllMatchesThreadManager;
+} BruAllMatchesThreadManager;
 
 /* --- AllMatchesThreadManager function prototypes -------------------------- */
 
@@ -67,8 +67,8 @@ bru_all_matches_thread_manager_new(BruThreadManager *thread_manager,
                                    FILE             *logfile,
                                    const char       *text)
 {
-    AllMatchesThreadManager *amtm = malloc(sizeof(*amtm));
-    BruThreadManager        *tm   = malloc(sizeof(*tm));
+    BruAllMatchesThreadManager *amtm = malloc(sizeof(*amtm));
+    BruThreadManager           *tm   = malloc(sizeof(*tm));
 
     amtm->logfile   = logfile;
     amtm->text      = text;
@@ -86,11 +86,11 @@ static void all_matches_thread_manager_init(void             *impl,
                                             const bru_byte_t *start_pc,
                                             const char       *start_sp)
 {
-    bru_thread_manager_init(((AllMatchesThreadManager *) impl)->__manager,
+    bru_thread_manager_init(((BruAllMatchesThreadManager *) impl)->__manager,
                             start_pc, start_sp);
 }
 
-static void print_match(AllMatchesThreadManager *self, BruThread *t)
+static void print_match(BruAllMatchesThreadManager *self, BruThread *t)
 {
     const char  *capture;
     const char **captures;
@@ -124,13 +124,13 @@ static void print_match(AllMatchesThreadManager *self, BruThread *t)
 
 static void all_matches_thread_manager_reset(void *impl)
 {
-    AllMatchesThreadManager *self = impl;
+    BruAllMatchesThreadManager *self = impl;
     bru_thread_manager_reset(self->__manager);
 }
 
 static void all_matches_thread_manager_free(void *impl)
 {
-    AllMatchesThreadManager *self = impl;
+    BruAllMatchesThreadManager *self = impl;
     bru_thread_manager_free(self->__manager);
     free(impl);
 }
@@ -138,25 +138,25 @@ static void all_matches_thread_manager_free(void *impl)
 static int all_matches_thread_manager_done_exec(void *impl)
 {
     return bru_thread_manager_done_exec(
-        ((AllMatchesThreadManager *) impl)->__manager);
+        ((BruAllMatchesThreadManager *) impl)->__manager);
 }
 
 static void all_matches_thread_manager_schedule_thread(void *impl, BruThread *t)
 {
     bru_thread_manager_schedule_thread(
-        ((AllMatchesThreadManager *) impl)->__manager, t);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t);
 }
 
 static void all_matches_thread_manager_schedule_thread_in_order(void      *impl,
                                                                 BruThread *t)
 {
     bru_thread_manager_schedule_thread_in_order(
-        ((AllMatchesThreadManager *) impl)->__manager, t);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t);
 }
 
 static BruThread *all_matches_thread_manager_next_thread(void *impl)
 {
-    AllMatchesThreadManager *self = impl;
+    BruAllMatchesThreadManager *self = impl;
     BruThread *t = bru_thread_manager_next_thread(self->__manager);
 
     return t;
@@ -165,7 +165,7 @@ static BruThread *all_matches_thread_manager_next_thread(void *impl)
 static void all_matches_thread_manager_notify_thread_match(void      *impl,
                                                            BruThread *t)
 {
-    AllMatchesThreadManager *self = impl;
+    BruAllMatchesThreadManager *self = impl;
 
     print_match(self, t);
     bru_thread_manager_kill_thread(self->__manager, t);
@@ -177,37 +177,38 @@ static BruThread *all_matches_thread_manager_clone_thread(void            *impl,
                                                           const BruThread *t)
 {
     return bru_thread_manager_clone_thread(
-        ((AllMatchesThreadManager *) impl)->__manager, t);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t);
 }
 
 static void all_matches_thread_manager_kill_thread(void *impl, BruThread *t)
 {
-    AllMatchesThreadManager *self = impl;
+    BruAllMatchesThreadManager *self = impl;
     bru_thread_manager_kill_thread(self->__manager, t);
 }
 
 static const bru_byte_t *all_matches_thread_pc(void *impl, const BruThread *t)
 {
-    return bru_thread_manager_pc(((AllMatchesThreadManager *) impl)->__manager,
-                                 t);
+    return bru_thread_manager_pc(
+        ((BruAllMatchesThreadManager *) impl)->__manager, t);
 }
 
 static void
 all_matches_thread_set_pc(void *impl, BruThread *t, const bru_byte_t *pc)
 {
-    bru_thread_manager_set_pc(((AllMatchesThreadManager *) impl)->__manager, t,
-                              pc);
+    bru_thread_manager_set_pc(((BruAllMatchesThreadManager *) impl)->__manager,
+                              t, pc);
 }
 
 static const char *all_matches_thread_sp(void *impl, const BruThread *t)
 {
-    return bru_thread_manager_sp(((AllMatchesThreadManager *) impl)->__manager,
-                                 t);
+    return bru_thread_manager_sp(
+        ((BruAllMatchesThreadManager *) impl)->__manager, t);
 }
 
 static void all_matches_thread_inc_sp(void *impl, BruThread *t)
 {
-    bru_thread_manager_inc_sp(((AllMatchesThreadManager *) impl)->__manager, t);
+    bru_thread_manager_inc_sp(((BruAllMatchesThreadManager *) impl)->__manager,
+                              t);
 }
 
 static void all_matches_thread_manager_init_memoisation(void       *impl,
@@ -215,20 +216,20 @@ static void all_matches_thread_manager_init_memoisation(void       *impl,
                                                         const char *text)
 {
     bru_thread_manager_init_memoisation(
-        ((AllMatchesThreadManager *) impl)->__manager, nmemo_insts, text);
+        ((BruAllMatchesThreadManager *) impl)->__manager, nmemo_insts, text);
 }
 
 static int all_matches_thread_memoise(void *impl, BruThread *t, bru_len_t idx)
 {
     return bru_thread_manager_memoise(
-        ((AllMatchesThreadManager *) impl)->__manager, t, idx);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, idx);
 }
 
 static bru_cntr_t
 all_matches_thread_counter(void *impl, const BruThread *t, bru_len_t idx)
 {
     return bru_thread_manager_counter(
-        ((AllMatchesThreadManager *) impl)->__manager, t, idx);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, idx);
 }
 
 static void all_matches_thread_set_counter(void      *impl,
@@ -237,21 +238,21 @@ static void all_matches_thread_set_counter(void      *impl,
                                            bru_cntr_t val)
 {
     bru_thread_manager_set_counter(
-        ((AllMatchesThreadManager *) impl)->__manager, t, idx, val);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, idx, val);
 }
 
 static void
 all_matches_thread_inc_counter(void *impl, BruThread *t, bru_len_t idx)
 {
     bru_thread_manager_inc_counter(
-        ((AllMatchesThreadManager *) impl)->__manager, t, idx);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, idx);
 }
 
 static void *
 all_matches_thread_memory(void *impl, const BruThread *t, bru_len_t idx)
 {
     return bru_thread_manager_memory(
-        ((AllMatchesThreadManager *) impl)->__manager, t, idx);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, idx);
 }
 
 static void all_matches_thread_set_memory(void       *impl,
@@ -260,8 +261,8 @@ static void all_matches_thread_set_memory(void       *impl,
                                           const void *val,
                                           size_t      size)
 {
-    bru_thread_manager_set_memory(((AllMatchesThreadManager *) impl)->__manager,
-                                  t, idx, val, size);
+    bru_thread_manager_set_memory(
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, idx, val, size);
 }
 
 static const char *const *all_matches_thread_captures(void            *impl,
@@ -269,12 +270,12 @@ static const char *const *all_matches_thread_captures(void            *impl,
                                                       bru_len_t *ncaptures)
 {
     return bru_thread_manager_captures(
-        ((AllMatchesThreadManager *) impl)->__manager, t, ncaptures);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, ncaptures);
 }
 
 static void
 all_matches_thread_set_capture(void *impl, BruThread *t, bru_len_t idx)
 {
     bru_thread_manager_set_capture(
-        ((AllMatchesThreadManager *) impl)->__manager, t, idx);
+        ((BruAllMatchesThreadManager *) impl)->__manager, t, idx);
 }

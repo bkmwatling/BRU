@@ -29,8 +29,8 @@
  * this may change in the future.
  */
 
-#ifndef BRU_WALKER_H
-#define BRU_WALKER_H
+#ifndef BRU_RE_WALKER_H
+#define BRU_RE_WALKER_H
 
 #include "../sre.h"
 
@@ -117,7 +117,7 @@ typedef BruWalker Walker;
 #    define walker_new  bru_walker_new
 #    define walker_walk bru_walker_walk
 #    define walker_free bru_walker_free
-#endif /* BRU_WALKER_ENABLE_SHORT_NAMES */
+#endif /* BRU_RE_WALKER_ENABLE_SHORT_NAMES */
 
 /* --- Convenience macros --------------------------------------------------- */
 
@@ -208,4 +208,4 @@ BruRegexNode *bru_walker_walk(BruWalker *walker, BruRegexNode **regex);
  */
 BruRegexNode *bru_walker_free(BruWalker *walker);
 
-#endif /* BRU_WALKER_H */
+#endif /* BRU_RE_WALKER_H */

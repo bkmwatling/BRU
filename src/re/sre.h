@@ -96,7 +96,6 @@ typedef BruRegexType RegexType;
 #    define BACKREFERENCE BRU_BACKREFERENCE
 #    define NREGEXTYPES   BRU_NREGEXTYPES
 
-typedef BruRegexNode RegexNode;
 typedef bru_regex_id regex_id;
 typedef BruRegex     Regex;
 typedef BruRegexNode RegexNode;

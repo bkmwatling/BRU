@@ -12,8 +12,8 @@ struct bru_srvm {
     const BruProgram *program;        /**< the program of the SRVM to execute */
     const char       *curr_sp;        /**< the SP to generate threads from    */
     int          matching_finished;   /**< flag to indicate matching is done  */
-    bru_len_t    ncaptures; /**< the number of captures in the program      */
-    const char **captures;  /**< the array of (start, end) capture pairs    */
+    bru_len_t    ncaptures; /**< the number of captures in the program        */
+    const char **captures;  /**< the array of (start, end) capture pairs      */
 };
 
 /* --- Private function prototypes ------------------------------------------ */

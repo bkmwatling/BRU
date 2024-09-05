@@ -1,5 +1,5 @@
-#ifndef BRU_WALKER_IAR_THOMPSON_H
-#define BRU_WALKER_IAR_THOMPSON_H
+#ifndef BRU_RE_WALKER_IAR_THOMPSON_H
+#define BRU_RE_WALKER_IAR_THOMPSON_H
 
 #include "../walker.h"
 
@@ -19,4 +19,4 @@
  */
 void bru_infinite_ambiguity_removal_thompson(BruRegexNode **r);
 
-#endif /* BRU_WALKER_IAR_THOMPSON_H */
+#endif /* BRU_RE_WALKER_IAR_THOMPSON_H */

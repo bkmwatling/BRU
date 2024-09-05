@@ -42,7 +42,7 @@ typedef struct {
     size_t         nout;
     void          *pre_meta;
     void          *post_meta;
-} State;
+} BruState;
 
 struct bru_trans {
     BruActionList *actions_sentinel;
@@ -66,7 +66,7 @@ struct bru_action_list_iterator {
 
 struct bru_state_machine {
     const char *regex;
-    State      *states;
+    BruState   *states;
     BruTrans   *initial_functions_sentinel;
     size_t      ninits;
 };
@@ -90,7 +90,7 @@ static void trans_free(BruTrans *self)
     free(self);
 }
 
-static void state_free(State *self)
+static void state_free(BruState *self)
 {
     BruTrans *elem, *next;
 
@@ -153,7 +153,7 @@ BruProgram *bru_smir_compile(BruStateMachine *self)
 
 bru_state_id bru_smir_add_state(BruStateMachine *self)
 {
-    State state = { 0 };
+    BruState state = { 0 };
 
     BRU_DLL_INIT(state.actions_sentinel);
     BRU_DLL_INIT(state.out_transitions_sentinel);
@@ -264,7 +264,7 @@ void bru_smir_state_set_actions(BruStateMachine *self,
                                 bru_state_id     sid,
                                 BruActionList   *acts)
 {
-    State *state;
+    BruState *state;
 
     if (!(sid && acts)) return;
 
@@ -743,7 +743,7 @@ void *bru_smir_get_post_meta(BruStateMachine *self, bru_state_id sid)
 
 void bru_smir_reorder_states(BruStateMachine *self, bru_state_id *sid_ordering)
 {
-    State        *states;
+    BruState     *states;
     bru_trans_id *out;
     bru_state_id  sid, dst;
     size_t        i, n, nstates;
