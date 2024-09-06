@@ -1,10 +1,18 @@
-#ifndef SPENCER_THREAD_MANAGER_H
-#define SPENCER_THREAD_MANAGER_H
+#ifndef BRU_VM_THREAD_MANAGER_SPENCER_H
+#define BRU_VM_THREAD_MANAGER_SPENCER_H
 
 #include <stdio.h>
 
 #include "../../types.h"
 #include "thread_manager.h"
+
+#if !defined(BRU_VM_THREAD_MANAGER_SPENCER_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_THREAD_MANAGER_SPENCER_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                       \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                    \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+#    define spencer_thread_manager_new bru_spencer_thread_manager_new
+#endif /* BRU_VM_THREAD_MANAGER_SPENCER_ENABLE_SHORT_NAMES */
 
 /* --- Spencer ThreadManager function prototypes ---------------------------- */
 
@@ -18,9 +26,9 @@
  *
  * @return the constructed Spencer-style thread manager
  */
-ThreadManager *spencer_thread_manager_new(len_t ncounters,
-                                          len_t memory_len,
-                                          len_t ncaptures,
-                                          FILE *logfile);
+BruThreadManager *bru_spencer_thread_manager_new(bru_len_t ncounters,
+                                                 bru_len_t memory_len,
+                                                 bru_len_t ncaptures,
+                                                 FILE     *logfile);
 
-#endif /* SPENCER_THREAD_MANAGER_H */
+#endif /* BRU_VM_THREAD_MANAGER_SPENCER_H */

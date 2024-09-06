@@ -31,14 +31,14 @@ submodule. As such the submodule needs to be cloned into the project. This can
 be done during cloning by running:
 
 ```bash
-git clone git@git.cs.sun.ac.za:rvrg/srvm-c.git --recurse-submodules
+git clone git@git.cs.sun.ac.za:rvrg/bru.git --recurse-submodules
 ```
 
 if using the internal Stellenbosch Computer Science GitLab repository, or if
 using the mirrored GitHub repository, simply run:
 
 ```bash
-git clone git@github.com:bkmwatling/srvm.git --recurse-submodules
+git clone https://github.com/bkmwatling/BRU.git --recurse-submodules
 ```
 
 ### Working with submodule after cloning

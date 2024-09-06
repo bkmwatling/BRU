@@ -1,16 +1,16 @@
 #include "infinite_ambiguity_removal.h"
 
-/* --- API routine --------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-void infinite_ambiguity_removal_thompson(RegexNode **r)
+void bru_infinite_ambiguity_removal_thompson(BruRegexNode **r)
 {
-    Walker *w;
+    BruWalker *w;
 
     if (!r || !(*r)) return;
 
-    w = walker_init();
+    w = bru_walker_new();
     // TODO: add walker functions
 
-    walker_walk(w, r);
-    walker_release(w);
+    bru_walker_walk(w, r);
+    bru_walker_free(w);
 }

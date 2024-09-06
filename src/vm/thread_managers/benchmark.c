@@ -3,7 +3,7 @@
 
 #include "benchmark.h"
 
-#define INST_COUNT_LEN               (2 * NBYTECODES)
+#define INST_COUNT_LEN               (2 * BRU_NBYTECODES)
 #define INST_IDX(i)                  (2 * (i))
 #define INST_COUNT(self, i)          (self)->inst_counts[INST_IDX(i)]
 #define INC_INST_COUNT(self, i)      INST_COUNT(self, i)++
@@ -23,63 +23,72 @@ typedef struct {
     size_t spawn_count;                 /**< the number of spawned threads    */
     size_t inst_counts[INST_COUNT_LEN]; /**< instruction execution counts     */
 
-    ThreadManager *__manager; /**< the thread manager being wrapped           */
-} BenchmarkThreadManager;
+    BruThreadManager *__manager; /**< the thread manager being wrapped        */
+} BruBenchmarkThreadManager;
 
 /* --- BenchmarkThreadManager function prototypes --------------------------- */
 
-static void benchmark_thread_manager_init(void       *impl,
-                                          const byte *start_pc,
-                                          const char *start_sp);
+static void benchmark_thread_manager_init(void             *impl,
+                                          const bru_byte_t *start_pc,
+                                          const char       *start_sp);
 static void benchmark_thread_manager_reset(void *impl);
 static void benchmark_thread_manager_free(void *impl);
 static int  benchmark_thread_manager_done_exec(void *impl);
 
-static void    benchmark_thread_manager_schedule_thread(void *impl, Thread *t);
-static void    benchmark_thread_manager_schedule_thread_in_order(void   *impl,
-                                                                 Thread *t);
-static Thread *benchmark_thread_manager_next_thread(void *impl);
-static void benchmark_thread_manager_notify_thread_match(void *impl, Thread *t);
-static Thread *benchmark_thread_manager_clone_thread(void         *impl,
-                                                     const Thread *t);
-static void    benchmark_thread_manager_kill_thread(void *impl, Thread *t);
-static void    benchmark_thread_manager_init_memoisation(void       *impl,
-                                                         size_t      nmemo_insts,
-                                                         const char *text);
+static void benchmark_thread_manager_schedule_thread(void *impl, BruThread *t);
+static void benchmark_thread_manager_schedule_thread_in_order(void      *impl,
+                                                              BruThread *t);
+static BruThread *benchmark_thread_manager_next_thread(void *impl);
+static void       benchmark_thread_manager_notify_thread_match(void      *impl,
+                                                               BruThread *t);
+static BruThread *benchmark_thread_manager_clone_thread(void            *impl,
+                                                        const BruThread *t);
+static void benchmark_thread_manager_kill_thread(void *impl, BruThread *t);
+static void benchmark_thread_manager_init_memoisation(void       *impl,
+                                                      size_t      nmemo_insts,
+                                                      const char *text);
 
-static const byte *benchmark_thread_pc(void *impl, const Thread *t);
-static void benchmark_thread_set_pc(void *impl, Thread *t, const byte *pc);
-static const char *benchmark_thread_sp(void *impl, const Thread *t);
-static void        benchmark_thread_inc_sp(void *impl, Thread *t);
-static int         benchmark_thread_memoise(void *impl, Thread *t, len_t idx);
-static cntr_t benchmark_thread_counter(void *impl, const Thread *t, len_t idx);
+static const bru_byte_t *benchmark_thread_pc(void *impl, const BruThread *t);
 static void
-benchmark_thread_set_counter(void *impl, Thread *t, len_t idx, cntr_t val);
-static void  benchmark_thread_inc_counter(void *impl, Thread *t, len_t idx);
-static void *benchmark_thread_memory(void *impl, const Thread *t, len_t idx);
-static void  benchmark_thread_set_memory(void       *impl,
-                                         Thread     *t,
-                                         len_t       idx,
-                                         const void *val,
-                                         size_t      size);
+benchmark_thread_set_pc(void *impl, BruThread *t, const bru_byte_t *pc);
+static const char *benchmark_thread_sp(void *impl, const BruThread *t);
+static void        benchmark_thread_inc_sp(void *impl, BruThread *t);
+static int benchmark_thread_memoise(void *impl, BruThread *t, bru_len_t idx);
+static bru_cntr_t
+benchmark_thread_counter(void *impl, const BruThread *t, bru_len_t idx);
+static void benchmark_thread_set_counter(void      *impl,
+                                         BruThread *t,
+                                         bru_len_t  idx,
+                                         bru_cntr_t val);
+static void
+benchmark_thread_inc_counter(void *impl, BruThread *t, bru_len_t idx);
+static void *
+benchmark_thread_memory(void *impl, const BruThread *t, bru_len_t idx);
+static void benchmark_thread_set_memory(void       *impl,
+                                        BruThread  *t,
+                                        bru_len_t   idx,
+                                        const void *val,
+                                        size_t      size);
 static const char *const *
-benchmark_thread_captures(void *impl, const Thread *t, len_t *ncaptures);
-static void benchmark_thread_set_capture(void *impl, Thread *t, len_t idx);
+benchmark_thread_captures(void *impl, const BruThread *t, bru_len_t *ncaptures);
+static void
+benchmark_thread_set_capture(void *impl, BruThread *t, bru_len_t idx);
 
 /* --- API function definitions --------------------------------------------- */
 
-ThreadManager *benchmark_thread_manager_new(ThreadManager *thread_manager,
-                                            FILE          *logfile)
+BruThreadManager *
+bru_benchmark_thread_manager_new(BruThreadManager *thread_manager,
+                                 FILE             *logfile)
 {
-    BenchmarkThreadManager *btm = malloc(sizeof(*btm));
-    ThreadManager          *tm  = malloc(sizeof(*tm));
+    BruBenchmarkThreadManager *btm = malloc(sizeof(*btm));
+    BruThreadManager          *tm  = malloc(sizeof(*tm));
 
     btm->logfile     = logfile ? logfile : stderr;
     btm->spawn_count = 0;
     memset(btm->inst_counts, 0, sizeof(btm->inst_counts));
     btm->__manager = thread_manager;
 
-    THREAD_MANAGER_SET_ALL_FUNCS(tm, benchmark);
+    BRU_THREAD_MANAGER_SET_ALL_FUNCS(tm, benchmark);
     tm->impl = btm;
 
     return tm;
@@ -87,18 +96,18 @@ ThreadManager *benchmark_thread_manager_new(ThreadManager *thread_manager,
 
 /* --- BenchmarkThreadManager function defintions --------------------------- */
 
-static void benchmark_thread_manager_init(void       *impl,
-                                          const byte *start_pc,
-                                          const char *start_sp)
+static void benchmark_thread_manager_init(void             *impl,
+                                          const bru_byte_t *start_pc,
+                                          const char       *start_sp)
 {
-    thread_manager_init(((BenchmarkThreadManager *) impl)->__manager, start_pc,
-                        start_sp);
+    bru_thread_manager_init(((BruBenchmarkThreadManager *) impl)->__manager,
+                            start_pc, start_sp);
 }
 
 static void benchmark_thread_manager_reset(void *impl)
 {
-    BenchmarkThreadManager *self = impl;
-    thread_manager_reset(self->__manager);
+    BruBenchmarkThreadManager *self = impl;
+    bru_thread_manager_reset(self->__manager);
     // TODO: reset benchmark instrumentation?
     // self->spawn_count = 0;
     // memset(self->inst_counts, 0, sizeof(self->inst_counts));
@@ -106,148 +115,160 @@ static void benchmark_thread_manager_reset(void *impl)
 
 static void benchmark_thread_manager_free(void *impl)
 {
-    BenchmarkThreadManager *self = impl;
+    BruBenchmarkThreadManager *self = impl;
 
-    LOG_INSTS(self, MATCH);
-    LOG_INSTS(self, MEMO);
-    LOG_INSTS(self, CHAR);
-    LOG_INSTS(self, PRED);
-    LOG_INSTS(self, STATE);
+    LOG_INSTS(self, BRU_MATCH);
+    LOG_INSTS(self, BRU_MEMO);
+    LOG_INSTS(self, BRU_CHAR);
+    LOG_INSTS(self, BRU_PRED);
+    LOG_INSTS(self, BRU_STATE);
 
-    thread_manager_free(self->__manager);
+    bru_thread_manager_free(self->__manager);
     free(impl);
 }
 
 static int benchmark_thread_manager_done_exec(void *impl)
 {
-    return thread_manager_done_exec(
-        ((BenchmarkThreadManager *) impl)->__manager);
+    return bru_thread_manager_done_exec(
+        ((BruBenchmarkThreadManager *) impl)->__manager);
 }
 
-static void benchmark_thread_manager_schedule_thread(void *impl, Thread *t)
+static void benchmark_thread_manager_schedule_thread(void *impl, BruThread *t)
 {
-    thread_manager_schedule_thread(((BenchmarkThreadManager *) impl)->__manager,
-                                   t);
+    bru_thread_manager_schedule_thread(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t);
 }
 
-static void benchmark_thread_manager_schedule_thread_in_order(void   *impl,
-                                                              Thread *t)
+static void benchmark_thread_manager_schedule_thread_in_order(void      *impl,
+                                                              BruThread *t)
 {
-    thread_manager_schedule_thread_in_order(
-        ((BenchmarkThreadManager *) impl)->__manager, t);
+    bru_thread_manager_schedule_thread_in_order(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t);
 }
 
-static Thread *benchmark_thread_manager_next_thread(void *impl)
+static BruThread *benchmark_thread_manager_next_thread(void *impl)
 {
-    BenchmarkThreadManager *self = impl;
-    Thread                 *t    = thread_manager_next_thread(self->__manager);
+    BruBenchmarkThreadManager *self = impl;
+    BruThread *t = bru_thread_manager_next_thread(self->__manager);
 
     if (t) INC_CURR_INST(self, t);
 
     return t;
 }
 
-static void benchmark_thread_manager_notify_thread_match(void *impl, Thread *t)
+static void benchmark_thread_manager_notify_thread_match(void      *impl,
+                                                         BruThread *t)
 {
-    thread_manager_notify_thread_match(
-        ((BenchmarkThreadManager *) impl)->__manager, t);
+    bru_thread_manager_notify_thread_match(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t);
 }
 
-static Thread *benchmark_thread_manager_clone_thread(void         *impl,
-                                                     const Thread *t)
+static BruThread *benchmark_thread_manager_clone_thread(void            *impl,
+                                                        const BruThread *t)
 {
-    return thread_manager_clone_thread(
-        ((BenchmarkThreadManager *) impl)->__manager, t);
+    return bru_thread_manager_clone_thread(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t);
 }
 
-static void benchmark_thread_manager_kill_thread(void *impl, Thread *t)
+static void benchmark_thread_manager_kill_thread(void *impl, BruThread *t)
 {
-    BenchmarkThreadManager *self = impl;
+    BruBenchmarkThreadManager *self = impl;
 
     INC_CURR_INST_FAIL(self, t);
-    thread_manager_kill_thread(self->__manager, t);
+    bru_thread_manager_kill_thread(self->__manager, t);
 }
 
-static const byte *benchmark_thread_pc(void *impl, const Thread *t)
+static const bru_byte_t *benchmark_thread_pc(void *impl, const BruThread *t)
 {
-    return thread_manager_pc(((BenchmarkThreadManager *) impl)->__manager, t);
+    return bru_thread_manager_pc(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t);
 }
 
-static void benchmark_thread_set_pc(void *impl, Thread *t, const byte *pc)
+static void
+benchmark_thread_set_pc(void *impl, BruThread *t, const bru_byte_t *pc)
 {
-    thread_manager_set_pc(((BenchmarkThreadManager *) impl)->__manager, t, pc);
+    bru_thread_manager_set_pc(((BruBenchmarkThreadManager *) impl)->__manager,
+                              t, pc);
 }
 
-static const char *benchmark_thread_sp(void *impl, const Thread *t)
+static const char *benchmark_thread_sp(void *impl, const BruThread *t)
 {
-    return thread_manager_sp(((BenchmarkThreadManager *) impl)->__manager, t);
+    return bru_thread_manager_sp(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t);
 }
 
-static void benchmark_thread_inc_sp(void *impl, Thread *t)
+static void benchmark_thread_inc_sp(void *impl, BruThread *t)
 {
-    thread_manager_inc_sp(((BenchmarkThreadManager *) impl)->__manager, t);
+    bru_thread_manager_inc_sp(((BruBenchmarkThreadManager *) impl)->__manager,
+                              t);
 }
 
 static void benchmark_thread_manager_init_memoisation(void       *impl,
                                                       size_t      nmemo_insts,
                                                       const char *text)
 {
-    thread_manager_init_memoisation(
-        ((BenchmarkThreadManager *) impl)->__manager, nmemo_insts, text);
+    bru_thread_manager_init_memoisation(
+        ((BruBenchmarkThreadManager *) impl)->__manager, nmemo_insts, text);
 }
 
-static int benchmark_thread_memoise(void *impl, Thread *t, len_t idx)
+static int benchmark_thread_memoise(void *impl, BruThread *t, bru_len_t idx)
 {
-    return thread_manager_memoise(((BenchmarkThreadManager *) impl)->__manager,
-                                  t, idx);
+    return bru_thread_manager_memoise(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, idx);
 }
 
-static cntr_t benchmark_thread_counter(void *impl, const Thread *t, len_t idx)
+static bru_cntr_t
+benchmark_thread_counter(void *impl, const BruThread *t, bru_len_t idx)
 {
-    return thread_manager_counter(((BenchmarkThreadManager *) impl)->__manager,
-                                  t, idx);
+    return bru_thread_manager_counter(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, idx);
+}
+
+static void benchmark_thread_set_counter(void      *impl,
+                                         BruThread *t,
+                                         bru_len_t  idx,
+                                         bru_cntr_t val)
+{
+    bru_thread_manager_set_counter(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, idx, val);
 }
 
 static void
-benchmark_thread_set_counter(void *impl, Thread *t, len_t idx, cntr_t val)
+benchmark_thread_inc_counter(void *impl, BruThread *t, bru_len_t idx)
 {
-    thread_manager_set_counter(((BenchmarkThreadManager *) impl)->__manager, t,
-                               idx, val);
+    bru_thread_manager_inc_counter(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, idx);
 }
 
-static void benchmark_thread_inc_counter(void *impl, Thread *t, len_t idx)
+static void *
+benchmark_thread_memory(void *impl, const BruThread *t, bru_len_t idx)
 {
-    thread_manager_inc_counter(((BenchmarkThreadManager *) impl)->__manager, t,
-                               idx);
-}
-
-static void *benchmark_thread_memory(void *impl, const Thread *t, len_t idx)
-{
-    return thread_manager_memory(((BenchmarkThreadManager *) impl)->__manager,
-                                 t, idx);
+    return bru_thread_manager_memory(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, idx);
 }
 
 static void benchmark_thread_set_memory(void       *impl,
-                                        Thread     *t,
-                                        len_t       idx,
+                                        BruThread  *t,
+                                        bru_len_t   idx,
                                         const void *val,
                                         size_t      size)
 {
-    thread_manager_set_memory(((BenchmarkThreadManager *) impl)->__manager, t,
-                              idx, val, size);
+    bru_thread_manager_set_memory(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, idx, val, size);
 }
 
 static const char *const *
-benchmark_thread_captures(void *impl, const Thread *t, len_t *ncaptures)
+benchmark_thread_captures(void *impl, const BruThread *t, bru_len_t *ncaptures)
 {
-    return thread_manager_captures(((BenchmarkThreadManager *) impl)->__manager,
-                                   t, ncaptures);
+    return bru_thread_manager_captures(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, ncaptures);
 }
 
-static void benchmark_thread_set_capture(void *impl, Thread *t, len_t idx)
+static void
+benchmark_thread_set_capture(void *impl, BruThread *t, bru_len_t idx)
 {
-    thread_manager_set_capture(((BenchmarkThreadManager *) impl)->__manager, t,
-                               idx);
+    bru_thread_manager_set_capture(
+        ((BruBenchmarkThreadManager *) impl)->__manager, t, idx);
 }
 
 #undef INST_COUNT_LEN

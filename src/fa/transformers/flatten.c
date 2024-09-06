@@ -1,27 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../../utils.h"
 #include "flatten.h"
 
-/* --- Preprocessor macros -------------------------------------------------- */
+/* --- Preprocessor directives ---------------------------------------------- */
 
 #define ACTION_TO_IDX(type)    ((unsigned int) (type))
 #define ACTION_TO_BIT(type)    (1 << ACTION_TO_IDX(type))
 #define INSERT_TYPE(set, type) (set |= ACTION_TO_BIT(type))
 
-/* --- Data structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
-    StateMachine *origin_sm; /**< the original machine */
-    StateMachine *new_sm;    /**< the new machine */
-    byte *created; /**< map from original to states to record of creation in new
-                      machine */
-    state_id *state_map;   /**< map from original states to new states */
-    state_id *state_queue; /**< queue of states in original machine that have
-                              been added to new machine */
-    size_t    eliminated_path_count; /**< the number of transitions eliminated
-                                        since they were not useful */
-} FlattenGlobals;
+    BruStateMachine *origin_sm;   /**< the original machine                   */
+    BruStateMachine *new_sm;      /**< the new machine                        */
+    bru_byte_t      *created;     /**< map from original to states to record of
+                                 creation in new machine                */
+    bru_state_id    *state_map;   /**< map from original states to new states */
+    bru_state_id    *state_queue; /**< queue of states in original machine that
+                                       have been added to new machine         */
+    size_t eliminated_path_count; /**< the number of transitions eliminated
+                                       since they were not useful             */
+} BruFlattenGlobals;
 
 /* --- Helper functions ----------------------------------------------------- */
 
@@ -36,26 +37,26 @@ typedef struct {
  *
  * @return the signature
  */
-static int action_list_signature(const ActionList *actions)
+static int action_list_signature(const BruActionList *actions)
 {
-    ActionListIterator *ali;
-    const Action       *a;
-    int                 signature = 0;
+    BruActionListIterator *ali;
+    const BruAction       *a;
+    int                    signature = 0;
 
     if (actions) {
-        ali = smir_action_list_iter(actions);
-        while ((a = smir_action_list_iterator_next(ali))) {
-            switch (smir_action_type(a)) {
-                case ACT_CHAR:
-                case ACT_PRED:
-                case ACT_MEMO:
-                case ACT_EPSCHK:
-                case ACT_EPSSET:
-                case ACT_SAVE: break;
+        ali = bru_smir_action_list_iter(actions);
+        while ((a = bru_smir_action_list_iterator_next(ali))) {
+            switch (bru_smir_action_type(a)) {
+                case BRU_ACT_CHAR:   /* fallthrough */
+                case BRU_ACT_PRED:   /* fallthrough */
+                case BRU_ACT_MEMO:   /* fallthrough */
+                case BRU_ACT_EPSCHK: /* fallthrough */
+                case BRU_ACT_EPSSET: /* fallthrough */
+                case BRU_ACT_SAVE: break;
 
-                case ACT_BEGIN:
-                case ACT_END:
-                    INSERT_TYPE(signature, smir_action_type(a));
+                case BRU_ACT_BEGIN: /* fallthrough */
+                case BRU_ACT_END:
+                    INSERT_TYPE(signature, bru_smir_action_type(a));
                     break;
             }
         }
@@ -83,28 +84,28 @@ static int action_list_signature_equivalent(int sig1, int sig2)
     // NOTE: any actions that, if appear in one list and not the other, means
     // the lists are not equal
     static int DISAMBIGUATING_ACTIONS =
-        ACTION_TO_BIT(ACT_END) | ACTION_TO_BIT(ACT_BEGIN);
+        ACTION_TO_BIT(BRU_ACT_END) | ACTION_TO_BIT(BRU_ACT_BEGIN);
 
     return ((sig1 ^ sig2) & DISAMBIGUATING_ACTIONS) == 0;
 }
 
-static int is_epsilon_state(const ActionList *actions)
+static int is_epsilon_state(const BruActionList *actions)
 {
-    ActionListIterator *ali = smir_action_list_iter(actions);
-    const Action       *act;
-    byte                is_epsilon = TRUE;
+    BruActionListIterator *ali = bru_smir_action_list_iter(actions);
+    const BruAction       *act;
+    bru_byte_t             is_epsilon = TRUE;
 
-    while ((act = smir_action_list_iterator_next(ali))) {
-        switch (smir_action_type(act)) {
-            case ACT_CHAR:
-            case ACT_PRED: is_epsilon = FALSE; goto done;
+    while ((act = bru_smir_action_list_iterator_next(ali))) {
+        switch (bru_smir_action_type(act)) {
+            case BRU_ACT_CHAR: /* fallthrough */
+            case BRU_ACT_PRED: is_epsilon = FALSE; goto done;
 
-            case ACT_BEGIN:
-            case ACT_END:
-            case ACT_MEMO:
-            case ACT_SAVE:
-            case ACT_EPSCHK:
-            case ACT_EPSSET: break;
+            case BRU_ACT_BEGIN:  /* fallthrough */
+            case BRU_ACT_END:    /* fallthrough */
+            case BRU_ACT_MEMO:   /* fallthrough */
+            case BRU_ACT_SAVE:   /* fallthrough */
+            case BRU_ACT_EPSCHK: /* fallthrough */
+            case BRU_ACT_EPSSET: break;
         }
     }
 
@@ -114,22 +115,25 @@ done:
     return is_epsilon;
 }
 
-static void remove_unnecessary_actions(const ActionList *actions)
+static void remove_unnecessary_actions(const BruActionList *actions)
 {
-    ActionListIterator *ali = smir_action_list_iter(actions);
-    const Action       *act;
+    BruActionListIterator *ali = bru_smir_action_list_iter(actions);
+    const BruAction       *act;
 
-    while ((act = smir_action_list_iterator_next(ali))) {
-        switch (smir_action_type(act)) {
+    while ((act = bru_smir_action_list_iterator_next(ali))) {
+        switch (bru_smir_action_type(act)) {
             // remove EPSSET/EPSCHK actions
-            case ACT_EPSCHK:
-            case ACT_EPSSET: smir_action_list_iterator_remove(ali); break;
-            case ACT_BEGIN:
-            case ACT_END:
-            case ACT_CHAR:
-            case ACT_PRED:
-            case ACT_MEMO:
-            case ACT_SAVE: break;
+            case BRU_ACT_EPSCHK: /* fallthrough */
+            case BRU_ACT_EPSSET:
+                bru_smir_action_list_iterator_remove(ali);
+                break;
+
+            case BRU_ACT_BEGIN: /* fallthrough */
+            case BRU_ACT_END:   /* fallthrough */
+            case BRU_ACT_CHAR:  /* fallthrough */
+            case BRU_ACT_PRED:  /* fallthrough */
+            case BRU_ACT_MEMO:  /* fallthrough */
+            case BRU_ACT_SAVE: break;
         }
     }
     free(ali);
@@ -144,27 +148,28 @@ static void remove_unnecessary_actions(const ActionList *actions)
  * @return FALSE if the sequence of actions contains an EPSSET followed at some
  *         point by the corresponding EPSCHK, otherwise TRUE
  */
-static int action_list_eps_satisfiable(const ActionList *actions)
+static int action_list_eps_satisfiable(const BruActionList *actions)
 {
-    ActionListIterator *ali;
-    const Action       *act;
-    size_t             *epssets, satisfiable = TRUE;
-    size_t              idx, num;
+    BruActionListIterator *ali;
+    const BruAction       *act;
+    size_t                *epssets, satisfiable = TRUE;
+    size_t                 idx, num;
 
     // TODO: use Set instead of Vec
     stc_vec_default_init(epssets);
-    ali = smir_action_list_iter(actions);
+    ali = bru_smir_action_list_iter(actions);
 
-    while ((act = smir_action_list_iterator_next(ali))) {
-        switch (smir_action_type(act)) {
-            case ACT_BEGIN:
-            case ACT_END:
-            case ACT_CHAR:
-            case ACT_PRED:
-            case ACT_MEMO:
-            case ACT_SAVE: break;
-            case ACT_EPSCHK:
-                num = smir_action_get_num(act);
+    while ((act = bru_smir_action_list_iterator_next(ali))) {
+        switch (bru_smir_action_type(act)) {
+            case BRU_ACT_BEGIN: /* fallthrough */
+            case BRU_ACT_END:   /* fallthrough */
+            case BRU_ACT_CHAR:  /* fallthrough */
+            case BRU_ACT_PRED:  /* fallthrough */
+            case BRU_ACT_MEMO:  /* fallthrough */
+            case BRU_ACT_SAVE: break;
+
+            case BRU_ACT_EPSCHK:
+                num = bru_smir_action_get_num(act);
                 for (idx = 0; idx < stc_vec_len(epssets); idx++) {
                     if (epssets[idx] == num) {
                         satisfiable = FALSE;
@@ -172,8 +177,9 @@ static int action_list_eps_satisfiable(const ActionList *actions)
                     }
                 }
                 break;
-            case ACT_EPSSET:
-                stc_vec_push_back(epssets, smir_action_get_num(act));
+
+            case BRU_ACT_EPSSET:
+                stc_vec_push_back(epssets, bru_smir_action_get_num(act));
                 break;
         }
     }
@@ -188,20 +194,26 @@ done:
 /**
  * Check if concatenating the given lists results in a sequence of actions
  * where an EPSSET is executed before the corresponding EPSCHK.
+ *
+ * @param[in] prefix the prefix list in the concatenation
+ * @param[in] suffix the suffix list in the concatenation
+ *
+ * @return whether the resulting sequence of actions has an EPSSET before the
+ *         corresponding EPSCHK.
  */
-static int can_explore(const ActionList *prefix, const ActionList *suffix)
+static int can_explore(const BruActionList *prefix, const BruActionList *suffix)
 {
-    ActionList *concat, *tmp;
-    int         satisfiable;
+    BruActionList *concat, *tmp;
+    int            satisfiable;
 
-    concat = smir_action_list_clone(prefix);
-    tmp    = smir_action_list_clone(suffix);
-    smir_action_list_append(concat, tmp);
+    concat = bru_smir_action_list_clone(prefix);
+    tmp    = bru_smir_action_list_clone(suffix);
+    bru_smir_action_list_append(concat, tmp);
 
     satisfiable = action_list_eps_satisfiable(concat);
 
-    smir_action_list_free(tmp);
-    smir_action_list_free(concat);
+    bru_smir_action_list_free(tmp);
+    bru_smir_action_list_free(concat);
 
     return satisfiable;
 }
@@ -220,21 +232,21 @@ static int can_explore(const ActionList *prefix, const ActionList *suffix)
  *
  * @return TRUE if the transition is useful, otherwise FALSE
  */
-static int transition_is_useful(const ActionList *actions,
-                                state_id          src,
-                                state_id          dst,
-                                StateMachine     *sm)
+static int transition_is_useful(const BruActionList *actions,
+                                bru_state_id         src,
+                                bru_state_id         dst,
+                                BruStateMachine     *sm)
 {
-    trans_id *out_trans;
-    size_t    nout, i;
-    byte      useful        = TRUE;
-    int       new_trans_sig = action_list_signature(actions), old_trans_sig;
+    bru_trans_id *out_trans;
+    size_t        nout, i;
+    bru_byte_t    useful        = TRUE;
+    int           new_trans_sig = action_list_signature(actions), old_trans_sig;
 
-    out_trans = smir_get_out_transitions(sm, src, &nout);
+    out_trans = bru_smir_get_out_transitions(sm, src, &nout);
     for (i = 0; i < nout; i++) {
-        if (smir_get_dst(sm, out_trans[i]) == dst) {
-            old_trans_sig =
-                action_list_signature(smir_trans_get_actions(sm, out_trans[i]));
+        if (bru_smir_get_dst(sm, out_trans[i]) == dst) {
+            old_trans_sig = action_list_signature(
+                bru_smir_trans_get_actions(sm, out_trans[i]));
             if (old_trans_sig == 0 || action_list_signature_equivalent(
                                           old_trans_sig, new_trans_sig)) {
                 useful = FALSE;
@@ -248,13 +260,12 @@ static int transition_is_useful(const ActionList *actions,
 }
 
 /**
- *
  * For every outgoing transition from this state, if it can be explored (does
  * not contain EPSCHK action where corresponding EPSSET action is already on the
  * action path):
  *
  * 1. If the transition contains an EPSCHK and the corresponding EPSSET is on
- * the action path, go to 7.
+ *      the action path, go to 7.
  * 2. Add the actions on the transition to the action path.
  * 3. If the destination state contains a character-consuming action,
  *     3.1. If this state has not been visited, copy the state to the new
@@ -270,51 +281,57 @@ static int transition_is_useful(const ActionList *actions,
  * 6. Remove the actions from the transition from the action path.
  * 7. Continue iteration.
  *
+ * @param[in] original_src the source state of the current DFS exploration
+ * @param[in] current      the current source state of the DFS iteration
+ * @param[in] path_actions the collection of actions along DFS path
+ * @param[in] globals      the auxillary information for the transformation
  */
-static void flatten_dfs(state_id        original_src,
-                        state_id        current,
-                        ActionList     *path_actions,
-                        FlattenGlobals *globals)
+static void flatten_dfs(bru_state_id       original_src,
+                        bru_state_id       current,
+                        BruActionList     *path_actions,
+                        BruFlattenGlobals *globals)
 {
-    ActionListIterator *ali;
-    ActionList         *action_list_clone;
-    const ActionList   *trans_actions, *original_dst_actions;
-    trans_id           *out_trans;
-    size_t              nout, idx, count;
-    state_id            original_dst, new_src, new_dst;
-    trans_id            new_trans;
+    BruActionListIterator *ali;
+    BruActionList         *action_list_clone;
+    const BruActionList   *trans_actions, *original_dst_actions;
+    bru_trans_id          *out_trans;
+    size_t                 nout, idx, count;
+    bru_state_id           original_dst, new_src, new_dst;
+    bru_trans_id           new_trans;
 
-    out_trans = smir_get_out_transitions(globals->origin_sm, current, &nout);
+    out_trans =
+        bru_smir_get_out_transitions(globals->origin_sm, current, &nout);
     for (idx = 0; idx < nout; idx++) {
         trans_actions =
-            smir_trans_get_actions(globals->origin_sm, out_trans[idx]);
+            bru_smir_trans_get_actions(globals->origin_sm, out_trans[idx]);
         if (!can_explore(path_actions, trans_actions)) continue;
 
         // add transition actions to current path
-        action_list_clone = smir_action_list_clone(trans_actions);
-        smir_action_list_append(path_actions, action_list_clone);
-        smir_action_list_free(action_list_clone);
+        action_list_clone = bru_smir_action_list_clone(trans_actions);
+        bru_smir_action_list_append(path_actions, action_list_clone);
+        bru_smir_action_list_free(action_list_clone);
 
-        original_dst = smir_get_dst(globals->origin_sm, out_trans[idx]);
+        original_dst = bru_smir_get_dst(globals->origin_sm, out_trans[idx]);
         original_dst_actions =
-            smir_state_get_actions(globals->origin_sm, original_dst);
-        if (original_dst != FINAL_STATE_ID &&
+            bru_smir_state_get_actions(globals->origin_sm, original_dst);
+        if (original_dst != BRU_FINAL_STATE_ID &&
             is_epsilon_state(original_dst_actions)) {
             // add state actions to path
-            action_list_clone = smir_action_list_clone(original_dst_actions);
-            smir_action_list_append(path_actions, action_list_clone);
-            smir_action_list_free(action_list_clone);
+            action_list_clone =
+                bru_smir_action_list_clone(original_dst_actions);
+            bru_smir_action_list_append(path_actions, action_list_clone);
+            bru_smir_action_list_free(action_list_clone);
 
             // recurse
             flatten_dfs(original_src,
-                        smir_get_dst(globals->origin_sm, out_trans[idx]),
+                        bru_smir_get_dst(globals->origin_sm, out_trans[idx]),
                         path_actions, globals);
 
             // remove state actions from path
-            for (ali  = smir_action_list_iter(path_actions),
-                count = smir_action_list_len(original_dst_actions);
-                 smir_action_list_iterator_prev(ali) && count--;)
-                smir_action_list_iterator_remove(ali);
+            for (ali  = bru_smir_action_list_iter(path_actions),
+                count = bru_smir_action_list_len(original_dst_actions);
+                 bru_smir_action_list_iterator_prev(ali) && count--;)
+                bru_smir_action_list_iterator_remove(ali);
             free(ali);
         } else {
             // insert state in new machine if not created before
@@ -326,17 +343,17 @@ static void flatten_dfs(state_id        original_src,
             if (!globals->created[original_dst]) {
                 globals->created[original_dst] = TRUE;
                 new_dst = globals->state_map[original_dst] =
-                    smir_add_state(globals->new_sm);
-                smir_state_set_actions(
+                    bru_smir_add_state(globals->new_sm);
+                bru_smir_state_set_actions(
                     globals->new_sm, new_dst,
-                    smir_action_list_clone(original_dst_actions));
+                    bru_smir_action_list_clone(original_dst_actions));
                 stc_vec_push_back(globals->state_queue, original_dst);
             } else {
                 new_dst = globals->state_map[original_dst];
             }
 
             // create actions for transition in new machine
-            action_list_clone = smir_action_list_clone(path_actions);
+            action_list_clone = bru_smir_action_list_clone(path_actions);
             remove_unnecessary_actions(action_list_clone);
 
             // insert transition from source to new state, if it is
@@ -349,21 +366,21 @@ static void flatten_dfs(state_id        original_src,
             // TODO: Check if transition is useful before cloning the actions?
             if (transition_is_useful(action_list_clone, new_src, new_dst,
                                      globals->new_sm)) {
-                new_trans = smir_add_transition(globals->new_sm, new_src);
-                smir_set_dst(globals->new_sm, new_trans, new_dst);
-                smir_trans_set_actions(globals->new_sm, new_trans,
-                                       action_list_clone);
+                new_trans = bru_smir_add_transition(globals->new_sm, new_src);
+                bru_smir_set_dst(globals->new_sm, new_trans, new_dst);
+                bru_smir_trans_set_actions(globals->new_sm, new_trans,
+                                           action_list_clone);
             } else {
                 globals->eliminated_path_count++;
-                smir_action_list_free(action_list_clone);
+                bru_smir_action_list_free(action_list_clone);
             }
         }
 
         // remove transition actions
-        for (ali  = smir_action_list_iter(path_actions),
-            count = smir_action_list_len(trans_actions);
-             smir_action_list_iterator_prev(ali) && count--;) {
-            smir_action_list_iterator_remove(ali);
+        for (ali  = bru_smir_action_list_iter(path_actions),
+            count = bru_smir_action_list_len(trans_actions);
+             bru_smir_action_list_iterator_prev(ali) && count--;) {
+            bru_smir_action_list_iterator_remove(ali);
         }
         free(ali);
     }
@@ -371,20 +388,21 @@ static void flatten_dfs(state_id        original_src,
     free(out_trans);
 }
 
-static void flatten(StateMachine *original, StateMachine *new, FILE *logfile)
+static void
+flatten(BruStateMachine *original, BruStateMachine *new, FILE *logfile)
 {
-    ActionList     *path_actions;
-    FlattenGlobals *globals;
-    size_t          nstates;
-    state_id        src;
+    BruActionList     *path_actions;
+    BruFlattenGlobals *globals;
+    size_t             nstates;
+    bru_state_id       src;
 
     if (!original || !new) return;
 
-    path_actions = smir_action_list_new();
+    path_actions = bru_smir_action_list_new();
 
     // NOTE: +1 to account for implicit INITIAL_STATE and FINAL_STATE (state 0)
     // that occurs in every SMIR
-    nstates            = smir_get_num_states(original) + 1;
+    nstates            = bru_smir_get_num_states(original) + 1;
     globals            = malloc(sizeof(*globals));
     globals->origin_sm = original;
     globals->new_sm    = new;
@@ -393,36 +411,41 @@ static void flatten(StateMachine *original, StateMachine *new, FILE *logfile)
     stc_vec_default_init(globals->state_queue);
     globals->eliminated_path_count = 0;
 
-    globals->created[INITIAL_STATE_ID]   = TRUE;
-    globals->state_map[INITIAL_STATE_ID] = INITIAL_STATE_ID;
-    globals->created[FINAL_STATE_ID]     = TRUE;
-    globals->state_map[FINAL_STATE_ID]   = FINAL_STATE_ID;
-    stc_vec_push_front(globals->state_queue, INITIAL_STATE_ID);
+    globals->created[BRU_INITIAL_STATE_ID]   = TRUE;
+    globals->state_map[BRU_INITIAL_STATE_ID] = BRU_INITIAL_STATE_ID;
+    globals->created[BRU_FINAL_STATE_ID]     = TRUE;
+    globals->state_map[BRU_FINAL_STATE_ID]   = BRU_FINAL_STATE_ID;
+    stc_vec_push_front(globals->state_queue, BRU_INITIAL_STATE_ID);
 
     while (!stc_vec_is_empty(globals->state_queue)) {
         src = globals->state_queue[0];
         stc_vec_remove(globals->state_queue, 0);
         flatten_dfs(src, src, path_actions, globals);
     }
+
+#ifdef BRU_BENCHMARK
     fprintf(logfile, "NUMBER OF TRANSITIONS ELIMINATED FROM FLATTENING: %zu\n",
             globals->eliminated_path_count);
+#else
+    BRU_UNUSED(logfile);
+#endif /* BRU_BENCHMARK */
 
-    smir_action_list_free(path_actions);
+    bru_smir_action_list_free(path_actions);
     stc_vec_free(globals->state_queue);
     free(globals->state_map);
     free(globals->created);
     free(globals);
 }
 
-/* --- API function --------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-StateMachine *transform_flatten(StateMachine *sm, FILE *logfile)
+BruStateMachine *bru_transform_flatten(BruStateMachine *sm, FILE *logfile)
 {
-    StateMachine *out;
+    BruStateMachine *out;
 
     if (!sm) return sm;
 
-    out = smir_default(smir_get_regex(sm));
+    out = bru_smir_default(bru_smir_get_regex(sm));
     flatten(sm, out, logfile);
 
     return out;

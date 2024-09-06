@@ -1,16 +1,29 @@
-#ifndef THREAD_POOL_H
-#define THREAD_POOL_H
+#ifndef BRU_VM_THREAD_MANAGER_THREAD_POOL_H
+#define BRU_VM_THREAD_MANAGER_THREAD_POOL_H
 
 #include <stddef.h>
 #include <stdio.h>
 
 #include "thread_manager.h"
 
-/* --- Data structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
-typedef struct thread_pool ThreadPool;
+typedef struct bru_thread_pool BruThreadPool;
 
-/* --- API routines --------------------------------------------------------- */
+#if !defined(BRU_VM_THREAD_MANAGER_THREAD_POOL_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_THREAD_MANAGER_THREAD_POOL_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                           \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                        \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+typedef BruThreadPool ThreadPool;
+
+#    define thread_pool_new        bru_thread_pool_new
+#    define thread_pool_free       bru_thread_pool_free
+#    define thread_pool_get_thread bru_thread_pool_get_thread
+#    define thread_pool_add_thread bru_thread_pool_add_thread
+#endif /* BRU_VM_THREAD_MANAGER_THREAD_POOL_ENABLE_SHORT_NAMES */
+
+/* --- API function prototypes ---------------------------------------------- */
 
 /**
  * Create a new thread pool.
@@ -24,7 +37,7 @@ typedef struct thread_pool ThreadPool;
  *
  * @return the thread pool
  */
-ThreadPool *thread_pool_new(FILE *logfile);
+BruThreadPool *bru_thread_pool_new(FILE *logfile);
 
 /**
  * Free the resources used by the thread pool.
@@ -35,7 +48,8 @@ ThreadPool *thread_pool_new(FILE *logfile);
  * @param[in] self        the thread pool
  * @param[in] thread_free a function for freeing the resources of a thread
  */
-void thread_pool_free(ThreadPool *self, void (*thread_free)(Thread *t));
+void bru_thread_pool_free(BruThreadPool *self,
+                          void           (*thread_free)(BruThread *t));
 
 /**
  * Get a new thread from the pool.
@@ -47,7 +61,7 @@ void thread_pool_free(ThreadPool *self, void (*thread_free)(Thread *t));
  *
  * @return a thread from the pool, or NULL if the pool is empty
  */
-Thread *thread_pool_get_thread(ThreadPool *self);
+BruThread *bru_thread_pool_get_thread(BruThreadPool *self);
 
 /**
  * Add a thread to the pool.
@@ -58,6 +72,6 @@ Thread *thread_pool_get_thread(ThreadPool *self);
  * @param[in] self   the thread pool
  * @param[in] thread the thread
  */
-void thread_pool_add_thread(ThreadPool *self, Thread *thread);
+void bru_thread_pool_add_thread(BruThreadPool *self, BruThread *thread);
 
-#endif
+#endif /* BRU_VM_THREAD_MANAGER_THREAD_POOL_H */

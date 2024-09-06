@@ -3,93 +3,93 @@
 
 #include "walker.h"
 
-/* --- identity walker ----------------------------------------------------- */
+/* --- Identity walker ------------------------------------------------------ */
 
-WALK_TERMINAL_F() { TRIGGER_TERMINAL(); }
+BRU_WALK_TERMINAL_F() { BRU_TRIGGER_TERMINAL(); }
 
 // one for each RegexType defined in sre.h
-WALKER_F(CARET) { WALK_TERMINAL(); }
+BRU_WALKER_F(BRU_CARET) { BRU_WALK_TERMINAL(); }
 
-WALKER_F(DOLLAR) { WALK_TERMINAL(); }
+BRU_WALKER_F(BRU_DOLLAR) { BRU_WALK_TERMINAL(); }
 
-WALKER_F(MEMOISE) { WALK_TERMINAL(); }
+BRU_WALKER_F(BRU_MEMOISE) { BRU_WALK_TERMINAL(); }
 
-WALKER_F(LITERAL) { WALK_TERMINAL(); }
+BRU_WALKER_F(BRU_LITERAL) { BRU_WALK_TERMINAL(); }
 
-WALKER_F(CC) { WALK_TERMINAL(); }
+BRU_WALKER_F(BRU_CC) { BRU_WALK_TERMINAL(); }
 
-WALKER_F(ALT)
+BRU_WALKER_F(BRU_ALT)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    WALK_RIGHT();
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_WALK_RIGHT();
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-WALKER_F(CONCAT)
+BRU_WALKER_F(BRU_CONCAT)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    WALK_RIGHT();
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_WALK_RIGHT();
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-WALKER_F(CAPTURE)
+BRU_WALKER_F(BRU_CAPTURE)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-WALKER_F(STAR)
+BRU_WALKER_F(BRU_STAR)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-WALKER_F(PLUS)
+BRU_WALKER_F(BRU_PLUS)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-WALKER_F(QUES)
+BRU_WALKER_F(BRU_QUES)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-WALKER_F(COUNTER)
+BRU_WALKER_F(BRU_COUNTER)
 {
-    TRIGGER(PREORDER);
-    WALK_LEFT();
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_WALK_LEFT();
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-WALKER_F(LOOKAHEAD)
+BRU_WALKER_F(BRU_LOOKAHEAD)
 {
-    TRIGGER(PREORDER);
-    TRIGGER(INORDER);
-    TRIGGER(POSTORDER);
+    BRU_TRIGGER(BRU_PREORDER);
+    BRU_TRIGGER(BRU_INORDER);
+    BRU_TRIGGER(BRU_POSTORDER);
 }
 
-/* --- API routines -------------------------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-Walker *walker_init(void)
+BruWalker *bru_walker_new(void)
 {
-    Walker *w;
+    BruWalker *w;
 
-    w = malloc(sizeof(Walker));
+    w = malloc(sizeof(*w));
     if (!w) return NULL;
 
     w->regex           = NULL;
@@ -98,41 +98,41 @@ Walker *walker_init(void)
     memset(w->walk, 0, sizeof(w->walk));
     memset(w->trigger, 0, sizeof(w->trigger));
 
-    SET_WALK_TERMINAL_F(w);
-    SET_WALKER_F(w, CARET);
-    SET_WALKER_F(w, DOLLAR);
-    SET_WALKER_F(w, MEMOISE);
-    SET_WALKER_F(w, LITERAL);
-    SET_WALKER_F(w, CC);
-    SET_WALKER_F(w, ALT);
-    SET_WALKER_F(w, CONCAT);
-    SET_WALKER_F(w, CAPTURE);
-    SET_WALKER_F(w, STAR);
-    SET_WALKER_F(w, PLUS);
-    SET_WALKER_F(w, QUES);
-    SET_WALKER_F(w, COUNTER);
-    SET_WALKER_F(w, LOOKAHEAD);
+    BRU_SET_WALK_TERMINAL_F(w);
+    BRU_SET_WALKER_F(w, BRU_CARET);
+    BRU_SET_WALKER_F(w, BRU_DOLLAR);
+    /* BRU_SET_WALKER_F(w, BRU_MEMOISE); */
+    BRU_SET_WALKER_F(w, BRU_LITERAL);
+    BRU_SET_WALKER_F(w, BRU_CC);
+    BRU_SET_WALKER_F(w, BRU_ALT);
+    BRU_SET_WALKER_F(w, BRU_CONCAT);
+    BRU_SET_WALKER_F(w, BRU_CAPTURE);
+    BRU_SET_WALKER_F(w, BRU_STAR);
+    BRU_SET_WALKER_F(w, BRU_PLUS);
+    BRU_SET_WALKER_F(w, BRU_QUES);
+    BRU_SET_WALKER_F(w, BRU_COUNTER);
+    BRU_SET_WALKER_F(w, BRU_LOOKAHEAD);
 
     return w;
 }
 
-RegexNode *walker_walk(Walker *walker, RegexNode **regex)
+BruRegexNode *bru_walker_walk(BruWalker *walker, BruRegexNode **regex)
 {
-    RegexNode *prev = NULL;
+    BruRegexNode *prev = NULL;
 
     if (!walker || !regex || !(*regex)) return NULL;
 
     if (walker->regex) prev = *walker->regex;
 
     walker->regex = regex;
-    WALK(walker, *(walker->regex));
+    BRU_WALK(walker, *(walker->regex));
 
     return prev;
 }
 
-RegexNode *walker_release(Walker *walker)
+BruRegexNode *bru_walker_free(BruWalker *walker)
 {
-    RegexNode *out = NULL;
+    BruRegexNode *out = NULL;
 
     if (walker) {
         out = *walker->regex;

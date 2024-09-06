@@ -11,20 +11,20 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define PARSER_OPTS_DEFAULT ((ParserOpts){ 0, 1, 0, 0, 1, 0, stderr })
+#define PARSER_OPTS_DEFAULT ((BruParserOpts){ 0, 1, 0, 0, 1, 0, stderr })
 
 #define SET_RID(node, ps) \
     if (node) (node)->rid = (ps)->next_rid++
 
-#define PARSE_RES(code, ch) ((ParseResult){ (code), (ch) })
+#define PARSE_RES(code, ch) ((BruParseResult){ (code), (ch) })
 
-#define SUCCEEDED(code) ((code) < PARSE_NO_MATCH)
+#define SUCCEEDED(code) ((code) < BRU_PARSE_NO_MATCH)
 
-#define FAILED(code) ((code) >= PARSE_NO_MATCH)
+#define FAILED(code) ((code) >= BRU_PARSE_NO_MATCH)
 
-#define NOT_MATCHED(code) ((code) == PARSE_NO_MATCH)
+#define NOT_MATCHED(code) ((code) == BRU_PARSE_NO_MATCH)
 
-#define ERRORED(code) ((code) > PARSE_NO_MATCH)
+#define ERRORED(code) ((code) > BRU_PARSE_NO_MATCH)
 
 #define DOT_NINTERVALS 2
 
@@ -36,141 +36,142 @@
         (item)->interval = (intrvl);                   \
     } while (0)
 
-#define SKIP_UNTIL(pred, res, parse_state)        \
-    do {                                          \
-        while (!(pred)) {                         \
-            if (*(parse_state)->ch == '\0') {     \
-                (res).code = PARSE_END_OF_STRING; \
-                break;                            \
-            }                                     \
-            (parse_state)->ch++;                  \
-        }                                         \
+#define SKIP_UNTIL(pred, res, parse_state)            \
+    do {                                              \
+        while (!(pred)) {                             \
+            if (*(parse_state)->ch == '\0') {         \
+                (res).code = BRU_PARSE_END_OF_STRING; \
+                break;                                \
+            }                                         \
+            (parse_state)->ch++;                      \
+        }                                             \
     } while (0)
 
-#define FLAG_UNSUPPORTED(code, ps) ((*(ps)->unsupported_features)[code] = TRUE)
+#define FLAG_UNSUPPORTED(code, ps) ((*(ps)->unsupported_feats)[code] = TRUE)
 
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef enum {
-    UNSUPPORTED_BACKREF,
-    UNSUPPORTED_LOOKAHEAD,
-    UNSUPPORTED_OCTAL,
-    UNSUPPORTED_HEX,
-    UNSUPPORTED_UNICODE,
-    UNSUPPORTED_POSSESSIVE,
-    UNSUPPORTED_CONTROL_VERB,
-    UNSUPPORTED_FLAGS,
-    UNSUPPORTED_CONTROL_CODE,
-    UNSUPPORTED_LOOKBEHIND,
-    UNSUPPORTED_NAMED_GROUP,
-    UNSUPPORTED_RELATIVE_GROUP,
-    UNSUPPORTED_ATOMIC_GROUP,
-    UNSUPPORTED_PATTERN_RECURSION,
-    UNSUPPORTED_LOOKAHEAD_CONDITIONAL,
-    UNSUPPORTED_CALLOUT,
-    UNSUPPORTED_GROUP_RESET,
-    UNSUPPORTED_GROUP_RECURSION,
-    UNSUPPORTED_WORD_BOUNDARY,
-    UNSUPPORTED_START_BOUNDARY,
-    UNSUPPORTED_END_BOUNDARY,
-    UNSUPPORTED_FIRST_MATCH_BOUNDARY,
-    UNSUPPORTED_RESET_MATCH_START,
-    UNSUPPORTED_QUOTING,
-    UNSUPPORTED_UNICODE_PROPERTY,
-    UNSUPPORTED_NEWLINE_SEQUENCE,
-    NUM_UNSUPPORTED_CODES
-} UnsupportedFeatureCode;
+    BRU_UNSUPPORTED_BACKREF,
+    BRU_UNSUPPORTED_LOOKAHEAD,
+    BRU_UNSUPPORTED_OCTAL,
+    BRU_UNSUPPORTED_HEX,
+    BRU_UNSUPPORTED_UNICODE,
+    BRU_UNSUPPORTED_POSSESSIVE,
+    BRU_UNSUPPORTED_CONTROL_VERB,
+    BRU_UNSUPPORTED_FLAGS,
+    BRU_UNSUPPORTED_CONTROL_CODE,
+    BRU_UNSUPPORTED_LOOKBEHIND,
+    BRU_UNSUPPORTED_NAMED_GROUP,
+    BRU_UNSUPPORTED_RELATIVE_GROUP,
+    BRU_UNSUPPORTED_ATOMIC_GROUP,
+    BRU_UNSUPPORTED_PATTERN_RECURSION,
+    BRU_UNSUPPORTED_LOOKAHEAD_CONDITIONAL,
+    BRU_UNSUPPORTED_CALLOUT,
+    BRU_UNSUPPORTED_GROUP_RESET,
+    BRU_UNSUPPORTED_GROUP_RECURSION,
+    BRU_UNSUPPORTED_WORD_BOUNDARY,
+    BRU_UNSUPPORTED_START_BOUNDARY,
+    BRU_UNSUPPORTED_END_BOUNDARY,
+    BRU_UNSUPPORTED_FIRST_MATCH_BOUNDARY,
+    BRU_UNSUPPORTED_RESET_MATCH_START,
+    BRU_UNSUPPORTED_QUOTING,
+    BRU_UNSUPPORTED_UNICODE_PROPERTY,
+    BRU_UNSUPPORTED_NEWLINE_SEQUENCE,
+    BRU_NUM_UNSUPPORTED_CODES
+} BruUnsupportedFeatureCode;
 
-typedef struct interval_list_item IntervalListItem;
+typedef struct bru_interval_list_item BruIntervalListItem;
 
-struct interval_list_item {
-    Interval          interval;
-    IntervalListItem *prev;
-    IntervalListItem *next;
+struct bru_interval_list_item {
+    BruInterval          interval;
+    BruIntervalListItem *prev;
+    BruIntervalListItem *next;
 };
 
 typedef struct {
-    int               neg;
-    size_t            len;
-    IntervalListItem *sentinel;
-} IntervalList;
+    int                  neg;
+    size_t               len;
+    BruIntervalListItem *sentinel;
+} BruIntervalList;
 
 typedef struct {
-    UnsupportedFeatureCode (*unsupported_features)[NUM_UNSUPPORTED_CODES];
-    byte allow_repeated_nullability; /*<< allow expressions like (a?)*        */
-    const char *ch;
-    int         in_group;
-    int         in_lookahead;
-    len_t       ncaptures;
-    regex_id    next_rid;
-} ParseState;
+    BruUnsupportedFeatureCode (*unsupported_feats)[BRU_NUM_UNSUPPORTED_CODES];
+    bru_byte_t allow_repeated_nullability; /*<< allow expressions like (a?)*  */
+    const char  *ch;
+    int          in_group;
+    int          in_lookahead;
+    bru_len_t    ncaptures;
+    bru_regex_id next_rid;
+} BruParseState;
 
 /* --- Helper function prototypes ------------------------------------------- */
 
-static ParseResult parse_alt(const Parser *self,
-                             ParseState   *ps,
-                             RegexNode   **re /**< out parameter */);
+static BruParseResult parse_alt(const BruParser *self,
+                                BruParseState   *ps,
+                                BruRegexNode   **re /**< out parameter */);
 
-static ParseResult parse_expr(const Parser *self,
-                              ParseState   *ps,
-                              RegexNode   **re /**< out parameter */);
+static BruParseResult parse_expr(const BruParser *self,
+                                 BruParseState   *ps,
+                                 BruRegexNode   **re /**< out parameter */);
 
-static ParseResult parse_elem(const Parser *self,
-                              ParseState   *ps,
-                              RegexNode   **re /**< out parameter */);
+static BruParseResult parse_elem(const BruParser *self,
+                                 BruParseState   *ps,
+                                 BruRegexNode   **re /**< out parameter */);
 
-static ParseResult parse_atom(const Parser *self,
-                              ParseState   *ps,
-                              RegexNode   **re /**< out parameter */);
+static BruParseResult parse_atom(const BruParser *self,
+                                 BruParseState   *ps,
+                                 BruRegexNode   **re /**< out parameter */);
 
-static ParseResult parse_quantifier(const Parser *self,
-                                    ParseState   *ps,
-                                    RegexNode   **re /**< in,out parameter */);
+static BruParseResult
+parse_quantifier(const BruParser *self,
+                 BruParseState   *ps,
+                 BruRegexNode   **re /**< in,out parameter */);
 
-static ParseResult parse_curly(ParseState *ps,
-                               cntr_t     *min /**< out parameter */,
-                               cntr_t     *max /**< out parameter */);
+static BruParseResult parse_curly(BruParseState *ps,
+                                  bru_cntr_t    *min /**< out parameter */,
+                                  bru_cntr_t    *max /**< out parameter */);
 
-static ParseResult parse_paren(const Parser *self,
-                               ParseState   *ps,
-                               RegexNode   **re /**< out parameter */);
+static BruParseResult parse_paren(const BruParser *self,
+                                  BruParseState   *ps,
+                                  BruRegexNode   **re /**< out parameter */);
 
-static ParseResult parse_cc(ParseState *ps,
-                            RegexNode **re /**< out parameter */);
+static BruParseResult parse_cc(BruParseState *ps,
+                               BruRegexNode **re /**< out parameter */);
 
-static ParseResult parse_cc_atom(ParseState   *ps,
-                                 IntervalList *list /**< out parameter */);
+static BruParseResult
+parse_cc_atom(BruParseState *ps, BruIntervalList *list /**< out parameter */);
 
-static ParseResult parse_escape(ParseState *ps,
-                                RegexNode **re /**< out parameter */);
+static BruParseResult parse_escape(BruParseState *ps,
+                                   BruRegexNode **re /**< out parameter */);
 
-static ParseResult parse_escape_char(ParseState  *ps,
-                                     const char **ch /**< out parameter */);
+static BruParseResult parse_escape_char(BruParseState *ps,
+                                        const char **ch /**< out parameter */);
 
-static ParseResult parse_escape_cc(ParseState   *ps,
-                                   IntervalList *list /**< out parameter */);
+static BruParseResult
+parse_escape_cc(BruParseState *ps, BruIntervalList *list /**< out parameter */);
 
-static ParseResult parse_posix_cc(ParseState   *ps,
-                                  IntervalList *list /**< out parameter */);
+static BruParseResult
+parse_posix_cc(BruParseState *ps, BruIntervalList *list /**< out parameter */);
 
-static ParseResult skip_comment(ParseState *ps);
+static BruParseResult skip_comment(BruParseState *ps);
 
-static void find_matching_closing_parenthesis(ParseState *ps);
+static void find_matching_closing_parenthesis(BruParseState *ps);
 
 static void print_unsupported_feature(unsigned int feature_idx, FILE *stream);
 
-static RegexNode *parser_regex_counter(RegexNode  *child,
-                                       byte        greedy,
-                                       cntr_t      min,
-                                       cntr_t      max,
-                                       int         expand_counters,
-                                       ParseState *ps);
+static BruRegexNode *parser_regex_counter(BruRegexNode  *child,
+                                          bru_byte_t     greedy,
+                                          bru_cntr_t     min,
+                                          bru_cntr_t     max,
+                                          int            expand_counters,
+                                          BruParseState *ps);
 
 /* --- API function definitions --------------------------------------------- */
 
-Parser *parser_new(const char *regex, ParserOpts opts)
+BruParser *bru_parser_new(const char *regex, BruParserOpts opts)
 {
-    Parser *parser = malloc(sizeof(*parser));
+    BruParser *parser = malloc(sizeof(*parser));
 
     parser->regex = regex;
     parser->opts  = opts;
@@ -178,43 +179,46 @@ Parser *parser_new(const char *regex, ParserOpts opts)
     return parser;
 }
 
-Parser *parser_default(const char *regex)
+BruParser *bru_parser_default(const char *regex)
 {
-    return parser_new(regex, PARSER_OPTS_DEFAULT);
+    return bru_parser_new(regex, PARSER_OPTS_DEFAULT);
 }
 
-void parser_free(Parser *self) { free(self); }
+void bru_parser_free(BruParser *self) { free(self); }
 
-ParseResult parser_parse(const Parser *self, Regex *re)
+BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
 {
-    RegexNode             *r                                           = NULL;
-    UnsupportedFeatureCode unsupported_features[NUM_UNSUPPORTED_CODES] = { 0 };
-    ParseState             ps  = { &unsupported_features,
-                                   self->opts.allow_repeated_nullability,
-                                   self->regex,
-                                   0,
-                                   0,
-                      self->opts.whole_match_capture ? 1 : 0,
-                                   0 };
-    ParseResult            res = parse_alt(self, &ps, &r);
-    unsigned int           i;
+    BruUnsupportedFeatureCode unsupported_feats[BRU_NUM_UNSUPPORTED_CODES] = {
+        0
+    };
+    BruRegexNode  *r         = NULL;
+    bru_len_t      ncaptures = self->opts.whole_match_capture ? 1 : 0;
+    BruParseState  ps        = { &unsupported_feats,
+                                 self->opts.allow_repeated_nullability,
+                                 self->regex,
+                                 0,
+                                 0,
+                                 ncaptures,
+                                 0 };
+    BruParseResult res       = parse_alt(self, &ps, &r);
+    unsigned int   i;
 
     if (SUCCEEDED(res.code)) {
         if (self->opts.whole_match_capture) {
-            r      = regex_capture(r, 0);
+            r      = bru_regex_capture(r, 0);
             r->rid = ps.next_rid++;
         }
 
-        if (re) *re = (Regex){ self->regex, r };
+        if (re) *re = (BruRegex){ self->regex, r };
     } else if (r) {
-        regex_node_free(r);
+        bru_regex_node_free(r);
     }
 
-    if (self->opts.log_unsupported && res.code == PARSE_UNSUPPORTED) {
+    if (self->opts.log_unsupported && res.code == BRU_PARSE_UNSUPPORTED) {
         fprintf(self->opts.logfile,
                 "------------ UNSUPPORTED FEATURE CODES ------------\n");
-        for (i = 0; i < NUM_UNSUPPORTED_CODES; i++)
-            if (unsupported_features[i])
+        for (i = 0; i < BRU_NUM_UNSUPPORTED_CODES; i++)
+            if (unsupported_feats[i])
                 print_unsupported_feature(i, self->opts.logfile);
         fprintf(self->opts.logfile,
                 "------------ UNSUPPORTED FEATURE CODES ------------\n");
@@ -225,22 +229,22 @@ ParseResult parser_parse(const Parser *self, Regex *re)
 
 /* --- Helper function definitions ------------------------------------------ */
 
-static Intervals *dot(void)
+static BruIntervals *dot(void)
 {
-    Intervals *dot = intervals_new(TRUE, DOT_NINTERVALS);
+    BruIntervals *dot = bru_intervals_new(TRUE, DOT_NINTERVALS);
 
-    dot->intervals[0] = interval("\0", "\0");
-    dot->intervals[1] = interval("\n", "\n");
+    dot->intervals[0] = bru_interval("\0", "\0");
+    dot->intervals[1] = bru_interval("\n", "\n");
 
     return dot;
 }
 
-static ParseResult parse_alt(const Parser *self,
-                             ParseState   *ps,
-                             RegexNode   **re /**< out parameter */)
+static BruParseResult parse_alt(const BruParser *self,
+                                BruParseState   *ps,
+                                BruRegexNode   **re /**< out parameter */)
 {
-    RegexNode  *r;
-    ParseResult res, prev_res;
+    BruRegexNode  *r;
+    BruParseResult res, prev_res;
 
     res = parse_expr(self, ps, re);
     if (FAILED(res.code)) return res;
@@ -253,28 +257,28 @@ static ParseResult parse_alt(const Parser *self,
         // overwrite a failure code in res.
         if (prev_res.code > res.code) res.code = prev_res.code;
         if (FAILED(res.code)) {
-            if (r) regex_node_free(r);
+            if (r) bru_regex_node_free(r);
             return res;
         }
-        *re = regex_branch(ALT, *re, r);
+        *re = bru_regex_branch(BRU_ALT, *re, r);
         SET_RID(*re, ps);
     }
 
     return res;
 }
 
-static ParseResult parse_expr(const Parser *self,
-                              ParseState   *ps,
-                              RegexNode   **re /**< out parameter */)
+static BruParseResult parse_expr(const BruParser *self,
+                                 BruParseState   *ps,
+                                 BruRegexNode   **re /**< out parameter */)
 {
-    RegexNode  *r;
-    ParseResult res, prev_res;
+    BruRegexNode  *r;
+    BruParseResult res, prev_res;
 
     res = parse_elem(self, ps, re);
     if (NOT_MATCHED(res.code)) {
-        *re = regex_new(EPSILON);
+        *re = bru_regex_new(BRU_EPSILON);
         SET_RID(*re, ps);
-        return PARSE_RES(PARSE_SUCCESS, ps->ch);
+        return PARSE_RES(BRU_PARSE_SUCCESS, ps->ch);
     } else if (ERRORED(res.code)) {
         return res;
     }
@@ -286,28 +290,28 @@ static ParseResult parse_expr(const Parser *self,
         // NOTE: prev_res must be SUCCESS-ish, hence, this will never
         // overwrite a failure code in res.
         if (NOT_MATCHED(res.code)) {
-            if (r) regex_node_free(r);
+            if (r) bru_regex_node_free(r);
             res.code = prev_res.code;
             break;
         } else if (ERRORED(res.code)) {
-            if (r) regex_node_free(r);
+            if (r) bru_regex_node_free(r);
             break;
         } else if (prev_res.code > res.code)
             res.code = prev_res.code;
 
-        *re = regex_branch(CONCAT, *re, r);
+        *re = bru_regex_branch(BRU_CONCAT, *re, r);
         SET_RID(*re, ps);
     }
 
     return res;
 }
 
-static ParseResult parse_elem(const Parser *self,
-                              ParseState   *ps,
-                              RegexNode   **re /**< out parameter */)
+static BruParseResult parse_elem(const BruParser *self,
+                                 BruParseState   *ps,
+                                 BruRegexNode   **re /**< out parameter */)
 {
-    ParseResult     res;
-    ParseResultCode prev_code;
+    BruParseResult     res;
+    BruParseResultCode prev_code;
 
     res = parse_atom(self, ps, re);
     if (FAILED(res.code)) return res;
@@ -319,12 +323,12 @@ static ParseResult parse_elem(const Parser *self,
     return res;
 }
 
-static ParseResult parse_atom(const Parser *self,
-                              ParseState   *ps,
-                              RegexNode   **re /**< out parameter */)
+static BruParseResult parse_atom(const BruParser *self,
+                                 BruParseState   *ps,
+                                 BruRegexNode   **re /**< out parameter */)
 {
-    ParseResult     res;
-    ParseResultCode prev_code;
+    BruParseResult     res;
+    BruParseResultCode prev_code;
 
     res = skip_comment(ps);
     if (ERRORED(res.code)) return res;
@@ -334,60 +338,60 @@ static ParseResult parse_atom(const Parser *self,
         case '(': res = parse_paren(self, ps, re); break;
         case '[': res = parse_cc(ps, re); break;
 
-        case '|': res = PARSE_RES(PARSE_NO_MATCH, ps->ch); break;
+        case '|': res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch); break;
 
         case '^':
-            *re = regex_new(CARET);
+            *re = bru_regex_new(BRU_CARET);
             SET_RID(*re, ps);
-            res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
+            res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
 
         case '$':
-            *re = regex_new(DOLLAR);
+            *re = bru_regex_new(BRU_DOLLAR);
             SET_RID(*re, ps);
-            res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
+            res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
 
         // case '#':
-        //     *re = regex_new(MEMOISE);
+        //     *re = regex_new(BRU_MEMOISE);
         //     SET_RID(*re, ps);
         //     res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
         //     break;
         //
         case '.':
-            *re = regex_cc(dot());
+            *re = bru_regex_cc(dot());
             SET_RID(*re, ps);
-            res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
+            res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
 
         case '\0':
             // *re = regex_new(EPSILON);
             // SET_RID(*re, ps);
-            res = PARSE_RES(PARSE_NO_MATCH, ps->ch);
+            res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
             break;
 
         case ')':
             if (ps->in_group)
-                res = PARSE_RES(PARSE_NO_MATCH, ps->ch);
+                res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
             else
-                res = PARSE_RES(PARSE_UNMATCHED_PAREN, ps->ch);
+                res = PARSE_RES(BRU_PARSE_UNMATCHED_PAREN, ps->ch);
             break;
 
         case '*': /* fallthrough */
         case '+': /* fallthrough */
-        case '?': res = PARSE_RES(PARSE_UNQUANTIFIABLE, ps->ch); break;
+        case '?': res = PARSE_RES(BRU_PARSE_UNQUANTIFIABLE, ps->ch); break;
 
         case '{':
             res = parse_curly(ps, NULL, NULL);
             if (SUCCEEDED(res.code)) {
-                res.code = PARSE_UNQUANTIFIABLE;
+                res.code = BRU_PARSE_UNQUANTIFIABLE;
                 break;
             }
 
         default:
-            *re = regex_literal(ps->ch);
+            *re = bru_regex_literal(ps->ch);
             SET_RID(*re, ps);
-            res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
+            res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
     }
 
@@ -400,25 +404,26 @@ static ParseResult parse_atom(const Parser *self,
     return res;
 }
 
-static ParseResult parse_quantifier(const Parser *self,
-                                    ParseState   *ps,
-                                    RegexNode   **re /**< in,out parameter */)
+static BruParseResult
+parse_quantifier(const BruParser *self,
+                 BruParseState   *ps,
+                 BruRegexNode   **re /**< in,out parameter */)
 {
-    RegexNode  *tmp;
-    ParseResult res = { PARSE_SUCCESS, NULL };
-    byte        greedy;
-    cntr_t      min, max;
+    BruRegexNode  *tmp;
+    BruParseResult res = { BRU_PARSE_SUCCESS, NULL };
+    bru_byte_t     greedy;
+    bru_cntr_t     min, max;
 
     /* check for quantifier */
     switch (*ps->ch) {
         case '*':
             min = 0;
-            max = CNTR_MAX;
+            max = BRU_CNTR_MAX;
             ps->ch++;
             break;
         case '+':
             min = 1;
-            max = CNTR_MAX;
+            max = BRU_CNTR_MAX;
             ps->ch++;
             break;
         case '?':
@@ -431,34 +436,34 @@ static ParseResult parse_quantifier(const Parser *self,
             if (FAILED(res.code)) return res;
             break;
 
-        default: return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+        default: return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
     }
 
     /* check that child is quantifiable */
     switch ((*re)->type) {
-        case EPSILON:
-        case CARET:
+        case BRU_EPSILON:
+        case BRU_CARET:
         /* case MEMOISE: */
-        case DOLLAR: return PARSE_RES(PARSE_UNQUANTIFIABLE, ps->ch);
+        case BRU_DOLLAR: return PARSE_RES(BRU_PARSE_UNQUANTIFIABLE, ps->ch);
 
-        case LITERAL:
-        case CC:
-        case ALT:
-        case CONCAT:
-        case CAPTURE:
-        case STAR:
-        case PLUS:
-        case QUES:
-        case COUNTER:
-        case LOOKAHEAD:
-        case BACKREFERENCE:
-            if (!ps->allow_repeated_nullability && max == CNTR_MAX &&
+        case BRU_LITERAL:
+        case BRU_CC:
+        case BRU_ALT:
+        case BRU_CONCAT:
+        case BRU_CAPTURE:
+        case BRU_STAR:
+        case BRU_PLUS:
+        case BRU_QUES:
+        case BRU_COUNTER:
+        case BRU_LOOKAHEAD:
+        case BRU_BACKREFERENCE:
+            if (!ps->allow_repeated_nullability && max == BRU_CNTR_MAX &&
                 (*re)->nullable) {
-                return PARSE_RES(PARSE_REPEATED_NULLABILITY, ps->ch);
+                return PARSE_RES(BRU_PARSE_REPEATED_NULLABILITY, ps->ch);
             }
             break;
 
-        case NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_NREGEXTYPES: assert(0 && "unreachable");
     }
 
     /* check for lazy */
@@ -470,9 +475,9 @@ static ParseResult parse_quantifier(const Parser *self,
 
         /* NOTE: unsupported */
         case '+':
-            FLAG_UNSUPPORTED(UNSUPPORTED_POSSESSIVE, ps);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_POSSESSIVE, ps);
             ps->ch++;
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         default: greedy = TRUE;
@@ -484,8 +489,8 @@ static ParseResult parse_quantifier(const Parser *self,
         return res;
     }
     if (min == 0 && max == 0) {
-        regex_node_free(*re);
-        *re = regex_new(EPSILON);
+        bru_regex_node_free(*re);
+        *re = bru_regex_new(BRU_EPSILON);
         SET_RID(*re, ps);
         res.ch = ps->ch;
         return res;
@@ -493,27 +498,27 @@ static ParseResult parse_quantifier(const Parser *self,
 
     /* apply quantifier */
     if (self->opts.only_counters) {
-        *re = regex_counter(*re, greedy, min, max);
+        *re = bru_regex_counter(*re, greedy, min, max);
         SET_RID(*re, ps);
-    } else if (min == 0 && max == CNTR_MAX) {
-        *re = regex_repetition(STAR, *re, greedy);
+    } else if (min == 0 && max == BRU_CNTR_MAX) {
+        *re = bru_regex_repetition(BRU_STAR, *re, greedy);
         SET_RID(*re, ps);
-    } else if (min == 1 && max == CNTR_MAX) {
-        *re = regex_repetition(PLUS, *re, greedy);
+    } else if (min == 1 && max == BRU_CNTR_MAX) {
+        *re = bru_regex_repetition(BRU_PLUS, *re, greedy);
         SET_RID(*re, ps);
     } else if (min == 0 && max == 1) {
-        *re = regex_repetition(QUES, *re, greedy);
+        *re = bru_regex_repetition(BRU_QUES, *re, greedy);
         SET_RID(*re, ps);
-    } else if (self->opts.unbounded_counters || max < CNTR_MAX) {
+    } else if (self->opts.unbounded_counters || max < BRU_CNTR_MAX) {
         *re = parser_regex_counter(*re, greedy, min, max,
                                    self->opts.expand_counters, ps);
     } else {
-        tmp = regex_repetition(STAR, *re, greedy);
-        *re = regex_branch(CONCAT,
-                           parser_regex_counter(regex_clone(*re), greedy, min,
-                                                min, self->opts.expand_counters,
-                                                ps),
-                           tmp);
+        tmp = bru_regex_repetition(BRU_STAR, *re, greedy);
+        *re = bru_regex_branch(
+            BRU_CONCAT,
+            parser_regex_counter(bru_regex_clone(*re), greedy, min, min,
+                                 self->opts.expand_counters, ps),
+            tmp);
         SET_RID(tmp, ps);
         SET_RID(*re, ps);
     }
@@ -522,16 +527,16 @@ static ParseResult parse_quantifier(const Parser *self,
     return res;
 }
 
-static ParseResult parse_curly(ParseState *ps,
-                               cntr_t     *min /**< out parameter */,
-                               cntr_t     *max /**< out parameter */)
+static BruParseResult parse_curly(BruParseState *ps,
+                                  bru_cntr_t    *min /**< out parameter */,
+                                  bru_cntr_t    *max /**< out parameter */)
 {
     char        ch;
-    cntr_t      m, n;
+    bru_cntr_t  m, n;
     const char *next_ch = ps->ch;
 
     if (*next_ch++ != '{' || !isdigit(*next_ch))
-        return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+        return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
     m = 0;
     while ((ch = *next_ch++) != ',') {
@@ -541,43 +546,43 @@ static ParseResult parse_curly(ParseState *ps,
             n = m;
             goto done;
         } else {
-            return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+            return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
         }
     }
 
-    n = *next_ch == '}' ? CNTR_MAX : 0;
+    n = *next_ch == '}' ? BRU_CNTR_MAX : 0;
     while ((ch = *next_ch++) != '}')
         if (isdigit(ch))
             n = n * 10 + (ch - '0');
         else
-            return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+            return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
 done:
     ps->ch = next_ch;
     if (min) *min = m;
     if (max) *max = n;
-    return PARSE_RES(PARSE_SUCCESS, ps->ch);
+    return PARSE_RES(BRU_PARSE_SUCCESS, ps->ch);
 }
 
-static ParseResult parse_paren(const Parser *self,
-                               ParseState   *ps,
-                               RegexNode   **re /**< out parameter */)
+static BruParseResult parse_paren(const BruParser *self,
+                                  BruParseState   *ps,
+                                  BruRegexNode   **re /**< out parameter */)
 {
-    ParseResult            res;
-    ParseState             ps_tmp;
-    UnsupportedFeatureCode unsupported_code;
-    const char            *ch;
-    len_t                  ncaptures;
-    int                    is_lookahead = FALSE, pos = FALSE;
+    BruParseResult            res;
+    BruParseState             ps_tmp;
+    BruUnsupportedFeatureCode unsupported_code;
+    const char               *ch;
+    bru_len_t                 ncaptures;
+    int                       is_lookahead = FALSE, pos = FALSE;
 
-    if (*(ch = ps->ch) != '(') return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+    if (*(ch = ps->ch) != '(') return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
     ps->ch++;
 
     switch (*ps->ch) {
 
         /* control verbs */
         case '*':
-            unsupported_code = UNSUPPORTED_CONTROL_VERB;
+            unsupported_code = BRU_UNSUPPORTED_CONTROL_VERB;
             goto unsupported_group;
             break;
 
@@ -585,51 +590,51 @@ static ParseResult parse_paren(const Parser *self,
             switch (*++ps->ch) {
                 /* lookbehind */
                 case '<':
-                    unsupported_code = UNSUPPORTED_LOOKBEHIND;
+                    unsupported_code = BRU_UNSUPPORTED_LOOKBEHIND;
                     goto unsupported_group;
 
                 /* named groups */
                 case 'P':
                 case '\'':
-                    unsupported_code = UNSUPPORTED_NAMED_GROUP;
+                    unsupported_code = BRU_UNSUPPORTED_NAMED_GROUP;
                     goto unsupported_group;
 
                 /* relative group back ref */
                 case '-':
                 case '+':
-                    unsupported_code = UNSUPPORTED_RELATIVE_GROUP;
+                    unsupported_code = BRU_UNSUPPORTED_RELATIVE_GROUP;
                     goto unsupported_group;
 
                 /* atomic grouping */
                 case '>':
-                    unsupported_code = UNSUPPORTED_ATOMIC_GROUP;
+                    unsupported_code = BRU_UNSUPPORTED_ATOMIC_GROUP;
                     goto unsupported_group;
 
                 /* pattern recursion */
                 case 'R':
-                    unsupported_code = UNSUPPORTED_PATTERN_RECURSION;
+                    unsupported_code = BRU_UNSUPPORTED_PATTERN_RECURSION;
                     goto unsupported_group;
 
                 /* conditional lookahead */
                 case '(':
-                    unsupported_code = UNSUPPORTED_LOOKAHEAD_CONDITIONAL;
+                    unsupported_code = BRU_UNSUPPORTED_LOOKAHEAD_CONDITIONAL;
                     goto unsupported_group;
 
                 /* callout */
                 case 'C':
-                    unsupported_code = UNSUPPORTED_CALLOUT;
+                    unsupported_code = BRU_UNSUPPORTED_CALLOUT;
                     goto unsupported_group;
 
                 // TODO: support lookaheads
                 case '=': // pos = TRUE; /* fallthrough */
                 case '!':
                     // is_lookahead = TRUE; break;
-                    unsupported_code = UNSUPPORTED_LOOKAHEAD;
+                    unsupported_code = BRU_UNSUPPORTED_LOOKAHEAD;
                     goto unsupported_group;
 
                 /* reset group numbers in alternations */
                 case '|':
-                    unsupported_code = UNSUPPORTED_GROUP_RESET;
+                    unsupported_code = BRU_UNSUPPORTED_GROUP_RESET;
                     goto unsupported_group;
 
                 /* flags */
@@ -639,7 +644,7 @@ static ParseResult parse_paren(const Parser *self,
                 case 's':
                 case 'U':
                 case 'x':
-                    unsupported_code = UNSUPPORTED_FLAGS;
+                    unsupported_code = BRU_UNSUPPORTED_FLAGS;
                     goto unsupported_group;
 
                 /* non-capturing */
@@ -648,29 +653,30 @@ static ParseResult parse_paren(const Parser *self,
                 /* group recursion */
                 default:
                     if (!isdigit(*ps->ch))
-                        return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                        return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE,
+                                         ch);
 
-                    unsupported_code = UNSUPPORTED_GROUP_RECURSION;
+                    unsupported_code = BRU_UNSUPPORTED_GROUP_RECURSION;
                     goto unsupported_group;
             }
             ps->ch++;
-            ps_tmp        = (ParseState){ ps->unsupported_features,
-                                          ps->allow_repeated_nullability,
-                                          ps->ch,
-                                          TRUE,
-                                          ps->in_lookahead || is_lookahead,
-                                          ps->ncaptures,
-                                          ps->next_rid };
+            ps_tmp        = (BruParseState){ ps->unsupported_feats,
+                                             ps->allow_repeated_nullability,
+                                             ps->ch,
+                                             TRUE,
+                                             ps->in_lookahead || is_lookahead,
+                                             ps->ncaptures,
+                                             ps->next_rid };
             res           = parse_alt(self, &ps_tmp, re);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
             ps->next_rid  = ps_tmp.next_rid;
             if (FAILED(res.code)) return res;
             if (*ps->ch != ')')
-                return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
 
             if (is_lookahead) {
-                *re = regex_lookahead(*re, pos);
+                *re = bru_regex_lookahead(*re, pos);
                 SET_RID(*re, ps);
             }
             break;
@@ -678,23 +684,23 @@ static ParseResult parse_paren(const Parser *self,
         /* capture group */
         default:
             if (!ps->in_lookahead) ncaptures = ps->ncaptures++;
-            ps_tmp        = (ParseState){ ps->unsupported_features,
-                                          ps->allow_repeated_nullability,
-                                          ps->ch,
-                                          TRUE,
-                                          ps->in_lookahead,
-                                          ps->ncaptures,
-                                          ps->next_rid };
+            ps_tmp        = (BruParseState){ ps->unsupported_feats,
+                                             ps->allow_repeated_nullability,
+                                             ps->ch,
+                                             TRUE,
+                                             ps->in_lookahead,
+                                             ps->ncaptures,
+                                             ps->next_rid };
             res           = parse_alt(self, &ps_tmp, re);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
             ps->next_rid  = ps_tmp.next_rid;
             if (FAILED(res.code)) return res;
             if (*ps->ch != ')')
-                return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+                return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
 
             if (!ps->in_lookahead) {
-                *re = regex_capture(*re, ncaptures);
+                *re = bru_regex_capture(*re, ncaptures);
                 SET_RID(*re, ps);
             }
             break;
@@ -707,68 +713,69 @@ done:
 unsupported_group:
     FLAG_UNSUPPORTED(unsupported_code, ps);
     find_matching_closing_parenthesis(ps);
-    if (*ps->ch != ')') return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
-    *re = regex_new(EPSILON);
+    if (*ps->ch != ')')
+        return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
+    *re = bru_regex_new(BRU_EPSILON);
     SET_RID(*re, ps);
-    res = PARSE_RES(PARSE_UNSUPPORTED, ps->ch);
+    res = PARSE_RES(BRU_PARSE_UNSUPPORTED, ps->ch);
     goto done;
 }
 
-static ParseResult parse_cc(ParseState *ps,
-                            RegexNode **re /**< out parameter */)
+static BruParseResult parse_cc(BruParseState *ps,
+                               BruRegexNode **re /**< out parameter */)
 {
-    ParseResult       res;
-    IntervalList      list = { 0 };
-    IntervalListItem *item, *next;
-    Intervals        *intervals;
-    const char       *ch;
-    size_t            i;
-    int               neg = FALSE;
+    BruParseResult       res;
+    BruIntervalList      list = { 0 };
+    BruIntervalListItem *item, *next;
+    BruIntervals        *intervals;
+    const char          *ch;
+    size_t               i;
+    int                  neg = FALSE;
 
-    if (*(ch = ps->ch) != '[') return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+    if (*(ch = ps->ch) != '[') return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
     if (*++ps->ch == '^') {
         neg = TRUE;
         ps->ch++;
     }
 
-    DLL_INIT(list.sentinel);
+    BRU_DLL_INIT(list.sentinel);
     do {
         res = parse_cc_atom(ps, &list);
         if (ERRORED(res.code)) {
-            if (res.code == PARSE_MISSING_CLOSING_BRACKET) res.ch = ch;
+            if (res.code == BRU_PARSE_MISSING_CLOSING_BRACKET) res.ch = ch;
             goto done;
         }
     } while (*ps->ch != ']');
     ps->ch++;
 
-    intervals = intervals_new(neg, list.len);
+    intervals = bru_intervals_new(neg, list.len);
     for (i = 0, item = list.sentinel->next; item != list.sentinel;
          i++, item   = item->next) {
         intervals->intervals[i] = item->interval;
     }
 
-    *re = regex_cc(intervals);
+    *re = bru_regex_cc(intervals);
     SET_RID(*re, ps);
 
 done:
-    DLL_FREE(list.sentinel, free, item, next);
+    BRU_DLL_FREE(list.sentinel, free, item, next);
     return res;
 }
 
-static ParseResult parse_cc_atom(ParseState   *ps,
-                                 IntervalList *list /**< out parameter */)
+static BruParseResult parse_cc_atom(BruParseState   *ps,
+                                    BruIntervalList *list /**< out parameter */)
 {
-    ParseResult       res;
-    IntervalListItem *item;
-    const char       *ch, *ch_start = NULL, *ch_end = NULL;
+    BruParseResult       res;
+    BruIntervalListItem *item;
+    const char          *ch, *ch_start = NULL, *ch_end = NULL;
 
     switch (*ps->ch) {
         case '[':
             res = parse_posix_cc(ps, list);
             if (NOT_MATCHED(res.code)) {
                 ch_start = "[";
-                res.code = PARSE_SUCCESS;
+                res.code = BRU_PARSE_SUCCESS;
                 ps->ch++;
             }
             break;
@@ -778,17 +785,17 @@ static ParseResult parse_cc_atom(ParseState   *ps,
             if (NOT_MATCHED(res.code)) {
                 res = parse_escape_cc(ps, list);
                 if (NOT_MATCHED(res.code))
-                    res = PARSE_RES(PARSE_INVALID_ESCAPE, ps->ch);
+                    res = PARSE_RES(BRU_PARSE_INVALID_ESCAPE, ps->ch);
             }
             break;
 
         case '\0':
-            res = PARSE_RES(PARSE_MISSING_CLOSING_BRACKET, ps->ch);
+            res = PARSE_RES(BRU_PARSE_MISSING_CLOSING_BRACKET, ps->ch);
             break;
 
         default: /* NOTE: should handle ']' at beginning of character class */
             ch_start = stc_utf8_str_advance(&ps->ch);
-            res      = PARSE_RES(PARSE_SUCCESS, ps->ch);
+            res      = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch);
             break;
     }
 
@@ -796,25 +803,26 @@ static ParseResult parse_cc_atom(ParseState   *ps,
 
     if (*(ch = ps->ch) != '-') {
         if (ch_start) {
-            INTERVAL_LIST_ITEM_INIT(item, interval(ch_start, ch_start));
-            DLL_PUSH_BACK(list->sentinel, item);
+            INTERVAL_LIST_ITEM_INIT(item, bru_interval(ch_start, ch_start));
+            BRU_DLL_PUSH_BACK(list->sentinel, item);
             list->len++;
         }
         return res;
     }
 
     if (!ch_start && ps->ch[1] != ']')
-        return PARSE_RES(PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ, ch);
+        return PARSE_RES(BRU_PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ, ch);
 
     switch (*++ps->ch) {
         case '[':
             res = parse_posix_cc(ps, list);
             if (NOT_MATCHED(res.code)) {
                 ch_end   = "[";
-                res.code = PARSE_SUCCESS;
+                res.code = BRU_PARSE_SUCCESS;
                 ps->ch++;
             } else if (SUCCEEDED(res.code)) {
-                res = PARSE_RES(PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ, ch);
+                res = PARSE_RES(BRU_PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ,
+                                ch);
             }
             break;
 
@@ -823,113 +831,113 @@ static ParseResult parse_cc_atom(ParseState   *ps,
             if (NOT_MATCHED(res.code)) {
                 res = parse_escape_cc(ps, list);
                 if (NOT_MATCHED(res.code))
-                    res = PARSE_RES(PARSE_INVALID_ESCAPE, ps->ch);
+                    res = PARSE_RES(BRU_PARSE_INVALID_ESCAPE, ps->ch);
                 else if (SUCCEEDED(res.code))
-                    res = PARSE_RES(PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ,
-                                    ch);
+                    res = PARSE_RES(
+                        BRU_PARSE_CC_RANGE_CONTAINS_SHORTHAND_ESC_SEQ, ch);
             }
             break;
 
         case ']':
             if (ch_start) {
-                INTERVAL_LIST_ITEM_INIT(item, interval(ch_start, ch_start));
-                DLL_PUSH_BACK(list->sentinel, item);
+                INTERVAL_LIST_ITEM_INIT(item, bru_interval(ch_start, ch_start));
+                BRU_DLL_PUSH_BACK(list->sentinel, item);
                 list->len++;
             }
-            INTERVAL_LIST_ITEM_INIT(item, interval("-", "-"));
-            DLL_PUSH_BACK(list->sentinel, item);
+            INTERVAL_LIST_ITEM_INIT(item, bru_interval("-", "-"));
+            BRU_DLL_PUSH_BACK(list->sentinel, item);
             list->len++;
-            res = PARSE_RES(PARSE_SUCCESS, ps->ch);
+            res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch);
             break;
 
         case '\0':
-            res = PARSE_RES(PARSE_MISSING_CLOSING_BRACKET, ps->ch);
+            res = PARSE_RES(BRU_PARSE_MISSING_CLOSING_BRACKET, ps->ch);
             break;
 
         default:
             ch_end = stc_utf8_str_advance(&ps->ch);
-            res    = PARSE_RES(PARSE_SUCCESS, ps->ch);
+            res    = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch);
             break;
     }
 
     if (ERRORED(res.code) || !ch_end) return res;
 
     if (stc_utf8_cmp(ch_start, ch_end) <= 0) {
-        INTERVAL_LIST_ITEM_INIT(item, interval(ch_start, ch_end));
-        DLL_PUSH_BACK(list->sentinel, item);
+        INTERVAL_LIST_ITEM_INIT(item, bru_interval(ch_start, ch_end));
+        BRU_DLL_PUSH_BACK(list->sentinel, item);
         list->len++;
     } else {
-        res = PARSE_RES(PARSE_CC_RANGE_OUT_OF_ORDER, ch);
+        res = PARSE_RES(BRU_PARSE_CC_RANGE_OUT_OF_ORDER, ch);
     }
 
     return res;
 }
 
-static ParseResult parse_escape(ParseState *ps,
-                                RegexNode **re /**< out parameter */)
+static BruParseResult parse_escape(BruParseState *ps,
+                                   BruRegexNode **re /**< out parameter */)
 {
-    ParseResult       res;
-    IntervalList      list = { 0 };
-    IntervalListItem *item, *next;
-    Intervals        *intervals;
-    const char       *ch;
-    size_t            i;
+    BruParseResult       res;
+    BruIntervalList      list = { 0 };
+    BruIntervalListItem *item, *next;
+    BruIntervals        *intervals;
+    const char          *ch;
+    size_t               i;
     // TODO: use for backreferences
     // len_t             k;
 
-    if (*ps->ch != '\\') return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+    if (*ps->ch != '\\') return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
     res = parse_escape_char(ps, &ch);
     if (ERRORED(res.code)) return res;
     if (SUCCEEDED(res.code)) {
-        *re = regex_literal(ch);
+        *re = bru_regex_literal(ch);
         SET_RID(*re, ps);
         return res;
     }
 
-    DLL_INIT(list.sentinel);
+    BRU_DLL_INIT(list.sentinel);
     res = parse_escape_cc(ps, &list);
     if (ERRORED(res.code)) goto done;
     if (SUCCEEDED(res.code)) {
-        intervals = intervals_new(FALSE, list.len);
+        intervals = bru_intervals_new(FALSE, list.len);
         for (i = 0, item = list.sentinel->next; item != list.sentinel;
              i++, item   = item->next) {
             intervals->intervals[i] = item->interval;
         }
 
-        *re = regex_cc(intervals);
+        *re = bru_regex_cc(intervals);
         SET_RID(*re, ps);
         goto done;
     }
 
-    res.code = PARSE_SUCCESS;
+    res.code = BRU_PARSE_SUCCESS;
     ch       = ps->ch++;
     switch (*ps->ch) {
         case 'B':
         case 'b':
-            FLAG_UNSUPPORTED(UNSUPPORTED_WORD_BOUNDARY, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_WORD_BOUNDARY, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'A':
-            FLAG_UNSUPPORTED(UNSUPPORTED_START_BOUNDARY, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_START_BOUNDARY, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'z':
         case 'Z':
-            FLAG_UNSUPPORTED(UNSUPPORTED_END_BOUNDARY, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_END_BOUNDARY, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'G':
-            FLAG_UNSUPPORTED(UNSUPPORTED_FIRST_MATCH_BOUNDARY, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_FIRST_MATCH_BOUNDARY, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'g':
             ps->ch++;
@@ -940,10 +948,10 @@ static ParseResult parse_escape(ParseState *ps,
                 SKIP_UNTIL(!isdigit(*ps->ch), res, ps);
                 if (SUCCEEDED(res.code)) ps->ch--;
             }
-            FLAG_UNSUPPORTED(UNSUPPORTED_BACKREF, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_BACKREF, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'k':
             switch (ps->ch[1]) {
@@ -953,16 +961,16 @@ static ParseResult parse_escape(ParseState *ps,
                 default: break;
             }
             if (FAILED(res.code)) return res;
-            FLAG_UNSUPPORTED(UNSUPPORTED_BACKREF, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_BACKREF, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'K':
-            FLAG_UNSUPPORTED(UNSUPPORTED_RESET_MATCH_START, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_RESET_MATCH_START, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         // technically will stop at '\\E' as well, but since the semantics of
@@ -972,10 +980,10 @@ static ParseResult parse_escape(ParseState *ps,
             SKIP_UNTIL(*ps->ch == 'E' && ps->ch[-1] == '\\', res, ps);
             if (FAILED(res.code)) return res;
         case 'E': // NOTE: \E only has special meaning if \Q was already seen
-            FLAG_UNSUPPORTED(UNSUPPORTED_QUOTING, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_QUOTING, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'p':
         case 'P':
@@ -984,16 +992,16 @@ static ParseResult parse_escape(ParseState *ps,
                 SKIP_UNTIL(*ps->ch == '}', res, ps);
                 if (FAILED(res.code)) return res;
             }
-            FLAG_UNSUPPORTED(UNSUPPORTED_UNICODE_PROPERTY, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_UNICODE_PROPERTY, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'R':
-            FLAG_UNSUPPORTED(UNSUPPORTED_NEWLINE_SEQUENCE, ps);
-            *re = regex_new(EPSILON);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_NEWLINE_SEQUENCE, ps);
+            *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         default:
@@ -1006,13 +1014,13 @@ static ParseResult parse_escape(ParseState *ps,
                 // } else {
                 //     res.code = PARSE_NON_EXISTENT_REF;
                 // }
-                FLAG_UNSUPPORTED(UNSUPPORTED_BACKREF, ps);
-                *re = regex_new(EPSILON);
+                FLAG_UNSUPPORTED(BRU_UNSUPPORTED_BACKREF, ps);
+                *re = bru_regex_new(BRU_EPSILON);
                 SET_RID(*re, ps);
-                res.code = PARSE_UNSUPPORTED;
+                res.code = BRU_PARSE_UNSUPPORTED;
                 break;
             } else {
-                res.code = PARSE_INVALID_ESCAPE;
+                res.code = BRU_PARSE_INVALID_ESCAPE;
             }
             break;
     }
@@ -1021,17 +1029,18 @@ static ParseResult parse_escape(ParseState *ps,
     res.ch = ch;
 
 done:
-    DLL_FREE(list.sentinel, free, item, next);
+    BRU_DLL_FREE(list.sentinel, free, item, next);
     return res;
 }
 
-static ParseResult parse_escape_char(ParseState  *ps,
-                                     const char **ch /**< out parameter */)
+static BruParseResult parse_escape_char(BruParseState *ps,
+                                        const char   **ch /**< out parameter */)
 {
-    ParseResult res = { PARSE_SUCCESS, NULL };
-    const char *next_ch;
+    BruParseResult res = { BRU_PARSE_SUCCESS, NULL };
+    const char    *next_ch;
 
-    if (*(next_ch = ps->ch) != '\\') return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+    if (*(next_ch = ps->ch) != '\\')
+        return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
     switch (*++next_ch) {
         case 't': *ch = "\t"; break;
@@ -1051,18 +1060,18 @@ static ParseResult parse_escape_char(ParseState  *ps,
              *  -?: *ps->ch + 64
              * [-`: *ps->ch - 64
              * {-~: *ps->ch - 64 */
-            FLAG_UNSUPPORTED(UNSUPPORTED_CONTROL_CODE, ps);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_CONTROL_CODE, ps);
             *ch      = "";
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         case 'o':
-            FLAG_UNSUPPORTED(UNSUPPORTED_OCTAL, ps);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_OCTAL, ps);
             *ch = "";
             if (*next_ch == '{') {
                 while (*next_ch != '}') {
                     if (*next_ch == '\0') {
-                        res.code = PARSE_END_OF_STRING;
+                        res.code = BRU_PARSE_END_OF_STRING;
                         break;
                     }
                     next_ch++;
@@ -1073,15 +1082,15 @@ static ParseResult parse_escape_char(ParseState  *ps,
                     ;
                 next_ch--;
             }
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'x':
-            FLAG_UNSUPPORTED(UNSUPPORTED_HEX, ps);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_HEX, ps);
             *ch = "";
             if (*next_ch == '{') {
                 while (*next_ch != '}') {
                     if (*next_ch == '\0') {
-                        res.code = PARSE_END_OF_STRING;
+                        res.code = BRU_PARSE_END_OF_STRING;
                         break;
                     }
                     next_ch++;
@@ -1092,15 +1101,15 @@ static ParseResult parse_escape_char(ParseState  *ps,
                     ;
                 next_ch--;
             }
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'u':
-            FLAG_UNSUPPORTED(UNSUPPORTED_UNICODE, ps);
+            FLAG_UNSUPPORTED(BRU_UNSUPPORTED_UNICODE, ps);
             *ch = "";
             if (*next_ch == '{') {
                 while (*next_ch != '}') {
                     if (*next_ch == '\0') {
-                        res.code = PARSE_END_OF_STRING;
+                        res.code = BRU_PARSE_END_OF_STRING;
                         break;
                     }
                     next_ch++;
@@ -1111,14 +1120,14 @@ static ParseResult parse_escape_char(ParseState  *ps,
                     ;
                 next_ch--;
             }
-            res.code = PARSE_UNSUPPORTED;
+            res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         default:
             if (ispunct(*next_ch))
                 *ch = next_ch;
             else
-                res.code = PARSE_NO_MATCH;
+                res.code = BRU_PARSE_NO_MATCH;
     }
 
     if (SUCCEEDED(res.code)) ps->ch = ++next_ch;
@@ -1126,21 +1135,22 @@ static ParseResult parse_escape_char(ParseState  *ps,
     return res;
 }
 
-#define PUSH_INTERVAL(start, end)                            \
-    INTERVAL_LIST_ITEM_INIT(item, interval((start), (end))); \
-    DLL_PUSH_BACK(list->sentinel, item);                     \
+#define PUSH_INTERVAL(start, end)                                \
+    INTERVAL_LIST_ITEM_INIT(item, bru_interval((start), (end))); \
+    BRU_DLL_PUSH_BACK(list->sentinel, item);                     \
     list->len++
 
 #define PUSH_CHAR(ch) PUSH_INTERVAL(ch, ch);
 
-static ParseResult parse_escape_cc(ParseState   *ps,
-                                   IntervalList *list /**< out parameter */)
+static BruParseResult
+parse_escape_cc(BruParseState *ps, BruIntervalList *list /**< out parameter */)
 {
-    IntervalListItem *item;
-    ParseResult       res = { PARSE_SUCCESS, NULL };
-    const char       *next_ch;
+    BruIntervalListItem *item;
+    BruParseResult       res = { BRU_PARSE_SUCCESS, NULL };
+    const char          *next_ch;
 
-    if (*(next_ch = ps->ch) != '\\') return PARSE_RES(PARSE_NO_MATCH, ps->ch);
+    if (*(next_ch = ps->ch) != '\\')
+        return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
     switch (*++next_ch) {
         case 'D':
@@ -1201,9 +1211,9 @@ static ParseResult parse_escape_cc(ParseState   *ps,
             break;
 
         case 'C':
-        case 'X': res.code = PARSE_INVALID_ESCAPE; break;
+        case 'X': res.code = BRU_PARSE_INVALID_ESCAPE; break;
 
-        default: res.code = PARSE_NO_MATCH; break;
+        default: res.code = BRU_PARSE_NO_MATCH; break;
     }
 
     if (SUCCEEDED(res.code)) ps->ch = ++next_ch;
@@ -1211,11 +1221,11 @@ static ParseResult parse_escape_cc(ParseState   *ps,
     return res;
 }
 
-static ParseResult parse_posix_cc(ParseState   *ps,
-                                  IntervalList *list /**< out parameter */)
+static BruParseResult
+parse_posix_cc(BruParseState *ps, BruIntervalList *list /**< out parameter */)
 {
-    IntervalListItem *item;
-    ParseResult       res = { PARSE_SUCCESS, NULL };
+    BruIntervalListItem *item;
+    BruParseResult       res = { BRU_PARSE_SUCCESS, NULL };
 
     if (strcmp(ps->ch, "[:alnum:]") == 0) {
         PUSH_INTERVAL("A", "Z");
@@ -1278,7 +1288,7 @@ static ParseResult parse_posix_cc(ParseState   *ps,
         PUSH_INTERVAL("a", "f");
         ps->ch += sizeof("[:xdigit:]") - 1;
     } else {
-        res.code = PARSE_NO_MATCH;
+        res.code = BRU_PARSE_NO_MATCH;
     }
 
     res.ch = ps->ch;
@@ -1288,7 +1298,7 @@ static ParseResult parse_posix_cc(ParseState   *ps,
 #undef PUSH_CHAR
 #undef PUSH_INTERVAL
 
-static ParseResult skip_comment(ParseState *ps)
+static BruParseResult skip_comment(BruParseState *ps)
 {
     const char *ch = ps->ch;
 
@@ -1296,20 +1306,20 @@ check_for_comment:
     if (*ch++ == '(' && *ch++ == '?' && *ch++ == '#') {
         while (*ch++ != ')')
             if (!*ch)
-                return PARSE_RES(PARSE_INCOMPLETE_GROUP_STRUCTURE, ps->ch);
+                return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ps->ch);
         ps->ch = ch;
         goto check_for_comment;
     }
 
-    return PARSE_RES(PARSE_SUCCESS, ps->ch);
+    return PARSE_RES(BRU_PARSE_SUCCESS, ps->ch);
 }
 
-static void find_matching_closing_parenthesis(ParseState *ps)
+static void find_matching_closing_parenthesis(BruParseState *ps)
 {
-    size_t nparen   = 1;
-    byte   in_cc    = FALSE;
-    byte   in_quote = FALSE;
-    char   ch;
+    size_t     nparen   = 1;
+    bru_byte_t in_cc    = FALSE;
+    bru_byte_t in_quote = FALSE;
+    char       ch;
 
     while ((ch = *ps->ch)) {
         switch (ch) {
@@ -1343,7 +1353,7 @@ static void find_matching_closing_parenthesis(ParseState *ps)
 
 static void print_unsupported_feature(unsigned int feature_idx, FILE *stream)
 {
-    static const char *feature_strings[NUM_UNSUPPORTED_CODES] = {
+    static const char *feature_strings[BRU_NUM_UNSUPPORTED_CODES] = {
         "UNSUPPORTED_BACKREF",
         "UNSUPPORTED_LOOKAHEAD",
         "UNSUPPORTED_OCTAL",
@@ -1372,43 +1382,44 @@ static void print_unsupported_feature(unsigned int feature_idx, FILE *stream)
         "UNSUPPORTED_NEWLINE_SEQUENCE",
     };
 
-    if (feature_idx >= NUM_UNSUPPORTED_CODES) return;
+    if (feature_idx >= BRU_NUM_UNSUPPORTED_CODES) return;
     fprintf(stream, "%d: %s\n", feature_idx, feature_strings[feature_idx]);
 }
 
-static RegexNode *parser_regex_counter(RegexNode  *child,
-                                       byte        greedy,
-                                       cntr_t      min,
-                                       cntr_t      max,
-                                       int         expand_counters,
-                                       ParseState *ps)
+static BruRegexNode *parser_regex_counter(BruRegexNode  *child,
+                                          bru_byte_t     greedy,
+                                          bru_cntr_t     min,
+                                          bru_cntr_t     max,
+                                          int            expand_counters,
+                                          BruParseState *ps)
 {
-    RegexNode *counter, *left, *right, *tmp;
-    cntr_t     i;
+    BruRegexNode *counter, *left, *right, *tmp;
+    bru_cntr_t    i;
 
     if (!expand_counters) {
-        counter = regex_counter(child, greedy, min, max);
+        counter = bru_regex_counter(child, greedy, min, max);
         SET_RID(counter, ps);
     } else {
         left = min > 0 ? child : NULL;
         for (i = 1; i < min; i++) {
-            left = regex_branch(CONCAT, left, regex_clone(child));
+            left = bru_regex_branch(BRU_CONCAT, left, bru_regex_clone(child));
             SET_RID(left, ps);
         }
 
-        right = max > min ? regex_repetition(
-                                QUES, left ? regex_clone(child) : child, greedy)
+        right = max > min ? bru_regex_repetition(
+                                BRU_QUES, left ? bru_regex_clone(child) : child,
+                                greedy)
                           : NULL;
         SET_RID(right, ps);
         for (i = min + 1; i < max; i++) {
-            tmp = regex_branch(CONCAT, regex_clone(child), right);
+            tmp = bru_regex_branch(BRU_CONCAT, bru_regex_clone(child), right);
             SET_RID(tmp, ps);
-            right = regex_repetition(QUES, tmp, greedy);
+            right = bru_regex_repetition(BRU_QUES, tmp, greedy);
             SET_RID(right, ps);
         }
 
         if (left && right) {
-            counter = regex_branch(CONCAT, left, right);
+            counter = bru_regex_branch(BRU_CONCAT, left, right);
             SET_RID(counter, ps);
         } else {
             counter = left ? left : right;

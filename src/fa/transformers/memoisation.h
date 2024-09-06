@@ -1,14 +1,22 @@
-#ifndef MEMOISATION_H
-#define MEMOISATION_H
+#ifndef BRU_FA_TRANSFORM_MEMOISATION_H
+#define BRU_FA_TRANSFORM_MEMOISATION_H
 
 #include "../../vm/compiler.h"
 #include "../smir.h"
+
+#if !defined(BRU_FA_TRANSFORM_MEMOISATION_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_FA_TRANSFORM_MEMOISATION_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_FA_DISABLE_SHORT_NAMES) &&                      \
+         (defined(BRU_FA_ENABLE_SHORT_NAMES) ||                   \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+#    define transform_memoise bru_transform_memoise
+#endif /* BRU_FA_TRANSFORM_MEMOISATION_ENABLE_SHORT_NAMES */
 
 /**
  * Prepend memoisation actions to states in the given state machine according to
  * the provided memoisation scheme.
  *
- * Note: This transform does not create a new state machine.
+ * NOTE: This transform does not create a new state machine.
  *
  * MS_IN: Memoise states with more than 1 incoming transition.
  * MS_CN: Memoise all states that are targets of backedges.
@@ -20,7 +28,7 @@
  *
  * @return the original state machine
  */
-StateMachine *
-transform_memoise(StateMachine *sm, MemoScheme memo, FILE *logfile);
+BruStateMachine *
+bru_transform_memoise(BruStateMachine *sm, BruMemoScheme memo, FILE *logfile);
 
-#endif /* MEMOISATION_H */
+#endif /* BRU_FA_TRANSFORM_MEMOISATION_H */

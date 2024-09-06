@@ -21,16 +21,16 @@
 typedef enum { SCH_SPENCER, SCH_LOCKSTEP } SchedulerType;
 
 typedef struct {
-    const char   *regex;
-    const char   *text;
-    size_t        cmd;
-    int           benchmark;
-    int           all_matches;
-    FILE         *outfile;
-    FILE         *logfile;
-    SchedulerType scheduler_type;
-    CompilerOpts  compiler_opts;
-    ParserOpts    parser_opts;
+    const char     *regex;
+    const char     *text;
+    size_t          cmd;
+    int             benchmark;
+    int             all_matches;
+    FILE           *outfile;
+    FILE           *logfile;
+    SchedulerType   scheduler_type;
+    BruCompilerOpts compiler_opts;
+    BruParserOpts   parser_opts;
 } BruOptions;
 
 static char *sdup(const char *s)
@@ -62,14 +62,14 @@ static StcArgConvertResult convert_filepath(const char *arg, void *out)
 
 static StcArgConvertResult convert_construction(const char *arg, void *out)
 {
-    Construction *construction = out;
+    BruConstruction *construction = out;
 
     if (strcmp(arg, "thompson") == 0)
-        *construction = THOMPSON;
+        *construction = BRU_THOMPSON;
     else if (strcmp(arg, "glushkov") == 0)
-        *construction = GLUSHKOV;
+        *construction = BRU_GLUSHKOV;
     else if (strcmp(arg, "flat") == 0)
-        *construction = FLAT;
+        *construction = BRU_FLAT;
     else
         return STC_ARG_CR_FAILURE;
 
@@ -78,12 +78,12 @@ static StcArgConvertResult convert_construction(const char *arg, void *out)
 
 static StcArgConvertResult convert_capture_semantics(const char *arg, void *out)
 {
-    CaptureSemantics *cs = out;
+    BruCaptureSemantics *cs = out;
 
     if (strcmp(arg, "pcre") == 0)
-        *cs = CS_PCRE;
+        *cs = BRU_CS_PCRE;
     else if (strcmp(arg, "re2") == 0)
-        *cs = CS_RE2;
+        *cs = BRU_CS_RE2;
     else
         return STC_ARG_CR_FAILURE;
 
@@ -92,16 +92,16 @@ static StcArgConvertResult convert_capture_semantics(const char *arg, void *out)
 
 static StcArgConvertResult convert_memo_scheme(const char *arg, void *out)
 {
-    MemoScheme *ms = out;
+    BruMemoScheme *ms = out;
 
     if (strcmp(arg, "in") == 0 || strcmp(arg, "IN") == 0)
-        *ms = MS_IN;
+        *ms = BRU_MS_IN;
     else if (strcmp(arg, "cn") == 0 || strcmp(arg, "CN") == 0)
-        *ms = MS_CN;
+        *ms = BRU_MS_CN;
     else if (strcmp(arg, "iar") == 0 || strcmp(arg, "IAR") == 0)
-        *ms = MS_IAR;
+        *ms = BRU_MS_IAR;
     else if (strcmp(arg, "none") == 0)
-        *ms = MS_NONE;
+        *ms = BRU_MS_NONE;
     else
         return STC_ARG_CR_FAILURE;
 
@@ -240,64 +240,66 @@ static StcArgParser *setup_argparser(BruOptions *options)
 
 static int parse(BruOptions *options)
 {
-    Parser     *p;
-    ParseResult res;
-    Regex       re;
-    int         exit_code = 0;
+    BruParser     *p;
+    BruParseResult res;
+    BruRegex       re;
+    int            exit_code = 0;
 
-    p   = parser_new(sdup(options->regex), options->parser_opts);
-    res = parser_parse(p, &re);
-    if (res.code < PARSE_NO_MATCH) {
-        regex_print_tree(re.root, options->outfile);
-        regex_node_free(re.root);
-        if (res.code != PARSE_SUCCESS) exit_code = EXIT_FAILURE;
+    p   = bru_parser_new(sdup(options->regex), options->parser_opts);
+    res = bru_parser_parse(p, &re);
+    if (res.code < BRU_PARSE_NO_MATCH) {
+        bru_regex_print_tree(re.root, options->outfile);
+        bru_regex_node_free(re.root);
+        if (res.code != BRU_PARSE_SUCCESS) exit_code = EXIT_FAILURE;
     } else {
         fprintf(options->logfile, "ERROR %d: Invalidation of regex from %s\n",
                 res.code, res.ch);
         exit_code = res.code;
     }
     free((char *) p->regex);
-    parser_free(p);
+    bru_parser_free(p);
 
     return exit_code;
 }
 
 static int compile(BruOptions *options)
 {
-    Compiler      *c;
-    const Program *prog;
-    int            exit_code = EXIT_SUCCESS;
+    BruCompiler      *c;
+    const BruProgram *prog;
+    int               exit_code = EXIT_SUCCESS;
 
-    c    = compiler_new(parser_new(sdup(options->regex), options->parser_opts),
-                        options->compiler_opts);
-    prog = compiler_compile(c);
+    c = bru_compiler_new(
+        bru_parser_new(sdup(options->regex), options->parser_opts),
+        options->compiler_opts);
+    prog = bru_compiler_compile(c);
     if (prog) {
-        program_print(prog, options->outfile);
-        program_free((Program *) prog);
+        bru_program_print(prog, options->outfile);
+        bru_program_free((BruProgram *) prog);
     } else {
         fputs("ERROR: compilation failed\n", stderr);
         exit_code = EXIT_FAILURE;
     }
 
-    compiler_free(c);
+    bru_compiler_free(c);
 
     return exit_code;
 }
 
 static int match(BruOptions *options)
 {
-    Compiler      *c;
-    const Program *prog;
-    ThreadManager *thread_manager = NULL;
-    SRVM          *srvm;
-    StcStringView  capture, *captures;
-    len_t          i, ncaptures;
-    size_t         ncodepoints;
-    int            matched, exit_code = EXIT_SUCCESS;
+    BruCompiler      *c;
+    const BruProgram *prog;
+    BruThreadManager *thread_manager = NULL;
+    BruSRVM          *srvm;
+    StcStringView     capture, *captures;
+    bru_len_t         i, ncaptures;
+    size_t            ncodepoints;
+    int               matched, exit_code = EXIT_SUCCESS;
 
-    c    = compiler_new(parser_new(sdup(options->regex), options->parser_opts),
-                        options->compiler_opts);
-    prog = compiler_compile(c);
+    c = bru_compiler_new(
+        bru_parser_new(sdup(options->regex), options->parser_opts),
+        options->compiler_opts);
+    prog = bru_compiler_compile(c);
     if (prog == NULL) {
         fputs("ERROR: compilation failed\n", stderr);
         exit_code = EXIT_FAILURE;
@@ -305,47 +307,50 @@ static int match(BruOptions *options)
     }
 
     if (options->scheduler_type == SCH_SPENCER)
-        thread_manager = spencer_thread_manager_new(
+        thread_manager = bru_spencer_thread_manager_new(
             0, prog->thread_mem_len, prog->ncaptures, options->logfile);
     else if (options->scheduler_type == SCH_LOCKSTEP)
-        thread_manager = thompson_thread_manager_new(
+        thread_manager = bru_thompson_thread_manager_new(
             0, prog->thread_mem_len, prog->ncaptures, options->logfile);
 
-    if (options->compiler_opts.memo_scheme != MS_NONE)
-        thread_manager = memoised_thread_manager_new(thread_manager);
+    if (options->compiler_opts.memo_scheme != BRU_MS_NONE)
+        thread_manager = bru_memoised_thread_manager_new(thread_manager);
     if (options->benchmark)
         thread_manager =
-            benchmark_thread_manager_new(thread_manager, options->logfile);
+            bru_benchmark_thread_manager_new(thread_manager, options->logfile);
     // NOTE: deprecated/not useful, see all_matches ThreadManager
     // if (options->all_matches)
     //     thread_manager = all_matches_thread_manager_new(
     //         thread_manager, options->logfile, options->text);
 
-    srvm = srvm_new(thread_manager, prog);
-    while ((matched = srvm_find(srvm, options->text)) != MATCHES_EXHAUSTED) {
-        fprintf(options->outfile, "matched = %d\n", matched);
-        fprintf(options->outfile, "captures:\n");
-        captures = srvm_captures(srvm, &ncaptures);
-        fprintf(options->outfile, "  input: '%s'\n", options->text);
-        for (i = 0; i < ncaptures; i++) {
-            capture = captures[i];
-            fprintf(options->outfile, "%7hu: ", i);
-            if (capture.str) {
-                ncodepoints = stc_utf8_str_ncodepoints(options->text) -
-                              stc_utf8_str_ncodepoints(capture.str);
-                fprintf(options->outfile, "%*s'" STC_SV_FMT "'\n",
-                        (int) ncodepoints, "", STC_SV_ARG(capture));
-            } else {
-                fprintf(options->outfile, "not captured\n");
+    srvm = bru_srvm_new(thread_manager, prog);
+    if (!(matched = bru_srvm_find(srvm, options->text)))
+        fputs("No match\n", options->outfile);
+    else
+        do {
+            fputs("Found match\n", options->outfile);
+            fprintf(options->outfile, "captures:\n");
+            captures = bru_srvm_captures(srvm, &ncaptures);
+            fprintf(options->outfile, "  input: '%s'\n", options->text);
+            for (i = 0; i < ncaptures; i++) {
+                capture = captures[i];
+                fprintf(options->outfile, "%7hu: ", i);
+                if (capture.str) {
+                    ncodepoints = stc_utf8_str_ncodepoints(options->text) -
+                                  stc_utf8_str_ncodepoints(capture.str);
+                    fprintf(options->outfile, "%*s'" STC_SV_FMT "'\n",
+                            (int) ncodepoints, "", STC_SV_ARG(capture));
+                } else {
+                    fprintf(options->outfile, "not captured\n");
+                }
             }
-        }
-        free(captures);
-    }
-    program_free((Program *) prog);
-    srvm_free(srvm);
+            free(captures);
+        } while ((matched = bru_srvm_find(srvm, options->text)));
+    bru_program_free((BruProgram *) prog);
+    bru_srvm_free(srvm);
 
 done:
-    compiler_free(c);
+    bru_compiler_free(c);
 
     return exit_code;
 }

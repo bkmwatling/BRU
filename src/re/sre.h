@@ -1,5 +1,5 @@
-#ifndef SRE_H
-#define SRE_H
+#ifndef BRU_RE_SRE_H
+#define BRU_RE_SRE_H
 
 #include <stddef.h>
 #include <stdio.h>
@@ -13,73 +13,134 @@
 typedef struct {
     const char *lbound; /**< lower bound for interval                         */
     const char *ubound; /**< upper bound for interval                         */
-} Interval;
+} BruInterval;
 
 typedef struct {
-    int      neg;         /**< whether to negate the collection of intervals  */
-    size_t   len;         /**< number of intervals                            */
-    Interval intervals[]; /**< array of underlying intervals                  */
-} Intervals;
+    int         neg;         /**< whether to negate the intervals             */
+    size_t      len;         /**< number of intervals                         */
+    BruInterval intervals[]; /**< array of underlying intervals               */
+} BruIntervals;
 
 typedef enum {
-    EPSILON,
-    CARET,
-    DOLLAR,
-    // MEMOISE,
-    LITERAL,
-    CC,
-    ALT,
-    CONCAT,
-    CAPTURE,
-    STAR,
-    PLUS,
-    QUES,
-    COUNTER,
-    LOOKAHEAD,
-    BACKREFERENCE,
-    NREGEXTYPES
-} RegexType;
+    BRU_EPSILON,
+    BRU_CARET,
+    BRU_DOLLAR,
+    // BRU_MEMOISE,
+    BRU_LITERAL,
+    BRU_CC,
+    BRU_ALT,
+    BRU_CONCAT,
+    BRU_CAPTURE,
+    BRU_STAR,
+    BRU_PLUS,
+    BRU_QUES,
+    BRU_COUNTER,
+    BRU_LOOKAHEAD,
+    BRU_BACKREFERENCE,
+    BRU_NREGEXTYPES
+} BruRegexType;
 
-typedef struct regex_node RegexNode;
-typedef size_t            regex_id;
+typedef struct bru_regex_node BruRegexNode;
+typedef size_t                bru_regex_id;
 
 typedef struct {
-    const char *regex; /**< the regex string                                  */
-    RegexNode  *root;  /**< the root node of the regex tree                   */
-} Regex;
+    const char *regex;  /**< the regex string                                 */
+    BruRegexNode *root; /**< the root node of the regex tree                  */
+} BruRegex;
 
-struct regex_node {
-    regex_id  rid;  /**< the unique identifier for this regex node            */
-    RegexType type; /**< the type of the regex node                           */
+struct bru_regex_node {
+    bru_regex_id rid;  /**< the unique identifier for this regex node         */
+    BruRegexType type; /**< the type of the regex node                        */
 
     union {
-        const char *ch;        /**< UTF-8 encoded "character" for literals    */
-        Intervals  *intervals; /**< intervals for character classes           */
-        RegexNode  *left;      /**< left or only child for operators          */
+        const char   *ch;        /**< UTF-8 encoded "character" for literals  */
+        BruIntervals *intervals; /**< intervals for character classes         */
+        BruRegexNode *left;      /**< left or only child for operators        */
     };
 
     union {
-        byte       greedy;   /**< whether the repetition operator is greedy   */
-        byte       positive; /**< whether lookahead is positive or negative   */
-        len_t      capture_idx; /**< index for captures and backreferences    */
-        RegexNode *right;       /**< right child for binary operators         */
+        bru_byte_t greedy;      /**< whether repetition operator is greedy    */
+        bru_byte_t positive;    /**< whether lookahead is positive/negative   */
+        bru_len_t  capture_idx; /**< index for captures and backreferences    */
+        BruRegexNode *right;    /**< right child for binary operators         */
     };
 
-    cntr_t min; /**< minimum value for counter                                */
-    cntr_t max; /**< maximum value for counter                                */
-    byte nullable; /**< whether the tree rooted at this node matches epsilon  */
+    bru_cntr_t min;      /**< minimum value for counter                       */
+    bru_cntr_t max;      /**< maximum value for counter                       */
+    bru_byte_t nullable; /**< whether subtree at this node matches epsilon    */
 };
 
-#define IS_UNARY_OP(type) \
-    ((type) == STAR || (type) == PLUS || (type) == QUES || (type) == COUNTER)
-#define IS_BINARY_OP(type)     ((type) == CONCAT || (type) == ALT)
-#define IS_OP(type)            (IS_BINARY_OP(type) || IS_UNARY_OP(type))
-#define IS_PARENTHETICAL(type) ((type) == LOOKAHEAD || (type) == CAPTURE)
-#define IS_TERMINAL(type)      (!(IS_OP(type) || IS_PARENTHETICAL(type)))
+#if !defined(BRU_RE_SRE_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_RE_SRE_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_RE_DISABLE_SHORT_NAMES) &&    \
+         (defined(BRU_RE_ENABLE_SHORT_NAMES) || \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+typedef BruInterval  Interval;
+typedef BruIntervals Intervals;
 
-/* --- Interval function prototypes ----------------------------------------- */
+typedef BruRegexType RegexType;
+#    define EPSILON       BRU_EPSILON
+#    define CARET         BRU_CARET
+#    define DOLLAR        BRU_DOLLAR
+// #    define MEMOISE       BRU_MEMOISE
+#    define LITERAL       BRU_LITERAL
+#    define CC            BRU_CC
+#    define ALT           BRU_ALT
+#    define CONCAT        BRU_CONCAT
+#    define CAPTURE       BRU_CAPTURE
+#    define STAR          BRU_STAR
+#    define PLUS          BRU_PLUS
+#    define QUES          BRU_QUES
+#    define COUNTER       BRU_COUNTER
+#    define LOOKAHEAD     BRU_LOOKAHEAD
+#    define BACKREFERENCE BRU_BACKREFERENCE
+#    define NREGEXTYPES   BRU_NREGEXTYPES
 
-#define interval_predicate(interval, ch)           \
+typedef bru_regex_id regex_id;
+typedef BruRegex     Regex;
+typedef BruRegexNode RegexNode;
+
+#    define IS_UNARY_OP      BRU_IS_UNARY_OP
+#    define IS_BINARY_OP     BRU_IS_BINARY_OP
+#    define IS_OP            BRU_IS_OP
+#    define IS_PARENTHETICAL BRU_IS_PARENTHETICAL
+#    define IS_TERMINAL      BRU_IS_TERMINAL
+
+#    define interval_predicate  bru_interval_predicate
+#    define interval            bru_interval
+#    define interval_to_str     bru_interval_to_str
+#    define intervals_new       bru_intervals_new
+#    define intervals_free      bru_intervals_free
+#    define intervals_clone     bru_intervals_clone
+#    define intervals_predicate bru_intervals_predicate
+#    define intervals_to_str    bru_intervals_to_str
+
+#    define regex_new           bru_regex_new
+#    define regex_literal       bru_regex_literal
+#    define regex_cc            bru_regex_cc
+#    define regex_branch        bru_regex_branch
+#    define regex_capture       bru_regex_capture
+#    define regex_backreference bru_regex_backreference
+#    define regex_repetition    bru_regex_repetition
+#    define regex_counter       bru_regex_counter
+#    define regex_lookahead     bru_regex_lookahead
+#    define regex_node_free     bru_regex_node_free
+#    define regex_clone         bru_regex_clone
+#    define regex_print_tree    bru_regex_print_tree
+#endif /* BRU_RE_SRE_ENABLE_SHORT_NAMES */
+
+#define BRU_IS_UNARY_OP(type)                                          \
+    ((type) == BRU_STAR || (type) == BRU_PLUS || (type) == BRU_QUES || \
+     (type) == BRU_COUNTER)
+#define BRU_IS_BINARY_OP(type) ((type) == BRU_CONCAT || (type) == BRU_ALT)
+#define BRU_IS_OP(type)        (BRU_IS_BINARY_OP(type) || BRU_IS_UNARY_OP(type))
+#define BRU_IS_PARENTHETICAL(type) \
+    ((type) == BRU_LOOKAHEAD || (type) == BRU_CAPTURE)
+#define BRU_IS_TERMINAL(type) (!(BRU_IS_OP(type) || BRU_IS_PARENTHETICAL(type)))
+
+/* --- BruInterval function prototypes -------------------------------------- */
+
+#define bru_interval_predicate(interval, ch)       \
     (stc_utf8_cmp((interval).lbound, (ch)) <= 0 && \
      stc_utf8_cmp((ch), (interval).ubound) <= 0)
 
@@ -91,7 +152,7 @@ struct regex_node {
  *
  * @return the constructed interval
  */
-Interval interval(const char *lbound, const char *ubound);
+BruInterval bru_interval(const char *lbound, const char *ubound);
 
 /**
  * Get the string representation of an interval.
@@ -100,7 +161,7 @@ Interval interval(const char *lbound, const char *ubound);
  *
  * @return the string representation of the interval
  */
-char *interval_to_str(const Interval *self);
+char *bru_interval_to_str(const BruInterval *self);
 
 /**
  * Construct a collection of empty intervals with specified number of intervals
@@ -112,14 +173,14 @@ char *interval_to_str(const Interval *self);
  * @return a collection of intervals with specified number of intervals
  *         allocated and specified negation
  */
-Intervals *intervals_new(int neg, size_t len);
+BruIntervals *bru_intervals_new(int neg, size_t len);
 
 /**
  * Free the memory allocated for the collection of intervals.
  *
  * @param[in] self the collection of intervals to free
  */
-void intervals_free(Intervals *self);
+void bru_intervals_free(BruIntervals *self);
 
 /**
  * Clone a collection of intervals.
@@ -128,7 +189,7 @@ void intervals_free(Intervals *self);
  *
  * @return the cloned collection of intervals
  */
-Intervals *intervals_clone(const Intervals *self);
+BruIntervals *bru_intervals_clone(const BruIntervals *self);
 
 /**
  * Evaluate the predicate represented by a collection of intervals.
@@ -139,7 +200,7 @@ Intervals *intervals_clone(const Intervals *self);
  * @return truthy value if the UTF-8 "character" is contained in the
  *         collection of intervals; else 0
  */
-int intervals_predicate(const Intervals *self, const char *ch);
+int bru_intervals_predicate(const BruIntervals *self, const char *ch);
 
 /**
  * Get the string representation of a collection of intervals.
@@ -148,9 +209,9 @@ int intervals_predicate(const Intervals *self, const char *ch);
  *
  * @return the string representation of the collection of intervals
  */
-char *intervals_to_str(const Intervals *self);
+char *bru_intervals_to_str(const BruIntervals *self);
 
-/* --- Regex function prototypes -------------------------------------------- */
+/* --- BruRegex function prototypes ----------------------------------------- */
 
 /**
  * Construct a base regex node with given type.
@@ -159,7 +220,7 @@ char *intervals_to_str(const Intervals *self);
  *
  * @return the regex node with given type
  */
-RegexNode *regex_new(RegexType type);
+BruRegexNode *bru_regex_new(BruRegexType type);
 
 /**
  * Construct a regex node with type LITERAL with given literal codepoint.
@@ -168,7 +229,7 @@ RegexNode *regex_new(RegexType type);
  *
  * @return the regex node with literal codepoint
  */
-RegexNode *regex_literal(const char *ch);
+BruRegexNode *bru_regex_literal(const char *ch);
 
 /**
  * Construct a regex character class node.
@@ -177,7 +238,7 @@ RegexNode *regex_literal(const char *ch);
  *
  * @return the regex character class node
  */
-RegexNode *regex_cc(Intervals *intervals);
+BruRegexNode *bru_regex_cc(BruIntervals *intervals);
 
 /**
  * Construct a regex branch node with given type (ALT or CONCAT) and given
@@ -189,7 +250,8 @@ RegexNode *regex_cc(Intervals *intervals);
  *
  * @return the constructed regex branch node
  */
-RegexNode *regex_branch(RegexType type, RegexNode *left, RegexNode *right);
+BruRegexNode *
+bru_regex_branch(BruRegexType type, BruRegexNode *left, BruRegexNode *right);
 
 /**
  * Construct a regex capture node with single child and capture index.
@@ -199,7 +261,7 @@ RegexNode *regex_branch(RegexType type, RegexNode *left, RegexNode *right);
  *
  * @return the constructed regex capture node
  */
-RegexNode *regex_capture(RegexNode *child, len_t idx);
+BruRegexNode *bru_regex_capture(BruRegexNode *child, bru_len_t idx);
 
 /**
  * Construct a regex backreference node with capture index it matches against.
@@ -208,7 +270,7 @@ RegexNode *regex_capture(RegexNode *child, len_t idx);
  *
  * @return the constructed regex backreference node
  */
-RegexNode *regex_backreference(len_t idx);
+BruRegexNode *bru_regex_backreference(bru_len_t idx);
 
 /**
  * Construct a regex non-counter repetition node with given type and regex tree
@@ -220,7 +282,8 @@ RegexNode *regex_backreference(len_t idx);
  *
  * @return the constructed regex non-counter repetition node
  */
-RegexNode *regex_repetition(RegexType type, RegexNode *child, byte greedy);
+BruRegexNode *
+bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy);
 
 /**
  * Construct a regex counter node with given regex tree child, greediness, and
@@ -233,7 +296,10 @@ RegexNode *regex_repetition(RegexType type, RegexNode *child, byte greedy);
  *
  * @return the constructed regex counter node
  */
-RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max);
+BruRegexNode *bru_regex_counter(BruRegexNode *child,
+                                bru_byte_t    greedy,
+                                bru_cntr_t    min,
+                                bru_cntr_t    max);
 
 /**
  * Construct a regex lookahead node with given child and whether it is a
@@ -244,7 +310,7 @@ RegexNode *regex_counter(RegexNode *child, byte greedy, cntr_t min, cntr_t max);
  *
  * @return the constructed regex lookahead node
  */
-RegexNode *regex_lookahead(RegexNode *child, byte pos);
+BruRegexNode *bru_regex_lookahead(BruRegexNode *child, bru_byte_t pos);
 
 /**
  * Free the memory allocated for the regex tree (the regex node and it's
@@ -252,7 +318,7 @@ RegexNode *regex_lookahead(RegexNode *child, byte pos);
  *
  * @param[in] self the regex node at the root of the regex tree
  */
-void regex_node_free(RegexNode *self);
+void bru_regex_node_free(BruRegexNode *self);
 
 /**
  * Clone the regex tree from the given root node.
@@ -261,6 +327,7 @@ void regex_node_free(RegexNode *self);
  *
  * @return the root of the cloned regex tree
  */
+BruRegexNode *bru_regex_clone(const BruRegexNode *self);
 
 /**
  * Print the tree representation of a regex tree to given file stream.
@@ -268,7 +335,6 @@ void regex_node_free(RegexNode *self);
  * @param[in] self   the root node of the regex tree
  * @param[in] stream the file stream to print to
  */
-RegexNode *regex_clone(RegexNode *self);
-void       regex_print_tree(const RegexNode *self, FILE *stream);
+void bru_regex_print_tree(const BruRegexNode *self, FILE *stream);
 
-#endif /* SRE_H */
+#endif /* BRU_RE_SRE_H */

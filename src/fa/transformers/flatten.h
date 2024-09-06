@@ -1,5 +1,5 @@
-#ifndef FLATTEN_H
-#define FLATTEN_H
+#ifndef BRU_FA_TRANSFORM_FLATTEN_H
+#define BRU_FA_TRANSFORM_FLATTEN_H
 
 #include "../smir.h"
 
@@ -7,6 +7,14 @@
  * XXX: ONLY TO BE USED ON THOMPSON-CONSTRUCTED STATE MACHINES,
  * BEFORE MEMOISATION
  */
+
+#if !defined(BRU_FA_TRANSFORM_FLATTEN_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_FA_TRANSFORM_FLATTEN_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_FA_DISABLE_SHORT_NAMES) &&                  \
+         (defined(BRU_FA_ENABLE_SHORT_NAMES) ||               \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+#    define transform_flatten bru_transform_flatten
+#endif /* BRU_FA_TRANSFORM_FLATTEN_ENABLE_SHORT_NAMES */
 
 /**
  * Flatten a state machine to have the properties that all states match a
@@ -22,6 +30,6 @@
  *
  * @return the flattened state machine
  */
-StateMachine *transform_flatten(StateMachine *sm, FILE *logfile);
+BruStateMachine *bru_transform_flatten(BruStateMachine *sm, FILE *logfile);
 
-#endif /* MEMOISATION_H */
+#endif /* BRU_FA_TRANSFORM_FLATTEN_H */

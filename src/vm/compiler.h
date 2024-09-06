@@ -1,39 +1,68 @@
-#ifndef COMPILER_H
-#define COMPILER_H
+#ifndef BRU_VM_COMPILER_H
+#define BRU_VM_COMPILER_H
 
 #include "../re/parser.h"
 #include "program.h"
 
 typedef enum {
-    THOMPSON,
-    GLUSHKOV,
-    FLAT,
-} Construction;
+    BRU_THOMPSON,
+    BRU_GLUSHKOV,
+    BRU_FLAT,
+} BruConstruction;
 
 typedef enum {
-    CS_PCRE,
-    CS_RE2,
-} CaptureSemantics;
+    BRU_CS_PCRE,
+    BRU_CS_RE2,
+} BruCaptureSemantics;
 
 typedef enum {
-    MS_NONE,
-    MS_CN,
-    MS_IN,
-    MS_IAR,
-} MemoScheme;
+    BRU_MS_NONE,
+    BRU_MS_CN,
+    BRU_MS_IN,
+    BRU_MS_IAR,
+} BruMemoScheme;
 
 typedef struct {
-    Construction     construction;      /**< which construction to use        */
-    int              only_std_split;    /**< whether to only use `split`      */
-    CaptureSemantics capture_semantics; /**< which capture semantics to use   */
-    MemoScheme       memo_scheme;       /**< which memoisation scheme to use  */
-    int              mark_states; /**< whether to compile state instructions  */
-} CompilerOpts;
+    BruConstruction     construction;      /**< which construction to use     */
+    int                 only_std_split;    /**< whether to only use `split`   */
+    BruCaptureSemantics capture_semantics; /**< capture semantics to use      */
+    BruMemoScheme       memo_scheme;       /**< memoisation scheme to use     */
+    int mark_states; /**< whether to compile state instructions               */
+} BruCompilerOpts;
 
 typedef struct {
-    const Parser *parser; /**< the parser to get the regex tree               */
-    CompilerOpts  opts;   /**< the options set for the compiler               */
-} Compiler;
+    const BruParser *parser; /**< the parser to get the regex tree            */
+    BruCompilerOpts  opts;   /**< the options set for the compiler            */
+} BruCompiler;
+
+#if !defined(BRU_VM_COMPILER_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_COMPILER_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&         \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||      \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+typedef BruConstruction Construction;
+#    define THOMPSON BRU_THOMPSON
+#    define GLUSHKOV BRU_GLUSHKOV
+#    define FLAT     BRU_FLAT
+
+typedef BruCaptureSemantics CaptureSemantics;
+#    define CS_PCRE BRU_CS_PCRE
+#    define CS_RE2  BRU_CS_RE2
+
+typedef BruMemoScheme MemoScheme;
+#    define MS_NONE BRU_MS_NONE
+#    define MS_CN   BRU_MS_CN
+#    define MS_IN   BRU_MS_IN
+#    define MS_IAR  BRU_MS_IAR
+
+typedef BruCompilerOpts CompilerOpts;
+typedef BruCompiler     Compiler;
+
+#    define compiler_new     bru_compiler_new
+#    define compiler_default bru_compiler_default
+#    define compiler_free    bru_compiler_free
+#    define compiler_compile bru_compiler_compile
+#endif /* BRU_VM_COMPILER_ENABLE_SHORT_NAMES */
 
 /**
  * Construct a compiler from a regex parser with specified options.
@@ -43,7 +72,8 @@ typedef struct {
  *
  * @return the constructed compiler
  */
-Compiler *compiler_new(const Parser *parser, const CompilerOpts opts);
+BruCompiler *bru_compiler_new(const BruParser      *parser,
+                              const BruCompilerOpts opts);
 
 /**
  * Construct a compiler from a regex parser with default options.
@@ -52,7 +82,7 @@ Compiler *compiler_new(const Parser *parser, const CompilerOpts opts);
  *
  * @return the constructed compiler
  */
-Compiler *compiler_default(const Parser *parser);
+BruCompiler *bru_compiler_default(const BruParser *parser);
 
 /**
  * Free the memory allocated for the compiler (frees the memory of the parser,
@@ -60,7 +90,7 @@ Compiler *compiler_default(const Parser *parser);
  *
  * @param[in] self the compiler to free
  */
-void compiler_free(Compiler *self);
+void bru_compiler_free(BruCompiler *self);
 
 /**
  * Compile the regex tree obtained from the parser into a program.
@@ -69,6 +99,6 @@ void compiler_free(Compiler *self);
  *
  * @return the program compiled from the regex tree obtained from the parser
  */
-const Program *compiler_compile(const Compiler *self);
+const BruProgram *bru_compiler_compile(const BruCompiler *self);
 
-#endif /* COMPILER_H */
+#endif /* BRU_VM_COMPILER_H */
