@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../../utils.h"
 #include "memoisation.h"
 
 /* --- Helper functions ----------------------------------------------------- */
@@ -101,8 +102,12 @@ static void memoise_states(BruStateMachine *sm, bru_byte_t *sids, FILE *logfile)
             bru_smir_state_prepend_action(
                 sm, sid, bru_smir_action_num(BRU_ACT_MEMO, k--));
 
+#ifdef BRU_BENCHMARK
     if (logfile)
         fprintf(logfile, "NUMBER OF STATES MEMOISED: %zu\n", SIZE_MAX - k);
+#else
+    BRU_UNUSED(logfile);
+#endif /* BRU_BENCHMARK */
 }
 
 /* --- API function definitions --------------------------------------------- */
