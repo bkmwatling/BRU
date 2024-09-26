@@ -105,7 +105,10 @@
 #define BRU_INC        18
 #define BRU_ZWA        19
 #define BRU_STATE      20
-#define BRU_NBYTECODES 21
+#define BRU_WRITE      21
+#define BRU_WRITE0     22
+#define BRU_WRITE1     23
+#define BRU_NBYTECODES 24
 
 /* Order for cmp */
 #define BRU_LT 1
