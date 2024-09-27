@@ -291,10 +291,47 @@ void bru_regex_print_tree(const BruRegexNode *self, FILE *stream)
     fputc('\n', stream);
 }
 
+static char escape(const char s)
+{
+    const char unescaped[] = { '\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\' };
+    const char escaped[]   = { 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\' };
+    const size_t len_unescaped = sizeof(unescaped) / sizeof(*unescaped);
+    size_t       i;
+
+    for (i = 0; i < len_unescaped; i++)
+        if (s == unescaped[i]) return escaped[i];
+    return '\0';
+}
+
+static char *escape_escape_sequence(const char *s)
+{
+    char        *t;
+    const size_t len_s = strlen(s);
+    size_t       i, j;
+    size_t       len_t = len_s;
+
+    for (i = 0; i < len_s; i++)
+        if (escape(s[i]) != '\0') len_t++;
+    t = malloc(len_t + 1);
+
+    for (i = 0, j = 0; i < len_t; i++) {
+        const char c = escape(s[i]);
+        if (c != '\0') {
+            t[j++] = '\\';
+            t[j++] = c;
+        } else {
+            t[j++] = s[i];
+        }
+    }
+    t[j] = '\0';
+    return t;
+}
+
 static void
 regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
 {
-    char *p;
+    char *p, *q;
+    char  c;
 
     if (re == NULL) return;
 
@@ -309,13 +346,21 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
 
         // case BRU_MEMOISE: fputs("Memoise", stream); break;
         case BRU_LITERAL:
-            fprintf(stream, "Literal(%.*s)", stc_utf8_nbytes(re->ch), re->ch);
+            c = escape(re->ch[0]);
+            if (c == '\0') {
+                fprintf(stream, "Literal(%.*s)", stc_utf8_nbytes(re->ch),
+                        re->ch);
+            } else {
+                fprintf(stream, "Literal(\\%c)", c);
+            }
             break;
 
         case BRU_CC:
             p = bru_intervals_to_str(re->intervals);
-            fprintf(stream, "CharClass(%s)", p);
+            q = escape_escape_sequence(p);
+            fprintf(stream, "CharClass(%s)", q);
             free(p);
+            free(q);
             break;
 
         case BRU_ALT: fputs("Alternation", stream); goto concat_body;
