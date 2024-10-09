@@ -9,7 +9,8 @@
 DEBUG     := -ggdb -gdwarf-4
 OPTIMISE  := -O0
 WARNING   := -Wall -Wextra -Wno-variadic-macros \
-             -Wno-overlength-strings -pedantic
+             -Wno-overlength-strings -Wno-gnu-zero-variadic-macro-arguments \
+			 -pedantic
 EXTRA     := -std=c11
 STC_FLAGS := -DSTC_UTF_DISABLE_SV
 CFLAGS    := $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(STC_FLAGS)
@@ -45,7 +46,8 @@ FA_SRC    := $(wildcard $(FADIR)/*.c) \
              $(wildcard $(FADIR)/constructions/*.c) \
              $(wildcard $(FADIR)/transformers/*.c)
 VM_SRC    := $(wildcard $(VMDIR)/*.c) \
-		     $(wildcard $(VMDIR)/thread_managers/*.c)
+		     $(wildcard $(VMDIR)/thread_managers/*.c) \
+		     $(wildcard $(VMDIR)/thread_managers/schedulers/*.c)
 
 SRC       := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
 		     $(STC_SRC) $(RE_SRC) $(FA_SRC) $(VM_SRC)

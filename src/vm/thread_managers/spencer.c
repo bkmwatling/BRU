@@ -1,407 +1,247 @@
 #include <stdlib.h>
-#include <string.h>
 
-#include "../../stc/fatp/slice.h"
-#include "../../stc/fatp/vec.h"
-
-#include "../../utils.h"
+#include "schedulers/spencer.h"
 #include "spencer.h"
 #include "thread_manager.h"
-#include "thread_pool.h"
 
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct bru_spencer_thread {
     const bru_byte_t *pc;
     const char       *sp;
-    bru_cntr_t       *counters; /**< stc_slice of counter values              */
-    bru_byte_t       *memory;   /**< stc_slice for general memory             */
-    const char      **captures; /**< stc_slice of capture SPs                 */
 } BruSpencerThread;
 
-typedef struct bru_spencer_scheduler {
-    size_t in_order_idx; /**< the index for inserting threads when in-order   */
-    BruThread  *active;  /**< the active thread for the scheduler             */
-    BruThread **stack;   /**< stc_vec for thread stack for DFS scheduling     */
-} BruSpencerScheduler;
-
 typedef struct bru_spencer_thread_manager {
-    BruSpencerScheduler *scheduler; /**< the Spencer scheduler for scheduling */
-    BruThreadPool       *pool;      /**< the pool of threads                  */
-    const char          *sp;        /**< the string pointer for the manager   */
-
-    // for spawning threads
-    bru_len_t ncounters;  /**< number of counter values to spawn threads with */
-    bru_len_t memory_len; /**< number bytes allocated for thread memory       */
-    bru_len_t ncaptures;  /**< number captures to allocate memory in threads  */
+    BruScheduler *scheduler; /**< the Spencer scheduler for scheduling        */
+    const char   *start_sp;  /**< the starting SP for the current run         */
 } BruSpencerThreadManager;
 
 /* --- SpencerThreadManager function prototypes ----------------------------- */
 
-static void spencer_thread_manager_init(void             *impl,
+static void spencer_thread_manager_init(BruThreadManager *tm,
                                         const bru_byte_t *start_pc,
                                         const char       *start_sp);
-static void spencer_thread_manager_reset(void *impl);
-static void spencer_thread_manager_free(void *impl);
-static int  spencer_thread_manager_done_exec(void *impl);
+static void spencer_thread_manager_reset(BruThreadManager *tm);
+static void spencer_thread_manager_free(BruThreadManager *tm);
+static int  spencer_thread_manager_done_exec(BruThreadManager *tm);
 
-static void spencer_thread_manager_schedule_thread(void *impl, BruThread *t);
-static void spencer_thread_manager_schedule_thread_in_order(void      *impl,
-                                                            BruThread *t);
-static BruThread *spencer_thread_manager_next_thread(void *impl);
-static void       spencer_thread_manager_notify_thread_match(void      *impl,
-                                                             BruThread *t);
-static BruThread *spencer_thread_manager_clone_thread(void            *impl,
-                                                      const BruThread *t);
-static void       spencer_thread_manager_kill_thread(void *impl, BruThread *t);
-static const bru_byte_t *spencer_thread_pc(void *impl, const BruThread *t);
+static BruThread *spencer_thread_manager_alloc_thread(BruThreadManager *tm);
+static void       spencer_thread_manager_init_thread(BruThreadManager *tm,
+                                                     BruThread        *thread,
+                                                     const bru_byte_t *pc,
+                                                     const char       *sp);
+static void       spencer_thread_manager_copy_thread(BruThreadManager *tm,
+                                                     const BruThread  *src,
+                                                     BruThread        *dst);
+static int        spencer_thread_manager_check_thread_eq(BruThreadManager *tm,
+                                                         const BruThread  *t1,
+                                                         const BruThread  *t2);
+static void       spencer_thread_manager_schedule_thread(BruThreadManager *tm,
+                                                         BruThread        *t);
 static void
-spencer_thread_set_pc(void *impl, BruThread *t, const bru_byte_t *pc);
-static const char *spencer_thread_sp(void *impl, const BruThread *t);
-static void        spencer_thread_inc_sp(void *impl, BruThread *t);
-static bru_cntr_t
-spencer_thread_counter(void *impl, const BruThread *t, bru_len_t idx);
-static void spencer_thread_set_counter(void      *impl,
-                                       BruThread *t,
-                                       bru_len_t  idx,
-                                       bru_cntr_t val);
-static void spencer_thread_inc_counter(void *impl, BruThread *t, bru_len_t idx);
-static void *
-spencer_thread_memory(void *impl, const BruThread *t, bru_len_t idx);
-static void spencer_thread_set_memory(void       *impl,
-                                      BruThread  *t,
-                                      bru_len_t   idx,
-                                      const void *val,
-                                      size_t      size);
-static const char *const *
-spencer_thread_captures(void *impl, const BruThread *t, bru_len_t *ncaptures);
-static void spencer_thread_set_capture(void *impl, BruThread *t, bru_len_t idx);
+spencer_thread_manager_schedule_thread_in_order(BruThreadManager *tm,
+                                                BruThread        *t);
+static BruThread *spencer_thread_manager_next_thread(BruThreadManager *tm);
+static void spencer_thread_manager_notify_thread_match(BruThreadManager *tm,
+                                                       BruThread        *t);
+static BruThread *spencer_thread_manager_clone_thread(BruThreadManager *tm,
+                                                      const BruThread  *t);
+static void       spencer_thread_manager_kill_thread(BruThreadManager *tm,
+                                                     BruThread        *t);
+static const bru_byte_t *spencer_thread_manager_pc(BruThreadManager *tm,
+                                                   const BruThread  *t);
+static void              spencer_thread_manager_set_pc(BruThreadManager *tm,
+                                                       BruThread        *t,
+                                                       const bru_byte_t *pc);
+static const char       *spencer_thread_manager_sp(BruThreadManager *tm,
+                                                   const BruThread  *t);
+static void spencer_thread_manager_inc_sp(BruThreadManager *tm, BruThread *t);
 
-/* --- Scheduler function prototypes ---------------------------------------- */
+/* --- API function definitions --------------------------------------------- */
 
-static BruSpencerScheduler *spencer_scheduler_new(void);
-static void       spencer_scheduler_schedule(BruSpencerScheduler *self,
-                                             BruThread           *thread);
-static void       spencer_scheduler_schedule_in_order(BruSpencerScheduler *self,
-                                                      BruThread           *thread);
-static BruThread *spencer_scheduler_next(BruSpencerScheduler *self);
-static void       spencer_scheduler_free(BruSpencerScheduler *self);
-
-/* --- Helper function prototypes ------------------------------------------- */
-
-static BruSpencerThread             *
-spencer_thread_manager_new_thread(BruSpencerThreadManager *self);
-static void spencer_thread_manager_copy_thread(BruSpencerThreadManager *self,
-                                               BruSpencerThread        *dst,
-                                               const BruSpencerThread  *src);
-static BruSpencerThread             *
-spencer_thread_manager_get_thread(BruSpencerThreadManager *self);
-static void spencer_thread_free(BruThread *t);
-
-/* --- SpencerThreadManager function definitions ---------------------------- */
-
-BruThreadManager *bru_spencer_thread_manager_new(bru_len_t ncounters,
-                                                 bru_len_t memory_len,
-                                                 bru_len_t ncaptures,
-                                                 FILE     *logfile)
+BruThreadManager *bru_spencer_thread_manager_new(void)
 {
-    BruThreadManager        *tm  = malloc(sizeof(*tm));
-    BruSpencerThreadManager *stm = malloc(sizeof(*stm));
+    BruSpencerThreadManager   *stm = malloc(sizeof(*stm));
+    BruThreadManagerInterface *tmi =
+        bru_thread_manager_interface_new(stm, sizeof(BruSpencerThread));
+    BruThreadManager *tm = malloc(sizeof(*tm));
 
-    stm->scheduler  = spencer_scheduler_new();
-    stm->pool       = bru_thread_pool_new(logfile);
-    stm->ncounters  = ncounters;
-    stm->memory_len = memory_len;
-    stm->ncaptures  = ncaptures;
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
+    bru_vt_init(tm, tmi);
 
-    BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(tm, spencer);
+    stm->scheduler = bru_spencer_scheduler_new();
+    stm->start_sp  = NULL;
 
-    // TODO: create thread managers for below optional implementations
-    tm->counter     = spencer_thread_counter;
-    tm->set_counter = spencer_thread_set_counter;
-    tm->inc_counter = spencer_thread_inc_counter;
-    tm->memory      = spencer_thread_memory;
-    tm->set_memory  = spencer_thread_set_memory;
-    tm->captures    = spencer_thread_captures;
-    tm->set_capture = spencer_thread_set_capture;
-
-    // opt out of memoisation
-    tm->init_memoisation = bru_thread_manager_init_memoisation_noop;
-    tm->memoise          = bru_thread_manager_memoise_noop;
-
-    tm->impl = stm;
+    BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(tmi, spencer);
+    BRU_THREAD_MANAGER_SET_NOOP_FUNCS(tmi);
 
     return tm;
 }
 
-static void spencer_thread_manager_init(void             *impl,
+/* --- SpencerThreadManager function definitions ---------------------------- */
+
+static BruThread *spencer_thread_manager_alloc_thread(BruThreadManager *tm)
+{
+    return bru_thread_manager_malloc_thread(tm);
+}
+
+static void spencer_thread_manager_init(BruThreadManager *tm,
                                         const bru_byte_t *start_pc,
                                         const char       *start_sp)
 {
-    BruSpencerThreadManager *self = impl;
-    BruSpencerThread        *st   = spencer_thread_manager_get_thread(self);
+    BruSpencerThreadManager *self = bru_vt_curr_impl(tm);
+    BruThread               *thread;
 
-    self->sp = start_sp;
-
-    st->pc = start_pc;
-    st->sp = start_sp;
-
-    memset(st->counters, 0, sizeof(*st->counters) * self->ncounters);
-    memset(st->memory, 0, sizeof(*st->memory) * self->memory_len);
-    memset(st->captures, 0, sizeof(*st->captures) * 2 * self->ncaptures);
-
-    spencer_thread_manager_schedule_thread(impl, (BruThread *) st);
+    self->start_sp = start_sp;
+    bru_thread_manager_alloc_thread(tm, thread);
+    bru_thread_manager_init_thread(tm, thread, start_pc, start_sp);
+    bru_thread_manager_schedule_thread(tm, thread);
 }
 
-static void spencer_thread_manager_reset(void *impl)
+static void spencer_thread_manager_reset(BruThreadManager *tm)
 {
-    BruThread           *t;
-    BruSpencerScheduler *ss = ((BruSpencerThreadManager *) impl)->scheduler;
+    BruSpencerThreadManager *self = bru_vt_curr_impl(tm);
+    BruThread               *t;
 
-    ss->in_order_idx = 0;
-    while ((t = spencer_scheduler_next(ss)))
-        spencer_thread_manager_kill_thread(impl, t);
+    while ((t = bru_scheduler_next(self->scheduler)))
+        bru_thread_manager_kill_thread(tm, t);
 }
 
-static void spencer_thread_manager_free(void *impl)
+static void spencer_thread_manager_free(BruThreadManager *tm)
 {
-    BruSpencerThreadManager *self = impl;
+    BruSpencerThreadManager   *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
 
-    spencer_thread_manager_reset(impl);
-    spencer_scheduler_free(self->scheduler);
-    bru_thread_pool_free(self->pool, spencer_thread_free);
-    free(impl);
+    bru_vt_shrink(tm);
+    bru_scheduler_free(self->scheduler);
+    free(self);
+    bru_thread_manager_interface_free(tmi);
 }
 
-static int spencer_thread_manager_done_exec(void *impl)
+static int spencer_thread_manager_done_exec(BruThreadManager *tm)
 {
-    return *((BruSpencerThreadManager *) impl)->sp == '\0';
+    return *((BruSpencerThreadManager *) bru_vt_curr_impl(tm))->start_sp ==
+           '\0';
 }
 
-static void spencer_thread_manager_schedule_thread(void *impl, BruThread *t)
+static void spencer_thread_manager_init_thread(BruThreadManager *tm,
+                                               BruThread        *thread,
+                                               const bru_byte_t *pc,
+                                               const char       *sp)
 {
-    spencer_scheduler_schedule(((BruSpencerThreadManager *) impl)->scheduler,
-                               t);
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    BruSpencerThread          *st =
+        (BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+
+    st->pc = pc;
+    st->sp = sp;
 }
 
-static void spencer_thread_manager_schedule_thread_in_order(void      *impl,
-                                                            BruThread *t)
+static void spencer_thread_manager_copy_thread(BruThreadManager *tm,
+                                               const BruThread  *src,
+                                               BruThread        *dst)
 {
-    spencer_scheduler_schedule_in_order(
-        ((BruSpencerThreadManager *) impl)->scheduler, t);
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    BruSpencerThread          *st_src =
+        (BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, src);
+    BruSpencerThread *st_dst =
+        (BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, dst);
+
+    st_dst->sp = st_src->sp;
+    st_dst->pc = st_src->pc;
 }
 
-static BruThread *spencer_thread_manager_next_thread(void *impl)
+static int spencer_thread_manager_check_thread_eq(BruThreadManager *tm,
+                                                  const BruThread  *t1,
+                                                  const BruThread  *t2)
 {
-    return spencer_scheduler_next(
-        ((BruSpencerThreadManager *) impl)->scheduler);
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    BruSpencerThread          *st1 =
+        (BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, t1);
+    BruSpencerThread *st2 =
+        (BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, t2);
+
+    return st1->pc == st2->pc && st1->sp == st2->sp;
 }
 
-static void spencer_thread_manager_notify_thread_match(void *impl, BruThread *t)
+static void spencer_thread_manager_schedule_thread(BruThreadManager *tm,
+                                                   BruThread        *t)
 {
-    // empty the scheduler
-    spencer_thread_manager_kill_thread(impl, t);
-    spencer_thread_manager_reset(impl);
-}
-
-static BruThread *spencer_thread_manager_clone_thread(void            *impl,
-                                                      const BruThread *t)
-{
-    BruSpencerThreadManager *self = impl;
-    BruSpencerThread        *st   = spencer_thread_manager_get_thread(self);
-
-    spencer_thread_manager_copy_thread(self, st, (BruSpencerThread *) t);
-
-    return (BruThread *) st;
-}
-
-static void spencer_thread_manager_kill_thread(void *impl, BruThread *t)
-{
-    bru_thread_pool_add_thread(((BruSpencerThreadManager *) impl)->pool, t);
-}
-
-static const bru_byte_t *spencer_thread_pc(void *impl, const BruThread *t)
-{
-    BRU_UNUSED(impl);
-    return t->pc;
+    bru_scheduler_schedule(
+        ((BruSpencerThreadManager *) bru_vt_curr_impl(tm))->scheduler, t);
 }
 
 static void
-spencer_thread_set_pc(void *impl, BruThread *t, const bru_byte_t *pc)
+spencer_thread_manager_schedule_thread_in_order(BruThreadManager *tm,
+                                                BruThread        *t)
 {
-    BRU_UNUSED(impl);
-    t->pc = pc;
+    bru_scheduler_schedule_in_order(
+        ((BruSpencerThreadManager *) bru_vt_curr_impl(tm))->scheduler, t);
 }
 
-static const char *spencer_thread_sp(void *impl, const BruThread *t)
+static BruThread *spencer_thread_manager_next_thread(BruThreadManager *tm)
 {
-    BRU_UNUSED(impl);
-    return t->sp;
+    return bru_scheduler_next(
+        ((BruSpencerThreadManager *) bru_vt_curr_impl(tm))->scheduler);
 }
 
-static void spencer_thread_inc_sp(void *impl, BruThread *t)
+static void spencer_thread_manager_notify_thread_match(BruThreadManager *tm,
+                                                       BruThread        *t)
 {
-    BRU_UNUSED(impl);
-    t->sp = stc_utf8_str_next(t->sp);
+    // empty the scheduler
+    bru_thread_manager_kill_thread(tm, t);
+    bru_thread_manager_reset(tm);
 }
 
-static bru_cntr_t
-spencer_thread_counter(void *impl, const BruThread *t, bru_len_t idx)
+static BruThread *spencer_thread_manager_clone_thread(BruThreadManager *tm,
+                                                      const BruThread  *t)
 {
-    BRU_UNUSED(impl);
-    return ((BruSpencerThread *) t)->counters[idx];
+    BruThread *clone;
+
+    bru_thread_manager_alloc_thread(tm, clone);
+    bru_thread_manager_copy_thread(tm, t, clone);
+
+    return clone;
 }
 
-static void spencer_thread_set_counter(void      *impl,
-                                       BruThread *t,
-                                       bru_len_t  idx,
-                                       bru_cntr_t val)
+static void spencer_thread_manager_kill_thread(BruThreadManager *tm,
+                                               BruThread        *t)
 {
-    BRU_UNUSED(impl);
-    ((BruSpencerThread *) t)->counters[idx] = val;
+    bru_thread_manager_free_thread(tm, t);
 }
 
-static void spencer_thread_inc_counter(void *impl, BruThread *t, bru_len_t idx)
+static const bru_byte_t *spencer_thread_manager_pc(BruThreadManager *tm,
+                                                   const BruThread  *t)
 {
-    BRU_UNUSED(impl);
-    ((BruSpencerThread *) t)->counters[idx]++;
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    const BruSpencerThread    *st =
+        (const BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    return st->pc;
 }
 
-static void *
-spencer_thread_memory(void *impl, const BruThread *t, bru_len_t idx)
+static void spencer_thread_manager_set_pc(BruThreadManager *tm,
+                                          BruThread        *t,
+                                          const bru_byte_t *pc)
 {
-    BRU_UNUSED(impl);
-    return ((BruSpencerThread *) t)->memory + idx;
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    BruSpencerThread          *st =
+        (BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    st->pc = pc;
 }
 
-static void spencer_thread_set_memory(void       *self,
-                                      BruThread  *t,
-                                      bru_len_t   idx,
-                                      const void *val,
-                                      size_t      size)
+static const char *spencer_thread_manager_sp(BruThreadManager *tm,
+                                             const BruThread  *t)
 {
-    BRU_UNUSED(self);
-    memcpy(((BruSpencerThread *) t)->memory + idx, val, size);
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    const BruSpencerThread    *st =
+        (const BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    return st->sp;
 }
 
-static const char *const *
-spencer_thread_captures(void *impl, const BruThread *t, bru_len_t *ncaptures)
+static void spencer_thread_manager_inc_sp(BruThreadManager *tm, BruThread *t)
 {
-    BRU_UNUSED(impl);
-    if (ncaptures)
-        *ncaptures = stc_slice_len(((BruSpencerThread *) t)->captures) / 2;
-    return ((BruSpencerThread *) t)->captures;
-}
-
-static void spencer_thread_set_capture(void *impl, BruThread *t, bru_len_t idx)
-{
-    BRU_UNUSED(impl);
-    ((BruSpencerThread *) t)->captures[idx] = ((BruSpencerThread *) t)->sp;
-}
-
-/* --- SpencerScheduler function definitions -------------------------------- */
-
-static BruSpencerScheduler *spencer_scheduler_new(void)
-{
-    BruSpencerScheduler *ss = malloc(sizeof(*ss));
-
-    ss->in_order_idx = 0;
-    ss->active       = NULL;
-    stc_vec_default_init(ss->stack); // NOLINT(bugprone-sizeof-expression)
-
-    return ss;
-}
-
-static void spencer_scheduler_schedule(BruSpencerScheduler *self,
-                                       BruThread           *thread)
-{
-    self->in_order_idx = stc_vec_len_unsafe(self->stack) + 1;
-    if (self->active)
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_push_back(self->stack, thread);
-    else
-        self->active = thread;
-}
-
-static void spencer_scheduler_schedule_in_order(BruSpencerScheduler *self,
-                                                BruThread           *thread)
-{
-    size_t len = stc_vec_len_unsafe(self->stack);
-
-    if (self->in_order_idx > len) {
-        spencer_scheduler_schedule(self, thread);
-        self->in_order_idx = len;
-    } else if (self->in_order_idx == len) {
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_push_back(self->stack, thread);
-    } else {
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_insert(self->stack, self->in_order_idx, thread);
-    }
-}
-
-static BruThread *spencer_scheduler_next(BruSpencerScheduler *self)
-{
-    BruSpencerThread *thread = (BruSpencerThread *) self->active;
-
-    self->in_order_idx = stc_vec_len_unsafe(self->stack) + 1;
-    self->active       = NULL;
-    if (thread == NULL && !stc_vec_is_empty(self->stack))
-        thread = (BruSpencerThread *) stc_vec_pop(self->stack);
-
-    return (BruThread *) thread;
-}
-
-static void spencer_scheduler_free(BruSpencerScheduler *self)
-{
-    stc_vec_free(self->stack);
-    free(self);
-}
-
-/* --- Helper functions ----------------------------------------------------- */
-
-static BruSpencerThread *
-spencer_thread_manager_new_thread(BruSpencerThreadManager *self)
-{
-    BruSpencerThread *st = malloc(sizeof(*st));
-
-    stc_slice_init(st->memory, self->memory_len);
-    stc_slice_init(st->captures, 2 * self->ncaptures);
-    stc_slice_init(st->counters, self->ncounters);
-
-    return st;
-}
-
-static void spencer_thread_manager_copy_thread(BruSpencerThreadManager *self,
-                                               BruSpencerThread        *dst,
-                                               const BruSpencerThread  *src)
-{
-    dst->pc = src->pc;
-    dst->sp = src->sp;
-    memcpy(dst->memory, src->memory, sizeof(*dst->memory) * self->memory_len);
-    memcpy(dst->captures, src->captures,
-           sizeof(*dst->captures) * 2 * self->ncaptures);
-    memcpy(dst->counters, src->counters,
-           sizeof(*dst->counters) * self->ncounters);
-}
-
-static BruSpencerThread *
-spencer_thread_manager_get_thread(BruSpencerThreadManager *self)
-{
-    BruSpencerThread *st =
-        (BruSpencerThread *) bru_thread_pool_get_thread(self->pool);
-
-    if (!st) st = spencer_thread_manager_new_thread(self);
-
-    return st;
-}
-
-static void spencer_thread_free(BruThread *t)
-{
-    BruSpencerThread *st = (BruSpencerThread *) t;
-
-    stc_slice_free(st->memory);
-    stc_slice_free(st->counters);
-    stc_slice_free(st->captures);
-    free(st);
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    BruSpencerThread          *st =
+        (BruSpencerThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    st->sp = stc_utf8_str_next(st->sp);
 }

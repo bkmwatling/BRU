@@ -106,17 +106,19 @@ int bru_srvm_matches(BruThreadManager *thread_manager,
 
 static int srvm_run(BruSRVM *self, const char *text)
 {
-    void             *null    = NULL;
-    int               matched = FALSE, cond;
-    const BruProgram *prog    = self->program;
-    BruThreadManager *tm      = self->thread_manager;
-    void             *thread, *t;
-    const bru_byte_t *pc;
-    const char       *sp, *codepoint, *matched_sp;
-    bru_len_t         ncaptures, k;
-    bru_offset_t      x, y;
-    bru_cntr_t        cval, n;
-    BruIntervals     *intervals;
+    void              *null    = NULL;
+    int                matched = FALSE, cond;
+    const BruProgram  *prog    = self->program;
+    BruThreadManager  *tm      = self->thread_manager;
+    void              *thread, *t;
+    const bru_byte_t  *pc;
+    const char        *sp, *codepoint, *matched_sp;
+    const char *const *captures;
+    char             **epsset_marker;
+    bru_len_t          ncaptures, k;
+    bru_offset_t       x, y;
+    bru_cntr_t         cval, n;
+    BruIntervals      *intervals;
 
     if (self->matching_finished) return FALSE;
 
@@ -124,14 +126,14 @@ static int srvm_run(BruSRVM *self, const char *text)
                                         self->program->nmemo_insts, text);
     do {
         bru_thread_manager_init(tm, self->program->insts, self->curr_sp);
-        while ((thread = bru_thread_manager_next_thread(tm))) {
-            if ((sp = bru_thread_manager_sp(tm, thread)) > text &&
+        while (bru_thread_manager_next_thread(tm, thread)) {
+            if (bru_thread_manager_sp(tm, sp, thread) > text &&
                 sp[-1] == '\0') {
                 bru_thread_manager_kill_thread(tm, thread);
                 continue;
             }
 
-            pc = bru_thread_manager_pc(tm, thread);
+            bru_thread_manager_pc(tm, pc, thread);
             switch (*pc++) {
                 case BRU_NOOP:
                     bru_thread_manager_set_pc(tm, thread, pc);
@@ -142,10 +144,10 @@ static int srvm_run(BruSRVM *self, const char *text)
                     matched_sp = sp;
                     matched    = 1;
                     if (self->captures)
-                        memcpy(
-                            self->captures,
-                            bru_thread_manager_captures(tm, thread, &ncaptures),
-                            2 * self->ncaptures * sizeof(char *));
+                        memcpy(self->captures,
+                               bru_thread_manager_captures(tm, captures, thread,
+                                                           &ncaptures),
+                               2 * self->ncaptures * sizeof(char *));
                     bru_thread_manager_notify_thread_match(tm, thread);
                     break;
 
@@ -169,7 +171,7 @@ static int srvm_run(BruSRVM *self, const char *text)
 
                 case BRU_MEMO:
                     BRU_MEMREAD(k, pc, bru_len_t);
-                    if (bru_thread_manager_memoise(tm, thread, k)) {
+                    if (bru_thread_manager_memoise(tm, cond, thread, k)) {
                         bru_thread_manager_set_pc(tm, thread, pc);
                         bru_thread_manager_schedule_thread(tm, thread);
                     } else {
@@ -214,7 +216,7 @@ static int srvm_run(BruSRVM *self, const char *text)
                     break;
 
                 case BRU_SPLIT:
-                    t = bru_thread_manager_clone_thread(tm, thread);
+                    bru_thread_manager_clone_thread(tm, t, thread);
                     BRU_MEMREAD(x, pc, bru_offset_t);
                     bru_thread_manager_set_pc(tm, thread, pc + x);
                     BRU_MEMREAD(y, pc, bru_offset_t);
@@ -232,7 +234,7 @@ static int srvm_run(BruSRVM *self, const char *text)
                     // k > 1 to reuse current thread for last offset
                     for (; k > 1; k--) {
                         BRU_MEMREAD(x, pc, bru_offset_t);
-                        t = bru_thread_manager_clone_thread(tm, thread);
+                        bru_thread_manager_clone_thread(tm, t, thread);
                         bru_thread_manager_set_pc(tm, t, pc + x);
                         bru_thread_manager_schedule_thread_in_order(tm, t);
                     }
@@ -260,8 +262,8 @@ static int srvm_run(BruSRVM *self, const char *text)
 
                 case BRU_EPSCHK:
                     BRU_MEMREAD(k, pc, bru_len_t);
-                    if (*(char **) bru_thread_manager_memory(tm, thread, k) <
-                        sp) {
+                    if (*bru_thread_manager_memory(tm, epsset_marker, thread,
+                                                   k) < sp) {
                         bru_thread_manager_set_pc(tm, thread, pc);
                         bru_thread_manager_schedule_thread(tm, thread);
                     } else {
@@ -280,7 +282,7 @@ static int srvm_run(BruSRVM *self, const char *text)
                 case BRU_CMP:
                     BRU_MEMREAD(k, pc, bru_len_t);
                     BRU_MEMREAD(n, pc, bru_cntr_t);
-                    cval = bru_thread_manager_counter(tm, thread, k);
+                    bru_thread_manager_counter(tm, cval, thread, k);
                     switch (*pc++) {
                         case BRU_LT: cond = (cval < n); break;
                         case BRU_LE: cond = (cval <= n); break;
@@ -307,7 +309,7 @@ static int srvm_run(BruSRVM *self, const char *text)
                     break;
 
                 case BRU_ZWA:
-                    t = bru_thread_manager_clone_thread(tm, thread);
+                    bru_thread_manager_clone_thread(tm, t, thread);
                     BRU_MEMREAD(x, pc, bru_offset_t);
                     bru_thread_manager_set_pc(tm, t, pc + x);
                     BRU_MEMREAD(y, pc, bru_offset_t);
@@ -332,7 +334,7 @@ static int srvm_run(BruSRVM *self, const char *text)
             }
         }
 
-        if (bru_thread_manager_done_exec(tm)) {
+        if (bru_thread_manager_done_exec(tm, cond)) {
             self->matching_finished = TRUE;
             break;
         }
