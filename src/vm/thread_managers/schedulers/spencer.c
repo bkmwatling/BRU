@@ -19,7 +19,7 @@ static int  spencer_scheduler_has_next(const void *impl);
 static BruThread *spencer_scheduler_next(void *impl);
 static void       spencer_scheduler_free(void *impl);
 
-BruScheduler *bru_spencer_scheduler_new()
+BruScheduler *bru_spencer_scheduler_new(void)
 {
     BruSpencerScheduler *ss = malloc(sizeof(*ss));
     BruScheduler        *s  = malloc(sizeof(*s));

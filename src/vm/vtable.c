@@ -1,13 +1,13 @@
 #include "vtable.h"
 
-typedef void (*fptr)();
+typedef void (*_bru_fptr)(void);
 
 // Below macro checks if the function pointer is NULL or not
 // by casting the offset into the byte array to a _pointer_ to a function
 // then dereferencing this to get the function address itself.
 #define _bru_found_func(vt, func_offset)   \
     ((vt)->i < stc_vec_len((vt)->table) && \
-     *((fptr *) ((vt)->table[(vt)->i] + func_offset)))
+     *((_bru_fptr *) ((vt)->table[(vt)->i] + func_offset)))
 
 // VTable of byte arrays
 typedef BruVTable_of(bru_byte_t) _bru_vtable;
