@@ -1,0 +1,341 @@
+#include <stdlib.h>
+#include <string.h>
+
+#include "../../stc/fatp/slice.h"
+#include "../../stc/fatp/vec.h"
+
+#include "../../utils.h"
+#include "lockstep.h"
+#include "schedulers/lockstep.h"
+#include "thread_manager.h"
+#include "thread_pool.h"
+#include "threads/lockstep.h"
+
+/* --- Type definitions ----------------------------------------------------- */
+
+typedef struct bru_thompson_thread_manager {
+    BruScheduler     *scheduler; /**< Thompson scheduler for scheduling   */
+    BruThreadPool    *pool;      /**< the pool of threads                 */
+    const bru_byte_t *start_pc;  /**< the starting PC for new threads     */
+    const char       *sp;        /**< the string pointer for lockstep     */
+    int               matched;   /**< whether a match has been found      */
+
+    // for spawning threads
+    // bru_len_t ncounters;  /**< number counter values to spawn threads with */
+    // bru_len_t memory_len; /**< number bytes allocated for thread memory */
+    // bru_len_t ncaptures;  /**< number captures to allocate memory in threads
+    // */
+} BruThompsonThreadManager;
+
+/* --- ThompsonThreadManager function prototypes ---------------------------- */
+
+static void thompson_thread_manager_init(void             *impl,
+                                         const bru_byte_t *start_pc,
+                                         const char       *start_sp);
+static void thompson_thread_manager_reset(void *impl);
+static void thompson_thread_manager_free(void *impl);
+static int  thompson_thread_manager_done_exec(void *impl);
+
+static void thompson_thread_manager_schedule_new_thread(void             *impl,
+                                                        const bru_byte_t *pc,
+                                                        const char       *sp);
+static void thompson_thread_manager_schedule_thread(void *impl, BruThread *t);
+#define thompson_thread_manager_schedule_thread_in_order \
+    thompson_thread_manager_schedule_thread
+static BruThread *thompson_thread_manager_next_thread(void *impl);
+static void       thompson_thread_manager_notify_thread_match(void      *impl,
+                                                              BruThread *t);
+static BruThread *thompson_thread_manager_clone_thread(void            *impl,
+                                                       const BruThread *t);
+static void       thompson_thread_manager_kill_thread(void *impl, BruThread *t);
+
+static const bru_byte_t *thompson_thread_pc(void *impl, const BruThread *t);
+static void
+thompson_thread_set_pc(void *impl, BruThread *t, const bru_byte_t *pc);
+static const char *thompson_thread_sp(void *impl, const BruThread *t);
+static void        thompson_thread_inc_sp(void *impl, BruThread *t);
+// static bru_cntr_t
+// thompson_thread_counter(void *impl, const BruThread *t, bru_len_t idx);
+// static void thompson_thread_set_counter(void      *impl,
+//                                         BruThread *t,
+//                                         bru_len_t  idx,
+//                                         bru_cntr_t val);
+// static void
+// thompson_thread_inc_counter(void *impl, BruThread *t, bru_len_t idx);
+// static void *
+// thompson_thread_memory(void *impl, const BruThread *t, bru_len_t idx);
+// static void thompson_thread_set_memory(void       *impl,
+//                                        BruThread  *t,
+//                                        bru_len_t   idx,
+//                                        const void *val,
+//                                        size_t      size);
+// static const char *const *
+// thompson_thread_captures(void *impl, const BruThread *t, bru_len_t
+// *ncaptures); static void thompson_thread_set_capture(void *impl, BruThread
+// *t, bru_len_t idx);
+
+/* --- Helper function prototypes ------------------------------------------- */
+
+static BruThread             *
+thompson_thread_manager_new_thread(BruThompsonThreadManager *self);
+static void thompson_thread_manager_copy_thread(BruThompsonThreadManager *self,
+                                                BruThread                *dst,
+                                                const BruThread          *src);
+static BruThread             *
+thompson_thread_manager_get_thread(BruThompsonThreadManager *self);
+static void thompson_thread_free(BruThread *t);
+
+/* --- ThompsonThreadManager function definitions --------------------------- */
+
+BruThreadManager *bru_thompson_thread_manager_new(bru_len_t ncounters,
+                                                  bru_len_t memory_len,
+                                                  bru_len_t ncaptures,
+                                                  FILE     *logfile)
+{
+    BruThreadManager         *tm  = malloc(sizeof(*tm));
+    BruThompsonThreadManager *ttm = malloc(sizeof(*ttm));
+
+    ttm->scheduler = bru_lockstep_scheduler_new();
+    ttm->pool      = bru_thread_pool_new(logfile);
+    // ttm->ncounters  = ncounters;
+    // ttm->memory_len = memory_len;
+    // ttm->ncaptures  = ncaptures;
+
+    BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(tm, thompson);
+
+    // // TODO: create thread managers for below optional implementations
+    // tm->counter     = thompson_thread_counter;
+    // tm->set_counter = thompson_thread_set_counter;
+    // tm->inc_counter = thompson_thread_inc_counter;
+    // tm->memory      = thompson_thread_memory;
+    // tm->set_memory  = thompson_thread_set_memory;
+    // tm->captures    = thompson_thread_captures;
+    // tm->set_capture = thompson_thread_set_capture;
+    // // opt out of memoisation
+    // tm->init_memoisation = bru_thread_manager_init_memoisation_noop;
+    // tm->memoise          = bru_thread_manager_memoise_noop;
+    BRU_THREAD_MANAGER_SET_OPTIONAL_FUNCS_NOOP(tm);
+
+    tm->impl = ttm;
+
+    return tm;
+}
+
+static void thompson_thread_manager_init(void             *impl,
+                                         const bru_byte_t *start_pc,
+                                         const char       *start_sp)
+{
+    BruThompsonThreadManager *self = impl;
+
+    self->start_pc = start_pc;
+    self->sp       = start_sp;
+    self->matched  = FALSE;
+    // self->scheduler->in_lockstep = FALSE;
+
+    thompson_thread_manager_schedule_new_thread(impl, start_pc, start_sp);
+}
+
+static void thompson_thread_manager_reset(void *impl)
+{
+    BruThread    *t;
+    BruScheduler *ts = ((BruThompsonThreadManager *) impl)->scheduler;
+
+    while ((t = bru_scheduler_next(ts)))
+        thompson_thread_manager_kill_thread(impl, t);
+}
+
+static void thompson_thread_manager_free(void *impl)
+{
+    BruThompsonThreadManager *self = impl;
+
+    thompson_thread_manager_reset(impl);
+    bru_scheduler_free(self->scheduler);
+    bru_thread_pool_free(self->pool, thompson_thread_free);
+    free(impl);
+}
+
+static int thompson_thread_manager_done_exec(void *impl)
+{
+    return *((BruThompsonThreadManager *) impl)->sp == '\0';
+}
+
+static void thompson_thread_manager_schedule_new_thread(void             *impl,
+                                                        const bru_byte_t *pc,
+                                                        const char       *sp)
+{
+    BruThompsonThreadManager *self = impl;
+    BruThread                *tt   = thompson_thread_manager_get_thread(self);
+
+    bru_thread_init(tt, pc, sp);
+    // memset(tt->counters, 0, sizeof(*tt->counters) * self->ncounters);
+    // memset(tt->memory, 0, sizeof(*tt->memory) * self->memory_len);
+    // memset(tt->captures, 0, sizeof(*tt->captures) * 2 * self->ncaptures);
+
+    thompson_thread_manager_schedule_thread(impl, (BruThread *) tt);
+}
+
+static void thompson_thread_manager_schedule_thread(void *impl, BruThread *t)
+{
+    if (!bru_scheduler_schedule(((BruThompsonThreadManager *) impl)->scheduler,
+                                t))
+        thompson_thread_manager_kill_thread(impl, t);
+}
+
+static BruThread *thompson_thread_manager_next_thread(void *impl)
+{
+    BruThompsonThreadManager *self = impl;
+    size_t                    i, len;
+
+    if (bru_lockstep_scheduler_done_step(self->scheduler) && *self->sp &&
+        (!self->matched || bru_scheduler_has_next(self->scheduler))) {
+        self->sp = stc_utf8_str_next(self->sp);
+        bru_lockstep_scheduler_update_sp(self->scheduler, self->sp);
+        if (!self->matched)
+            thompson_thread_manager_schedule_new_thread(impl, self->start_pc,
+                                                        self->sp);
+    }
+
+    return bru_scheduler_next(self->scheduler);
+}
+
+static void thompson_thread_manager_notify_thread_match(void      *impl,
+                                                        BruThread *t)
+{
+    BruThompsonThreadManager *self = impl;
+    BruScheduler             *ts   = self->scheduler;
+    BruThread               **lower_priority_threads;
+    size_t                    i, len;
+
+    self->matched = TRUE;
+    thompson_thread_manager_kill_thread(impl, t);
+
+    if ((lower_priority_threads =
+             bru_lockstep_scheduler_remove_low_priority_threads(ts->impl))) {
+        len = stc_vec_len(lower_priority_threads);
+        for (i = 0; i < len; i++)
+            thompson_thread_manager_kill_thread(impl,
+                                                lower_priority_threads[i]);
+        stc_vec_free(lower_priority_threads);
+    }
+}
+
+static BruThread *thompson_thread_manager_clone_thread(void            *impl,
+                                                       const BruThread *t)
+{
+    BruThompsonThreadManager *self = impl;
+    BruThread                *tt   = thompson_thread_manager_get_thread(self);
+
+    bru_thread_copy(t, tt);
+
+    return tt;
+}
+
+static void thompson_thread_manager_kill_thread(void *impl, BruThread *t)
+{
+    BruThompsonThreadManager *self = impl;
+    bru_thread_pool_add_thread(self->pool, t);
+}
+
+// static bru_cntr_t
+// thompson_thread_counter(void *impl, const BruThread *t, bru_len_t idx)
+// {
+//     BRU_UNUSED(impl);
+//     return ((BruThompsonThread *) t)->counters[idx];
+// }
+//
+// static void thompson_thread_set_counter(void      *impl,
+//                                         BruThread *t,
+//                                         bru_len_t  idx,
+//                                         bru_cntr_t val)
+// {
+//     BRU_UNUSED(impl);
+//     ((BruThompsonThread *) t)->counters[idx] = val;
+// }
+//
+// static void thompson_thread_inc_counter(void *impl, BruThread *t, bru_len_t
+// idx)
+// {
+//     BRU_UNUSED(impl);
+//     ((BruThompsonThread *) t)->counters[idx]++;
+// }
+//
+// static void *
+// thompson_thread_memory(void *impl, const BruThread *t, bru_len_t idx)
+// {
+//     BRU_UNUSED(impl);
+//     return ((BruThompsonThread *) t)->memory + idx;
+// }
+//
+// static void thompson_thread_set_memory(void       *impl,
+//                                        BruThread  *t,
+//                                        bru_len_t   idx,
+//                                        const void *val,
+//                                        size_t      size)
+// {
+//     BRU_UNUSED(impl);
+//     memcpy(((BruThompsonThread *) t)->memory + idx, val, size);
+// }
+//
+// static const char *const *
+// thompson_thread_captures(void *impl, const BruThread *t, bru_len_t
+// *ncaptures)
+// {
+//     BRU_UNUSED(impl);
+//     if (ncaptures)
+//         *ncaptures = stc_slice_len(((BruThompsonThread *) t)->captures) / 2;
+//     return ((BruThompsonThread *) t)->captures;
+// }
+//
+// static void thompson_thread_set_capture(void *impl, BruThread *t, bru_len_t
+// idx)
+// {
+//     BRU_UNUSED(impl);
+//     ((BruThompsonThread *) t)->captures[idx] = t->sp();
+// }
+
+/* --- Helper functions ----------------------------------------------------- */
+
+static BruThread *
+thompson_thread_manager_new_thread(BruThompsonThreadManager *self)
+{
+    BruThread *tt = bru_lockstep_thread_new(self->start_pc, self->sp);
+
+    // stc_slice_init(tt->memory, self->memory_len);
+    // stc_slice_init(tt->captures, 2 * self->ncaptures);
+    // stc_slice_init(tt->counters, self->ncounters);
+
+    return tt;
+}
+
+static void thompson_thread_manager_copy_thread(BruThompsonThreadManager *self,
+                                                BruThompsonThread        *dst,
+                                                const BruThompsonThread  *src)
+{
+    dst->pc = src->pc;
+    dst->sp = src->sp;
+    // memcpy(dst->memory, src->memory, sizeof(*dst->memory) *
+    // self->memory_len); memcpy(dst->captures, src->captures,
+    //        sizeof(*dst->captures) * 2 * self->ncaptures);
+    // memcpy(dst->counters, src->counters,
+    //        sizeof(*dst->counters) * self->ncounters);
+}
+
+static BruThompsonThread *
+thompson_thread_manager_get_thread(BruThompsonThreadManager *self)
+{
+    BruThread *tt = bru_thread_pool_get_thread(self->pool);
+
+    if (!tt) tt = thompson_thread_manager_new_thread(self);
+
+    return tt;
+}
+
+static void thompson_thread_free(BruThread *t)
+{
+    BruThompsonThread *tt = (BruThompsonThread *) t;
+
+    // stc_slice_free(tt->memory);
+    // stc_slice_free(tt->counters);
+    // stc_slice_free(tt->captures);
+    free(tt);
+}

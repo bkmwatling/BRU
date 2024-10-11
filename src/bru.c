@@ -12,9 +12,13 @@
 // NOTE: deprecated/not useful, see all_matches ThreadManager
 // #include "vm/thread_managers/all_matches.h"
 #include "vm/thread_managers/benchmark.h"
+#include "vm/thread_managers/captures.h"
+#include "vm/thread_managers/counters.h"
 #include "vm/thread_managers/lockstep.h"
 #include "vm/thread_managers/memoisation.h"
+#include "vm/thread_managers/memory.h"
 #include "vm/thread_managers/spencer.h"
+#include "vm/thread_managers/thread_pool.h"
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -307,11 +311,25 @@ static int match(BruOptions *options)
     }
 
     if (options->scheduler_type == SCH_SPENCER)
-        thread_manager = bru_spencer_thread_manager_new(
-            0, prog->thread_mem_len, prog->ncaptures, options->logfile);
+        thread_manager = bru_spencer_thread_manager_new();
     else if (options->scheduler_type == SCH_LOCKSTEP)
-        thread_manager = bru_thompson_thread_manager_new(
-            0, prog->thread_mem_len, prog->ncaptures, options->logfile);
+        thread_manager = bru_thompson_thread_manager_new();
+
+    if (prog->ncaptures)
+        thread_manager = bru_thread_manager_with_captures_new(thread_manager,
+                                                              prog->ncaptures);
+    // TODO
+    // if (prog->counters)
+    //     thread_manager = bru_thread_manager_with_counters_new(thread_manager,
+    //                                                           prog->counters);
+
+    if (prog->thread_mem_len)
+        thread_manager = bru_thread_manager_with_memory_new(
+            thread_manager, prog->thread_mem_len);
+
+    // TODO: add command line flag for thread pool
+    thread_manager =
+        bru_thread_manager_with_pool_new(thread_manager, options->logfile);
 
     if (options->compiler_opts.memo_scheme != BRU_MS_NONE)
         thread_manager = bru_memoised_thread_manager_new(thread_manager);
@@ -359,8 +377,8 @@ int main(int argc, const char **argv)
 {
     int           exit_code;
     StcArgParser *argparser;
-    BruOptions    options                        = { 0 };
-    static int    (*subcommands[])(BruOptions *) = { parse, compile, match };
+    BruOptions    options                     = { 0 };
+    static int (*subcommands[])(BruOptions *) = { parse, compile, match };
 
     argparser = setup_argparser(&options);
     stc_argparser_parse(argparser, argc, argv);

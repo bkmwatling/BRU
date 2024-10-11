@@ -94,6 +94,7 @@ ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
 ForEachMacros:
   - FOREACH
+  - FOREACH_REV
   - Q_FOREACH
   - BOOST_FOREACH
 IfMacros:
