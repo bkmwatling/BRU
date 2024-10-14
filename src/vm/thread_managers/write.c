@@ -1,22 +1,19 @@
 #include "write.h"
 #include <string.h>
 
-/* --- Data structures ------------------------------------------------------ */
+/* --- Preprocessor directives ---------------------------------------------- */
 
-typedef struct {
-    bru_byte_t *tape; /**< stc_vec of bytes                                   */
-} BruThreadWithWritableTape;
+#define WRITABLE_THREAD_SIZE (sizeof(StcVecHeader) + sizeof(bru_byte_t *))
+#define WRITABLE_THREAD_FROM_INSTANCE(instance, thread) \
+    (BRU_THREAD_FROM_INSTANCE(instance, thread) + sizeof(StcVecHeader))
 
 /* --- Function prototypes -------------------------------------------------- */
 
-static void thread_init_with_write(BruThreadManager *tm,
-                                   BruThread        *thread,
-                                   const bru_byte_t *pc,
-                                   const char       *sp);
-static void thread_copy_with_write(BruThreadManager *tm,
-                                   const BruThread  *src,
-                                   BruThread        *dst);
-static void thread_kill_with_write(BruThreadManager *tm, BruThread *thread);
+static BruThread *thread_alloc_with_write(BruThreadManager *tm);
+static void       thread_copy_with_write(BruThreadManager *tm,
+                                         const BruThread  *src,
+                                         BruThread        *dst);
+static void thread_free_with_write(BruThreadManager *tm, BruThread *thread);
 static bru_byte_t *thread_bytes(BruThreadManager *tm, BruThread *thread);
 static void
 thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte);
@@ -29,15 +26,15 @@ BruThreadManager *bru_thread_manager_with_write_new(BruThreadManager *tm)
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi   = bru_thread_manager_interface_new(
-        NULL, sizeof(BruThreadWithWritableTape) + super->_thread_size);
+    tmi   = bru_thread_manager_interface_new(NULL, WRITABLE_THREAD_SIZE +
+                                                       super->_thread_size);
 
     // store functions
-    tmi->init_thread = thread_init_with_write;
-    tmi->copy_thread = thread_copy_with_write;
-    tmi->kill_thread = thread_kill_with_write;
-    tmi->bytes       = thread_bytes;
-    tmi->write_byte  = thread_write_byte;
+    tmi->alloc_thread = thread_alloc_with_write;
+    tmi->copy_thread  = thread_copy_with_write;
+    tmi->free_thread  = thread_free_with_write;
+    tmi->bytes        = thread_bytes;
+    tmi->write_byte   = thread_write_byte;
 
     // register extension
     // NOLINTNEXTLINE(bugprone-sizeof-expression)
@@ -48,17 +45,17 @@ BruThreadManager *bru_thread_manager_with_write_new(BruThreadManager *tm)
 
 /* --- BruCapturesManager function definitions ------------------------------ */
 
-static void thread_init_with_write(BruThreadManager *tm,
-                                   BruThread        *thread,
-                                   const bru_byte_t *pc,
-                                   const char       *sp)
+static BruThread *thread_alloc_with_write(BruThreadManager *tm)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithWritableTape *twb =
-        (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruThread                 *thread =
+        bru_vt_call_super_function(tm, tmi, thread, alloc_thread);
+    bru_byte_t **twb =
+        (bru_byte_t **) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
 
-    stc_vec_default_init(twb->tape);
-    bru_vt_call_super_procedure(tm, tmi, init_thread, thread, pc, sp);
+    stc_vec_default_init(*twb);
+
+    return thread;
 }
 
 static void thread_copy_with_write(BruThreadManager *tm,
@@ -66,48 +63,46 @@ static void thread_copy_with_write(BruThreadManager *tm,
                                    BruThread        *dst)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithWritableTape *twb_src =
-        (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, src);
-    BruThreadWithWritableTape *twb_dst =
-        (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, dst);
-    size_t i, len_src = stc_vec_len(twb_src->tape);
+    bru_byte_t               **twb_src =
+        (bru_byte_t **) WRITABLE_THREAD_FROM_INSTANCE(tmi, src);
+    bru_byte_t **twb_dst =
+        (bru_byte_t **) WRITABLE_THREAD_FROM_INSTANCE(tmi, dst);
+    size_t i, len_src = stc_vec_len(*twb_src);
 
-    stc_vec_clear(twb_dst);
-    for (i = 0; i < len_src; i++)
-        stc_vec_push_back(twb_dst->tape, twb_src->tape[i]);
+    stc_vec_clear(*twb_dst);
+    for (i = 0; i < len_src; i++) stc_vec_push_back(*twb_dst, (*twb_src)[i]);
     bru_vt_call_super_procedure(tm, tmi, copy_thread, src, dst);
 }
 
-static void thread_kill_with_write(BruThreadManager *tm, BruThread *thread)
+static void thread_free_with_write(BruThreadManager *tm, BruThread *thread)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithWritableTape *twb =
-        (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    bru_byte_t               **twb =
+        (bru_byte_t **) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
 
-    // TODO: use thread_free interface function instead of thread_kill?
-    stc_vec_free(twb->tape);
-    bru_vt_call_super_procedure(tm, tmi, kill_thread, thread);
+    stc_vec_free(*twb);
+    bru_vt_call_super_procedure(tm, tmi, free_thread, thread);
 }
 
 static void
 thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithWritableTape *twb =
-        (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    bru_byte_t               **twb =
+        (bru_byte_t **) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
 
-    stc_vec_push_back(twb->tape, byte);
+    stc_vec_push_back(*twb, byte);
 }
 
 static bru_byte_t *thread_bytes(BruThreadManager *tm, BruThread *thread)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithWritableTape *twb =
-        (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
-    size_t      tape_len = stc_vec_len(twb->tape);
+    bru_byte_t               **twb =
+        (bru_byte_t **) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
+    size_t      tape_len = stc_vec_len(*twb);
     bru_byte_t *bytes    = malloc(sizeof(*bytes) * (tape_len + 1));
 
-    memcpy(bytes, twb->tape, sizeof(*bytes) * (tape_len + 1));
+    memcpy(bytes, *twb, sizeof(*bytes) * (tape_len + 1));
     bytes[tape_len] = '\0';
 
     return bytes;

@@ -19,9 +19,9 @@ typedef struct {
 
 /* --- ThreadPool funtion prototypes ---------------------------------------- */
 
-static void thread_pool_free(BruThreadManager *tm);
+static void thread_pool_kill(BruThreadManager *tm);
 
-static BruThread *thread_pool_alloc_thread(BruThreadManager *tm);
+static BruThread *thread_pool_spawn_thread(BruThreadManager *tm);
 static void       thread_pool_kill_thread(BruThreadManager *tm, BruThread *t);
 static BruThread *thread_pool_clone_thread(BruThreadManager *tm,
                                            const BruThread  *t);
@@ -34,12 +34,12 @@ BruThreadManager *bru_thread_manager_with_pool_new(BruThreadManager *tm,
     BruThreadPoolThreadManager *pool = malloc(sizeof(*pool));
     BruThreadManagerInterface  *tmi, *super;
 
-    super = bru_vt_curr(tm);
-    tmi   = bru_thread_manager_interface_new(pool, super->_thread_size);
-    tmi->alloc_thread = thread_pool_alloc_thread;
+    super     = bru_vt_curr(tm);
+    tmi       = bru_thread_manager_interface_new(pool, super->_thread_size);
+    tmi->kill = thread_pool_kill;
+    tmi->spawn_thread = thread_pool_spawn_thread;
     tmi->clone_thread = thread_pool_clone_thread;
     tmi->kill_thread  = thread_pool_kill_thread;
-    tmi->free         = thread_pool_free;
 
     pool->pool    = NULL;
     pool->enabled = TRUE;
@@ -53,7 +53,7 @@ BruThreadManager *bru_thread_manager_with_pool_new(BruThreadManager *tm,
 
 /* --- Helper functions ----------------------------------------------------- */
 
-static void thread_pool_free(BruThreadManager *tm)
+static void thread_pool_kill(BruThreadManager *tm)
 {
     BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
@@ -64,7 +64,7 @@ static void thread_pool_free(BruThreadManager *tm)
 
     self->enabled = FALSE;
     while ((p = self->pool)) {
-        self->pool = p->next;
+        self->pool = self->pool->next;
 #ifdef BRU_BENCHMARK
         nthreads++;
 #endif /* BRU_BENCHMARK */
@@ -76,11 +76,8 @@ static void thread_pool_free(BruThreadManager *tm)
     fprintf(self->logfile, "TOTAL THREADS IN POOL: %zu\n", nthreads);
 #endif /* BRU_BENCHMARK */
 
-    bru_vt_shrink(tm);
-    bru_vt_call_procedure(tm, free);
-
     free(self);
-    bru_thread_manager_interface_free(tmi);
+    bru_vt_call_super_procedure(tm, tmi, kill);
 }
 
 static BruThread *bru_thread_pool_get_thread(BruThreadPoolThreadManager *self)
@@ -101,14 +98,14 @@ static BruThread *bru_thread_pool_get_thread(BruThreadPoolThreadManager *self)
 
 /* --- ThreadPool manager functions ----------------------------------------- */
 
-static BruThread *thread_pool_alloc_thread(BruThreadManager *tm)
+static BruThread *thread_pool_spawn_thread(BruThreadManager *tm)
 {
     BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
     BruThread                  *thread;
 
     if (!(thread = bru_thread_pool_get_thread(self)))
-        bru_vt_call_super_function(tm, tmi, thread, alloc_thread);
+        bru_vt_call_super_function(tm, tmi, thread, spawn_thread);
 
     return thread;
 }

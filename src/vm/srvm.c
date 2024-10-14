@@ -39,7 +39,7 @@ BruSRVM *bru_srvm_new(BruThreadManager *thread_manager, const BruProgram *prog)
 
 void bru_srvm_free(BruSRVM *self)
 {
-    bru_thread_manager_free(self->thread_manager);
+    bru_thread_manager_kill(self->thread_manager);
     free(self->captures);
     free(self);
 }
@@ -147,6 +147,7 @@ static int srvm_run(BruSRVM *self, const char *text)
                     bru_byte_t *out_tape;
                     bru_thread_manager_bytes(tm, out_tape, thread);
                     fprintf(stderr, "tape: %s\n", out_tape);
+                    if (out_tape) free(out_tape);
                     if (self->captures)
                         memcpy(self->captures,
                                bru_thread_manager_captures(tm, captures, thread,

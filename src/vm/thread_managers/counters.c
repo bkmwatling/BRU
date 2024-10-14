@@ -71,11 +71,9 @@ static void thread_manager_with_counters_free(BruThreadManager *tm)
     BruThreadManagerWithCounters *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface    *tmi  = bru_vt_curr(tm);
 
-    bru_vt_shrink(tm);
-    bru_vt_call_procedure(tm, free);
-
     free(self);
-    bru_thread_manager_interface_free(tmi);
+
+    bru_vt_call_super_procedure(tm, tmi, free);
 }
 
 static void thread_init_with_counters(BruThreadManager *tm,

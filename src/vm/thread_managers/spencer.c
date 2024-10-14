@@ -23,9 +23,11 @@ static void spencer_thread_manager_init(BruThreadManager *tm,
                                         const char       *start_sp);
 static void spencer_thread_manager_reset(BruThreadManager *tm);
 static void spencer_thread_manager_free(BruThreadManager *tm);
+static void spencer_thread_manager_kill(BruThreadManager *tm);
 static int  spencer_thread_manager_done_exec(BruThreadManager *tm);
 
 static BruThread *spencer_thread_manager_alloc_thread(BruThreadManager *tm);
+static BruThread *spencer_thread_manager_spawn_thread(BruThreadManager *tm);
 static void       spencer_thread_manager_init_thread(BruThreadManager *tm,
                                                      BruThread        *thread,
                                                      const bru_byte_t *pc,
@@ -48,6 +50,9 @@ static BruThread *spencer_thread_manager_clone_thread(BruThreadManager *tm,
                                                       const BruThread  *t);
 static void       spencer_thread_manager_kill_thread(BruThreadManager *tm,
                                                      BruThread        *t);
+static void       spencer_thread_manager_free_thread(BruThreadManager *tm,
+                                                     BruThread        *t);
+
 static const bru_byte_t *spencer_thread_manager_pc(BruThreadManager *tm,
                                                    const BruThread  *t);
 static void              spencer_thread_manager_set_pc(BruThreadManager *tm,
@@ -82,7 +87,13 @@ BruThreadManager *bru_spencer_thread_manager_new(void)
 
 static BruThread *spencer_thread_manager_alloc_thread(BruThreadManager *tm)
 {
-    return bru_thread_manager_malloc_thread(tm);
+    return _bru_thread_manager_malloc_thread(tm);
+}
+
+static BruThread *spencer_thread_manager_spawn_thread(BruThreadManager *tm)
+{
+    BruThread *_t;
+    return bru_vt_call_function(tm, _t, alloc_thread);
 }
 
 static void spencer_thread_manager_init(BruThreadManager *tm,
@@ -93,7 +104,7 @@ static void spencer_thread_manager_init(BruThreadManager *tm,
     BruThread               *thread;
 
     self->start_sp = start_sp;
-    bru_thread_manager_alloc_thread(tm, thread);
+    bru_vt_call_function(tm, thread, alloc_thread);
     bru_thread_manager_init_thread(tm, thread, start_pc, start_sp);
     bru_thread_manager_schedule_thread(tm, thread);
 }
@@ -109,13 +120,15 @@ static void spencer_thread_manager_reset(BruThreadManager *tm)
 
 static void spencer_thread_manager_free(BruThreadManager *tm)
 {
-    BruSpencerThreadManager   *self = bru_vt_curr_impl(tm);
-    BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
+    BruSpencerThreadManager *self = bru_vt_curr_impl(tm);
 
-    bru_vt_shrink(tm);
     bru_scheduler_free(self->scheduler);
     free(self);
-    bru_thread_manager_interface_free(tmi);
+}
+
+static void spencer_thread_manager_kill(BruThreadManager *tm)
+{
+    _bru_thread_manager_free(tm);
 }
 
 static int spencer_thread_manager_done_exec(BruThreadManager *tm)
@@ -198,7 +211,7 @@ static BruThread *spencer_thread_manager_clone_thread(BruThreadManager *tm,
 {
     BruThread *clone;
 
-    bru_thread_manager_alloc_thread(tm, clone);
+    bru_vt_call_function(tm, clone, alloc_thread);
     bru_thread_manager_copy_thread(tm, t, clone);
 
     return clone;
@@ -207,7 +220,13 @@ static BruThread *spencer_thread_manager_clone_thread(BruThreadManager *tm,
 static void spencer_thread_manager_kill_thread(BruThreadManager *tm,
                                                BruThread        *t)
 {
-    bru_thread_manager_free_thread(tm, t);
+    bru_vt_call_procedure(tm, free_thread, t);
+}
+
+static void spencer_thread_manager_free_thread(BruThreadManager *tm,
+                                               BruThread        *t)
+{
+    _bru_thread_manager_free_thread(tm, t);
 }
 
 static const bru_byte_t *spencer_thread_manager_pc(BruThreadManager *tm,

@@ -60,9 +60,6 @@ static void benchmark_thread_manager_free(BruThreadManager *tm)
     BruBenchmarkThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
 
-    bru_vt_shrink(tm);
-    bru_vt_call_procedure(tm, free);
-
     LOG_INSTS(self, BRU_MATCH);
     LOG_INSTS(self, BRU_MEMO);
     LOG_INSTS(self, BRU_CHAR);
@@ -70,7 +67,8 @@ static void benchmark_thread_manager_free(BruThreadManager *tm)
     LOG_INSTS(self, BRU_STATE);
 
     free(self);
-    bru_thread_manager_interface_free(tmi);
+
+    bru_vt_call_super_procedure(tm, tmi, free);
 }
 
 static BruThread *benchmark_thread_manager_next_thread(BruThreadManager *tm)

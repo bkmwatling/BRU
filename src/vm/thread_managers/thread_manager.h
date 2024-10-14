@@ -28,26 +28,35 @@
 #define bru_thread_manager_init(manager, start_pc_in, start_sp_in) \
     bru_vt_call_procedure(manager, init, start_pc_in, start_sp_in)
 #define bru_thread_manager_reset(manager) bru_vt_call_procedure(manager, reset)
-#define bru_thread_manager_free(manager)      \
+#define bru_thread_manager_kill(manager)      \
     do {                                      \
-        bru_vt_call_procedure(manager, free); \
+        bru_vt_call_procedure(manager, kill); \
         bru_vt_release(manager);              \
     } while (0)
 #define bru_thread_manager_done_exec(manager, is_done_out) \
     bru_vt_call_function(manager, is_done_out, done_exec)
 
 // NOTE:
+// below macro used internally by thread manager implementations only.
+// Use the bru_thread_manager_kill macro defined above to kill a thread manager
+// and deallocate all of its memory.
+#define _bru_thread_manager_free(manager)                                     \
+    do {                                                                      \
+        bru_vt_call_procedure(manager, free);                                 \
+        while (!stc_vec_is_empty((manager)->table))                           \
+            bru_thread_manager_interface_free(stc_vec_pop((manager)->table)); \
+    } while (0)
+
+// NOTE:
 // alloc_thread and free_thread are not attached to each instance.
-// This is because they essentially allocate and free the entrie block of thread
+// This is because they essentially allocate and free the entire block of thread
 // memory according to the size of the thread the manager uses, which is always
 // the size of the leaf instance.
-#define bru_thread_manager_malloc_thread(manager)                    \
+#define _bru_thread_manager_malloc_thread(manager)                   \
     ((BruThread *) malloc(                                           \
          (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size) + \
      (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size)
-#define bru_thread_manager_alloc_thread(manager, thread_out) \
-    bru_vt_call_function(manager, thread_out, alloc_thread)
-#define bru_thread_manager_free_thread(manager, thread) \
+#define _bru_thread_manager_free_thread(manager, thread) \
     free((thread) - (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size)
 
 #define bru_thread_manager_init_thread(manager, thread_in, pc_in, sp_in) \
@@ -111,11 +120,14 @@
     do {                                                                    \
         (manager_interface)->init      = prefix##_thread_manager_init;      \
         (manager_interface)->reset     = prefix##_thread_manager_reset;     \
+        (manager_interface)->kill      = prefix##_thread_manager_kill;      \
         (manager_interface)->free      = prefix##_thread_manager_free;      \
         (manager_interface)->done_exec = prefix##_thread_manager_done_exec; \
                                                                             \
         (manager_interface)->alloc_thread =                                 \
             prefix##_thread_manager_alloc_thread;                           \
+        (manager_interface)->spawn_thread =                                 \
+            prefix##_thread_manager_spawn_thread;                           \
         (manager_interface)->init_thread =                                  \
             prefix##_thread_manager_init_thread;                            \
         (manager_interface)->copy_thread =                                  \
@@ -124,6 +136,8 @@
             prefix##_thread_manager_clone_thread;                           \
         (manager_interface)->kill_thread =                                  \
             prefix##_thread_manager_kill_thread;                            \
+        (manager_interface)->free_thread =                                  \
+            prefix##_thread_manager_free_thread;                            \
         (manager_interface)->check_thread_eq =                              \
             prefix##_thread_manager_check_thread_eq;                        \
         (manager_interface)->schedule_thread =                              \
@@ -162,7 +176,7 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-typedef bru_byte_t BruThread; /**< BruThread is a collection of bytes */
+typedef bru_byte_t BruThread; /**< BruThread is a collection of bytes         */
 
 typedef BruVTable_of(struct bru_thread_manager_interface) BruThreadManager;
 
@@ -171,11 +185,24 @@ typedef struct bru_thread_manager_interface {
                  const bru_byte_t *start_pc,
                  const char       *start_sp);
     void (*reset)(BruThreadManager *self);
-    void (*free)(BruThreadManager *self); /**< free the thread manager     */
     int (*done_exec)(BruThreadManager *self);
+
+    /**
+     * 'kill' is used to traverse the thread managers without removing them
+     * from the hierarchy.
+     *
+     * 'free' is used to free the resources of the thread manager, and should
+     * be called by using the bru_thread_manager_free function.
+     *
+     * The intention is that your base thread manager implements 'kill' by
+     * deferring to bru_thread_manager_free.
+     */
+    void (*kill)(BruThreadManager *self); /**< kill the thread manager        */
+    void (*free)(BruThreadManager *self); /**< free the thread manager        */
 
     // below functions manipulate thread execution
     BruThread *(*alloc_thread)(BruThreadManager *self);
+    BruThread *(*spawn_thread)(BruThreadManager *self);
     void (*init_thread)(BruThreadManager *self,
                         BruThread        *thread,
                         const bru_byte_t *pc,
@@ -185,6 +212,7 @@ typedef struct bru_thread_manager_interface {
                         BruThread        *dst);
     BruThread *(*clone_thread)(BruThreadManager *self, const BruThread *thread);
     void (*kill_thread)(BruThreadManager *self, BruThread *thread);
+    void (*free_thread)(BruThreadManager *self, BruThread *thread);
 
     /**< return 0 if equal, non-zero otherwise */
     int (*check_thread_eq)(BruThreadManager *self,
@@ -260,6 +288,7 @@ typedef struct bru_thread_manager_interface {
 #    define thread_manager_init      bru_thread_manager_init
 #    define thread_manager_reset     bru_thread_manager_reset
 #    define thread_manager_free      bru_thread_manager_free
+#    define thread_manager_kill      bru_thread_manager_kill
 #    define thread_manager_done_exec bru_thread_manager_done_exec
 
 #    define thread_manager_schedule_thread bru_thread_manager_schedule_thread
@@ -268,8 +297,12 @@ typedef struct bru_thread_manager_interface {
 #    define thread_manager_next_thread bru_thread_manager_next_thread
 #    define thread_manager_notify_thread_match \
         bru_thread_manager_notify_thread_match
-#    define thread_manager_clone_thread bru_thread_manager_clone_thread
-#    define thread_manager_kill_thread  bru_thread_manager_kill_thread
+#    define thread_manager_alloc_thread    bru_thread_manager_alloc_thread
+#    define thread_manager_spawn_thread    bru_thread_manager_spawn_thread
+#    define thread_manager_init_thread     bru_thread_manager_init_thread
+#    define thread_manager_check_thread_eq bru_thread_manager_check_thread_eq
+#    define thread_manager_clone_thread    bru_thread_manager_clone_thread
+#    define thread_manager_kill_thread     bru_thread_manager_kill_thread
 
 #    define thread_manager_pc     bru_thread_manager_pc
 #    define thread_manager_set_pc bru_thread_manager_set_pc
