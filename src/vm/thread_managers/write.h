@@ -6,6 +6,9 @@
 /**
  * Extend a thread manager with support for writing arbitrary bytes.
  *
+ * When fetching the bytes using bru_thread_manager_bytes, a NULL byte will be
+ * appended to allow printing the bytes as a string.
+ *
  * @param[in] tm        the underlying thread manager
  *
  * @return the thread manager

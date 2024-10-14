@@ -144,6 +144,9 @@ static int srvm_run(BruSRVM *self, const char *text)
                 case BRU_MATCH:
                     matched_sp = sp;
                     matched    = 1;
+                    bru_byte_t *out_tape;
+                    bru_thread_manager_bytes(tm, out_tape, thread);
+                    fprintf(stderr, "tape: %s\n", out_tape);
                     if (self->captures)
                         memcpy(self->captures,
                                bru_thread_manager_captures(tm, captures, thread,

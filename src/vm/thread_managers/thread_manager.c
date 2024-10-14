@@ -112,13 +112,10 @@ void bru_thread_manager_write_byte_noop(BruThreadManager *self,
 }
 
 bru_byte_t *bru_thread_manager_bytes_noop(BruThreadManager *self,
-                                          BruThread        *thread,
-                                          size_t           *len)
+                                          BruThread        *thread)
 {
     BRU_UNUSED(self);
     BRU_UNUSED(thread);
-
-    if (len) *len = 0;
     return NULL;
 }
 

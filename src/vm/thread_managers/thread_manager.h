@@ -96,8 +96,8 @@
                                       size_in)                            \
     bru_vt_call_procedure(manager, set_memory, thread_in, idx_in, val_in, \
                           size_in)
-#define bru_thread_manager_bytes(manager, bytes_out, thread_in, len_out) \
-    bru_vt_call_function(manager, bytes_out, bytes, thread_in, len_out)
+#define bru_thread_manager_bytes(manager, bytes_out, thread_in) \
+    bru_vt_call_function(manager, bytes_out, bytes, thread_in)
 #define bru_thread_manager_write_byte(manager, thread_in, byte_in) \
     bru_vt_call_procedure(manager, write_byte, thread_in, byte_in)
 #define bru_thread_manager_captures(manager, captures_out, thread_in, \
@@ -232,12 +232,10 @@ typedef struct bru_thread_manager_interface {
                        size_t            size);
 
     // arbitrary writing bytes
+    bru_byte_t *(*bytes)(BruThreadManager *self, BruThread *thread);
     void (*write_byte)(BruThreadManager *self,
                        BruThread        *thread,
                        bru_byte_t        byte);
-    bru_byte_t *(*bytes)(BruThreadManager *self,
-                         BruThread        *thread,
-                         size_t           *len);
 
     // captures
     const char *const *(*captures)(BruThreadManager *self,
@@ -287,6 +285,8 @@ typedef struct bru_thread_manager_interface {
 #    define thread_manager_set_memory       bru_thread_manager_set_memory
 #    define thread_manager_captures         bru_thread_manager_captures
 #    define thread_manager_set_capture      bru_thread_manager_set_capture
+#    define thread_manager_bytes            bru_thread_manager_bytes
+#    define thread_manager_write_byte       bru_thread_manager_write_byte
 
 #    define THREAD_MANAGER_SET_REQUIRED_FUNCS \
         BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS
@@ -306,6 +306,8 @@ typedef BruThreadManagerInterface ThreadManagerInterface;
 #    define thread_manager_set_memory_noop  bru_thread_manager_set_memory_noop
 #    define thread_manager_captures_noop    bru_thread_manager_captures_noop
 #    define thread_manager_set_capture_noop bru_thread_manager_set_capture_noop
+#    define thread_manager_bytes_noop       bru_thread_manager_bytes_noop
+#    define thread_manager_write_byte_noop  bru_thread_manager_write_byte_noop
 #endif /* BRU_VM_THREAD_MANAGER_ENABLE_SHORT_NAMES */
 
 /* --- Thread manager interface function prototypes ------------------------- */
@@ -370,8 +372,7 @@ void bru_thread_manager_write_byte_noop(BruThreadManager *self,
                                         bru_byte_t        byte);
 
 bru_byte_t *bru_thread_manager_bytes_noop(BruThreadManager *self,
-                                          BruThread        *thread,
-                                          size_t           *len);
+                                          BruThread        *thread);
 
 const char *const *bru_thread_manager_captures_noop(BruThreadManager *tm,
                                                     const BruThread  *thread,
