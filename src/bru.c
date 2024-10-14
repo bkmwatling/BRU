@@ -19,6 +19,7 @@
 #include "vm/thread_managers/memory.h"
 #include "vm/thread_managers/spencer.h"
 #include "vm/thread_managers/thread_pool.h"
+#include "vm/thread_managers/write.h"
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -326,6 +327,9 @@ static int match(BruOptions *options)
     if (prog->thread_mem_len)
         thread_manager = bru_thread_manager_with_memory_new(
             thread_manager, prog->thread_mem_len);
+
+    if (prog->requires_writing)
+        thread_manager = bru_thread_manager_with_write_new(thread_manager);
 
     // TODO: add command line flag for thread pool
     thread_manager =
