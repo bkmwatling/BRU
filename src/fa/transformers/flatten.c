@@ -49,6 +49,7 @@ static int action_list_signature(const BruActionList *actions)
             switch (bru_smir_action_type(a)) {
                 case BRU_ACT_CHAR:   /* fallthrough */
                 case BRU_ACT_PRED:   /* fallthrough */
+                case BRU_ACT_WRITE:  /* fallthrough */
                 case BRU_ACT_MEMO:   /* fallthrough */
                 case BRU_ACT_EPSCHK: /* fallthrough */
                 case BRU_ACT_EPSSET: /* fallthrough */
@@ -102,6 +103,7 @@ static int is_epsilon_state(const BruActionList *actions)
 
             case BRU_ACT_BEGIN:  /* fallthrough */
             case BRU_ACT_END:    /* fallthrough */
+            case BRU_ACT_WRITE:  /* fallthrough */
             case BRU_ACT_MEMO:   /* fallthrough */
             case BRU_ACT_SAVE:   /* fallthrough */
             case BRU_ACT_EPSCHK: /* fallthrough */
@@ -132,6 +134,7 @@ static void remove_unnecessary_actions(const BruActionList *actions)
             case BRU_ACT_END:   /* fallthrough */
             case BRU_ACT_CHAR:  /* fallthrough */
             case BRU_ACT_PRED:  /* fallthrough */
+            case BRU_ACT_WRITE: /* fallthrough */
             case BRU_ACT_MEMO:  /* fallthrough */
             case BRU_ACT_SAVE: break;
         }
@@ -165,6 +168,7 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
             case BRU_ACT_END:   /* fallthrough */
             case BRU_ACT_CHAR:  /* fallthrough */
             case BRU_ACT_PRED:  /* fallthrough */
+            case BRU_ACT_WRITE: /* fallthrough */
             case BRU_ACT_MEMO:  /* fallthrough */
             case BRU_ACT_SAVE: break;
 
