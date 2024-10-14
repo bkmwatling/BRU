@@ -72,7 +72,7 @@ int bru_srvm_find(BruSRVM *self, const char *text)
 
 StcStringView bru_srvm_capture(BruSRVM *self, bru_len_t idx)
 {
-    if (idx >= self->ncaptures) return (StcStringView){ 0, NULL };
+    if (idx >= self->ncaptures) return (StcStringView) { 0, NULL };
 
     return stc_sv_from_range(self->captures[2 * idx],
                              self->captures[2 * idx + 1]);
@@ -118,6 +118,8 @@ static int srvm_run(BruSRVM *self, const char *text)
     bru_len_t          ncaptures, k;
     bru_offset_t       x, y;
     bru_cntr_t         cval, n;
+    bru_byte_t         byte;
+    size_t             len;
     BruIntervals      *intervals;
 
     if (self->matching_finished) return FALSE;
@@ -326,6 +328,27 @@ static int srvm_run(BruSRVM *self, const char *text)
                     break;
 
                 case BRU_STATE:
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_WRITE:
+                    BRU_MEMREAD(byte, pc, bru_byte_t);
+                    bru_thread_manager_write_byte(tm, thread, byte);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_WRITE0:
+                    byte = '0';
+                    bru_thread_manager_write_byte(tm, thread, byte);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_WRITE1:
+                    byte = '1';
+                    bru_thread_manager_write_byte(tm, thread, byte);
                     bru_thread_manager_set_pc(tm, thread, pc);
                     bru_thread_manager_schedule_thread(tm, thread);
                     break;

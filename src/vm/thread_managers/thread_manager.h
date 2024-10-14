@@ -96,6 +96,10 @@
                                       size_in)                            \
     bru_vt_call_procedure(manager, set_memory, thread_in, idx_in, val_in, \
                           size_in)
+#define bru_thread_manager_bytes(manager, bytes_out, thread_in, len_out) \
+    bru_vt_call_function(manager, bytes_out, bytes, thread_in, len_out)
+#define bru_thread_manager_write_byte(manager, thread_in, byte_in) \
+    bru_vt_call_procedure(manager, write_byte, thread_in, byte_in)
 #define bru_thread_manager_captures(manager, captures_out, thread_in, \
                                     ncaptures_in)                     \
     bru_vt_call_function(manager, captures_out, captures, thread_in,  \
