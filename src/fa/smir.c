@@ -921,6 +921,7 @@ static bru_byte_t *compile_actions(bru_byte_t          *pc,
                         BRU_MEMWRITE(pc, bru_byte_t, n->act->c);
                         break;
                 }
+                prog->requires_writing = TRUE;
                 break;
             case BRU_ACT_MEMO:
                 BRU_BCWRITE(pc, BRU_MEMO);

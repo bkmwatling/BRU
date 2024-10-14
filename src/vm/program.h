@@ -132,6 +132,9 @@ typedef struct {
     bru_cntr_t *counters;  /**< stc_vec of the counter memory default values  */
     size_t thread_mem_len; /**< the number of bytes needed for thread memory  */
     size_t ncaptures;      /**< the number of captures in the program/regex   */
+
+    // compile-time collected info
+    int requires_writing; /**< if the program contains WRITE* instructions    */
 } BruProgram;
 
 #if !defined(BRU_VM_PROGRAM_DISABLE_SHORT_NAMES) && \
