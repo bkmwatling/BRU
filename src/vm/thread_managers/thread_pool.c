@@ -20,6 +20,7 @@ typedef struct {
 /* --- ThreadPool funtion prototypes ---------------------------------------- */
 
 static void thread_pool_kill(BruThreadManager *tm);
+static void thread_pool_free(BruThreadManager *tm);
 
 static BruThread *thread_pool_spawn_thread(BruThreadManager *tm);
 static void       thread_pool_kill_thread(BruThreadManager *tm, BruThread *t);
@@ -37,6 +38,7 @@ BruThreadManager *bru_thread_manager_with_pool_new(BruThreadManager *tm,
     super     = bru_vt_curr(tm);
     tmi       = bru_thread_manager_interface_new(pool, super->_thread_size);
     tmi->kill = thread_pool_kill;
+    tmi->free = thread_pool_free;
     tmi->spawn_thread = thread_pool_spawn_thread;
     tmi->clone_thread = thread_pool_clone_thread;
     tmi->kill_thread  = thread_pool_kill_thread;
@@ -76,8 +78,16 @@ static void thread_pool_kill(BruThreadManager *tm)
     fprintf(self->logfile, "TOTAL THREADS IN POOL: %zu\n", nthreads);
 #endif /* BRU_BENCHMARK */
 
-    free(self);
     bru_vt_call_super_procedure(tm, tmi, kill);
+}
+
+static void thread_pool_free(BruThreadManager *tm)
+{
+    BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
+
+    free(self);
+    bru_vt_call_super_procedure(tm, tmi, free);
 }
 
 static BruThread *bru_thread_pool_get_thread(BruThreadPoolThreadManager *self)

@@ -35,6 +35,8 @@
     } while (0)
 #define bru_thread_manager_done_exec(manager, is_done_out) \
     bru_vt_call_function(manager, is_done_out, done_exec)
+#define bru_thread_manager_get_match(manager, thread_out) \
+    bru_vt_call_function(manager, thread_out, get_match)
 
 // NOTE:
 // below macro used internally by thread manager implementations only.
@@ -105,8 +107,8 @@
                                       size_in)                            \
     bru_vt_call_procedure(manager, set_memory, thread_in, idx_in, val_in, \
                           size_in)
-#define bru_thread_manager_bytes(manager, bytes_out, thread_in) \
-    bru_vt_call_function(manager, bytes_out, bytes, thread_in)
+#define bru_thread_manager_bytes(manager, bytes_out, thread_in, nbytes_in) \
+    bru_vt_call_function(manager, bytes_out, bytes, thread_in, nbytes_in)
 #define bru_thread_manager_write_byte(manager, thread_in, byte_in) \
     bru_vt_call_procedure(manager, write_byte, thread_in, byte_in)
 #define bru_thread_manager_captures(manager, captures_out, thread_in, \
@@ -123,6 +125,7 @@
         (manager_interface)->kill      = prefix##_thread_manager_kill;      \
         (manager_interface)->free      = prefix##_thread_manager_free;      \
         (manager_interface)->done_exec = prefix##_thread_manager_done_exec; \
+        (manager_interface)->get_match = prefix##_thread_manager_get_match; \
                                                                             \
         (manager_interface)->alloc_thread =                                 \
             prefix##_thread_manager_alloc_thread;                           \
@@ -186,6 +189,7 @@ typedef struct bru_thread_manager_interface {
                  const char       *start_sp);
     void (*reset)(BruThreadManager *self);
     int (*done_exec)(BruThreadManager *self);
+    BruThread *(*get_match)(BruThreadManager *self);
 
     /**
      * 'kill' is used to traverse the thread managers without removing them
@@ -260,7 +264,9 @@ typedef struct bru_thread_manager_interface {
                        size_t            size);
 
     // arbitrary writing bytes
-    bru_byte_t *(*bytes)(BruThreadManager *self, BruThread *thread);
+    bru_byte_t *(*bytes)(BruThreadManager *self,
+                         BruThread        *thread,
+                         size_t           *nbytes);
     void (*write_byte)(BruThreadManager *self,
                        BruThread        *thread,
                        bru_byte_t        byte);
@@ -290,6 +296,7 @@ typedef struct bru_thread_manager_interface {
 #    define thread_manager_free      bru_thread_manager_free
 #    define thread_manager_kill      bru_thread_manager_kill
 #    define thread_manager_done_exec bru_thread_manager_done_exec
+#    define thread_manager_get_match bru_thread_manager_get_match
 
 #    define thread_manager_schedule_thread bru_thread_manager_schedule_thread
 #    define thread_manager_schedule_thread_in_order \
@@ -405,7 +412,8 @@ void bru_thread_manager_write_byte_noop(BruThreadManager *self,
                                         bru_byte_t        byte);
 
 bru_byte_t *bru_thread_manager_bytes_noop(BruThreadManager *self,
-                                          BruThread        *thread);
+                                          BruThread        *thread,
+                                          size_t           *nbytes);
 
 const char *const *bru_thread_manager_captures_noop(BruThreadManager *tm,
                                                     const BruThread  *thread,

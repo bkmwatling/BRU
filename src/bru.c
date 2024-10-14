@@ -300,10 +300,11 @@ static int match(BruOptions *options)
     const BruProgram *prog;
     BruThreadManager *thread_manager = NULL;
     BruSRVM          *srvm;
-    StcStringView     capture, *captures;
-    bru_len_t         i, ncaptures;
+    StcStringView     capture;
+    bru_len_t         i;
     size_t            ncodepoints;
-    int               matched, exit_code = EXIT_SUCCESS;
+    BruSRVMMatch     *match;
+    int               exit_code = EXIT_SUCCESS;
 
     c = bru_compiler_new(
         bru_parser_new(sdup(options->regex), options->parser_opts),
@@ -350,16 +351,18 @@ static int match(BruOptions *options)
     //         thread_manager, options->logfile, options->text);
 
     srvm = bru_srvm_new(thread_manager, prog);
-    if (!(matched = bru_srvm_find(srvm, options->text)))
+    if (!(match = bru_srvm_find(srvm, options->text)))
         fputs("No match\n", options->outfile);
     else
         do {
-            fputs("Found match\n", options->outfile);
-            fprintf(options->outfile, "captures:\n");
-            captures = bru_srvm_captures(srvm, &ncaptures);
-            fprintf(options->outfile, "  input: '%s'\n", options->text);
-            for (i = 0; i < ncaptures; i++) {
-                capture = captures[i];
+            fprintf(options->outfile,
+                    "Found match\n"
+                    "bytes: %.*s\n"
+                    "captures:\n"
+                    "  input: '%s'\n",
+                    (int) match->nbytes, match->bytes, options->text);
+            for (i = 0; i < match->ncaptures; i++) {
+                capture = match->captures[i];
                 fprintf(options->outfile, "%7hu: ", i);
                 if (capture.str) {
                     ncodepoints = stc_utf8_str_ncodepoints(options->text) -
@@ -370,8 +373,8 @@ static int match(BruOptions *options)
                     fprintf(options->outfile, "not captured\n");
                 }
             }
-            free(captures);
-        } while ((matched = bru_srvm_find(srvm, options->text)));
+            bru_srvm_match_free(match);
+        } while ((match = bru_srvm_find(srvm, options->text)));
     bru_program_free((BruProgram *) prog);
     bru_srvm_free(srvm);
 

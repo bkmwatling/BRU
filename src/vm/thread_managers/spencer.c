@@ -14,17 +14,19 @@ typedef struct bru_spencer_thread {
 typedef struct bru_spencer_thread_manager {
     BruScheduler *scheduler; /**< the Spencer scheduler for scheduling        */
     const char   *start_sp;  /**< the starting SP for the current run         */
+    BruThread    *match;     /**< the matched thread                          */
 } BruSpencerThreadManager;
 
 /* --- SpencerThreadManager function prototypes ----------------------------- */
 
-static void spencer_thread_manager_init(BruThreadManager *tm,
-                                        const bru_byte_t *start_pc,
-                                        const char       *start_sp);
-static void spencer_thread_manager_reset(BruThreadManager *tm);
-static void spencer_thread_manager_free(BruThreadManager *tm);
-static void spencer_thread_manager_kill(BruThreadManager *tm);
-static int  spencer_thread_manager_done_exec(BruThreadManager *tm);
+static void       spencer_thread_manager_init(BruThreadManager *tm,
+                                              const bru_byte_t *start_pc,
+                                              const char       *start_sp);
+static void       spencer_thread_manager_reset(BruThreadManager *tm);
+static void       spencer_thread_manager_free(BruThreadManager *tm);
+static void       spencer_thread_manager_kill(BruThreadManager *tm);
+static int        spencer_thread_manager_done_exec(BruThreadManager *tm);
+static BruThread *spencer_thread_manager_get_match(BruThreadManager *tm);
 
 static BruThread *spencer_thread_manager_alloc_thread(BruThreadManager *tm);
 static BruThread *spencer_thread_manager_spawn_thread(BruThreadManager *tm);
@@ -75,6 +77,7 @@ BruThreadManager *bru_spencer_thread_manager_new(void)
     bru_vt_init(tm, tmi);
 
     stm->scheduler = bru_spencer_scheduler_new();
+    stm->match     = NULL;
     stm->start_sp  = NULL;
 
     BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(tmi, spencer);
@@ -116,6 +119,11 @@ static void spencer_thread_manager_reset(BruThreadManager *tm)
 
     while ((t = bru_scheduler_next(self->scheduler)))
         bru_thread_manager_kill_thread(tm, t);
+
+    if (self->match) {
+        bru_thread_manager_kill_thread(tm, self->match);
+        self->match = NULL;
+    }
 }
 
 static void spencer_thread_manager_free(BruThreadManager *tm)
@@ -128,6 +136,7 @@ static void spencer_thread_manager_free(BruThreadManager *tm)
 
 static void spencer_thread_manager_kill(BruThreadManager *tm)
 {
+    bru_thread_manager_reset(tm);
     _bru_thread_manager_free(tm);
 }
 
@@ -135,6 +144,11 @@ static int spencer_thread_manager_done_exec(BruThreadManager *tm)
 {
     return *((BruSpencerThreadManager *) bru_vt_curr_impl(tm))->start_sp ==
            '\0';
+}
+
+static BruThread *spencer_thread_manager_get_match(BruThreadManager *tm)
+{
+    return ((BruSpencerThreadManager *) bru_vt_curr_impl(tm))->match;
 }
 
 static void spencer_thread_manager_init_thread(BruThreadManager *tm,
@@ -202,8 +216,8 @@ static void spencer_thread_manager_notify_thread_match(BruThreadManager *tm,
                                                        BruThread        *t)
 {
     // empty the scheduler
-    bru_thread_manager_kill_thread(tm, t);
     bru_thread_manager_reset(tm);
+    ((BruSpencerThreadManager *) bru_vt_curr_impl(tm))->match = t;
 }
 
 static BruThread *spencer_thread_manager_clone_thread(BruThreadManager *tm,

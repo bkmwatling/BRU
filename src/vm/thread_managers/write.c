@@ -14,7 +14,8 @@ static void       thread_copy_with_write(BruThreadManager *tm,
                                          const BruThread  *src,
                                          BruThread        *dst);
 static void thread_free_with_write(BruThreadManager *tm, BruThread *thread);
-static bru_byte_t *thread_bytes(BruThreadManager *tm, BruThread *thread);
+static bru_byte_t *
+thread_bytes(BruThreadManager *tm, BruThread *thread, size_t *nbytes);
 static void
 thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte);
 
@@ -94,16 +95,17 @@ thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte)
     stc_vec_push_back(*twb, byte);
 }
 
-static bru_byte_t *thread_bytes(BruThreadManager *tm, BruThread *thread)
+static bru_byte_t *
+thread_bytes(BruThreadManager *tm, BruThread *thread, size_t *nbytes)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
     bru_byte_t               **twb =
         (bru_byte_t **) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
-    size_t      tape_len = stc_vec_len(*twb);
-    bru_byte_t *bytes    = malloc(sizeof(*bytes) * (tape_len + 1));
+    size_t      bytes_len = stc_vec_len(*twb);
+    bru_byte_t *bytes     = malloc(sizeof(*bytes) * bytes_len);
 
-    memcpy(bytes, *twb, sizeof(*bytes) * (tape_len + 1));
-    bytes[tape_len] = '\0';
+    memcpy(bytes, *twb, sizeof(*bytes) * bytes_len);
+    if (nbytes) *nbytes = bytes_len;
 
     return bytes;
 }

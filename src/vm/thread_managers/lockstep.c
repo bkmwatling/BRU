@@ -19,18 +19,19 @@ typedef struct bru_thompson_thread_manager {
     const bru_byte_t *start_pc;  /**< the starting PC for new threads         */
     const char       *start_sp;  /**< the starting SP for the current run     */
     const char       *sp;        /**< the string pointer for lockstep         */
-    int               matched;   /**< whether a match has been found          */
+    BruThread        *match;     /**< the matched thread                      */
 } BruThompsonThreadManager;
 
 /* --- ThompsonThreadManager function prototypes ---------------------------- */
 
-static void thompson_thread_manager_init(BruThreadManager *tm,
-                                         const bru_byte_t *start_pc,
-                                         const char       *start_sp);
-static void thompson_thread_manager_reset(BruThreadManager *tm);
-static void thompson_thread_manager_free(BruThreadManager *tm);
-static void thompson_thread_manager_kill(BruThreadManager *tm);
-static int  thompson_thread_manager_done_exec(BruThreadManager *tm);
+static void       thompson_thread_manager_init(BruThreadManager *tm,
+                                               const bru_byte_t *start_pc,
+                                               const char       *start_sp);
+static void       thompson_thread_manager_reset(BruThreadManager *tm);
+static void       thompson_thread_manager_free(BruThreadManager *tm);
+static void       thompson_thread_manager_kill(BruThreadManager *tm);
+static int        thompson_thread_manager_done_exec(BruThreadManager *tm);
+static BruThread *thompson_thread_manager_get_match(BruThreadManager *tm);
 
 static BruThread *thompson_thread_manager_alloc_thread(BruThreadManager *tm);
 static BruThread *thompson_thread_manager_spawn_thread(BruThreadManager *tm);
@@ -80,6 +81,7 @@ BruThreadManager *bru_thompson_thread_manager_new(void)
     bru_vt_init(tm, tmi);
 
     ttm->scheduler = bru_lockstep_scheduler_new(tm);
+    ttm->match     = NULL;
 
     BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(tmi, thompson);
     BRU_THREAD_MANAGER_SET_NOOP_FUNCS(tmi);
@@ -96,7 +98,6 @@ static void thompson_thread_manager_init(BruThreadManager *tm,
 
     self->start_pc = start_pc;
     self->sp = self->start_sp = start_sp;
-    self->matched             = FALSE;
     bru_scheduler_init(self->scheduler);
 
     bru_vt_call_function(tm, thread, alloc_thread);
@@ -123,6 +124,9 @@ static void thompson_thread_manager_free(BruThreadManager *tm)
 
 static void thompson_thread_manager_kill(BruThreadManager *tm)
 {
+    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+
+    if (self->match) bru_thread_manager_kill_thread(tm, self->match);
     _bru_thread_manager_free(tm);
 }
 
@@ -130,6 +134,11 @@ static int thompson_thread_manager_done_exec(BruThreadManager *tm)
 {
     return *((BruThompsonThreadManager *) bru_vt_curr_impl(tm))->start_sp ==
            '\0';
+}
+
+static BruThread *thompson_thread_manager_get_match(BruThreadManager *tm)
+{
+    return ((BruThompsonThreadManager *) bru_vt_curr_impl(tm))->match;
 }
 
 static BruThread *thompson_thread_manager_alloc_thread(BruThreadManager *tm)
@@ -199,9 +208,9 @@ static BruThread *thompson_thread_manager_next_thread(BruThreadManager *tm)
     BruThread                *thread;
 
     if (bru_lockstep_scheduler_done_step(self->scheduler) && *self->sp &&
-        (!self->matched || bru_scheduler_has_next(self->scheduler))) {
+        (!self->match || bru_scheduler_has_next(self->scheduler))) {
         self->sp = stc_utf8_str_next(self->sp);
-        if (!self->matched) {
+        if (!self->match) {
             bru_vt_call_function(tm, thread, alloc_thread);
             bru_thread_manager_init_thread(tm, thread, self->start_pc,
                                            self->sp);
@@ -220,8 +229,9 @@ static void thompson_thread_manager_notify_thread_match(BruThreadManager *tm,
     BruThread               **low_priority_threads;
     size_t                    i, nthreads;
 
-    self->matched = TRUE;
-    bru_thread_manager_kill_thread(tm, t);
+    if (self->match) bru_thread_manager_kill_thread(tm, self->match);
+    self->match = t;
+
     low_priority_threads =
         bru_lockstep_scheduler_remove_low_priority_threads(ts);
     nthreads = stc_vec_len(low_priority_threads);
