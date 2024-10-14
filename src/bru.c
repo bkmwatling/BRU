@@ -180,6 +180,10 @@ static void add_compilation_args(StcArgParser *ap, BruOptions *options)
         ap, NULL, "--mark-states",
         "whether to compile state marking instructions",
         &options->compiler_opts.mark_states, FALSE);
+    stc_argparser_add_bool_option(
+        ap, NULL, "--encode-priorities",
+        "whether to encode transition priorities on the transitions",
+        &options->compiler_opts.encode_priorities, FALSE);
 }
 
 static void add_matching_args(StcArgParser *ap, BruOptions *options)
