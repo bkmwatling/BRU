@@ -9,8 +9,9 @@
 #include "../utils.h"
 #include "compiler.h"
 
-#define COMPILER_OPTS_DEFAULT \
-    ((BruCompilerOpts) { BRU_THOMPSON, FALSE, BRU_CS_PCRE, BRU_MS_NONE, FALSE })
+#define COMPILER_OPTS_DEFAULT                                                  \
+    ((BruCompilerOpts) { BRU_THOMPSON, FALSE, BRU_CS_PCRE, BRU_MS_NONE, FALSE, \
+                         FALSE })
 
 #define SET_OFFSET(p, pc) (*(p) = pc - (byte *) ((p) + 1))
 
