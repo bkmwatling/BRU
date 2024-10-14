@@ -119,7 +119,6 @@ static int srvm_run(BruSRVM *self, const char *text)
     bru_offset_t       x, y;
     bru_cntr_t         cval, n;
     bru_byte_t         byte;
-    size_t             len;
     BruIntervals      *intervals;
 
     if (self->matching_finished) return FALSE;
