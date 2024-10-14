@@ -17,7 +17,7 @@ BruStateMachine *bru_transform_path_encode(BruStateMachine *sm)
     for (sid = BRU_INITIAL_STATE_ID, nstates = bru_smir_get_num_states(sm);
          sid < nstates; sid++) {
         out_transitions = bru_smir_get_out_transitions(sm, sid, &nout);
-        if (nout > 2)
+        if (nout > 1)
             for (j = 0; j < nout; j++) {
                 bru_smir_trans_prepend_action(
                     sm, out_transitions[j],
