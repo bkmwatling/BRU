@@ -17,6 +17,10 @@ static void thread_copy_with_write(BruThreadManager *tm,
                                    const BruThread  *src,
                                    BruThread        *dst);
 static void thread_kill_with_write(BruThreadManager *tm, BruThread *thread);
+static bru_byte_t *
+thread_bytes(BruThreadManager *tm, BruThread *thread, size_t *len);
+static void
+thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte);
 
 /* --- API function definitions --------------------------------------------- */
 
@@ -33,6 +37,8 @@ BruThreadManager *bru_thread_manager_with_write_new(BruThreadManager *tm)
     tmi->init_thread = thread_init_with_write;
     tmi->copy_thread = thread_copy_with_write;
     tmi->kill_thread = thread_kill_with_write;
+    tmi->bytes       = thread_bytes;
+    tmi->write_byte  = thread_write_byte;
 
     // register extension
     // NOLINTNEXTLINE(bugprone-sizeof-expression)
@@ -92,4 +98,18 @@ thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte)
         (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     stc_vec_push_back(twb->tape, byte);
+}
+
+static bru_byte_t *
+thread_bytes(BruThreadManager *tm, BruThread *thread, size_t *len)
+{
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    BruThreadWithWritableTape *twb =
+        (BruThreadWithWritableTape *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    bru_byte_t *bytes = malloc(sizeof(*bytes) * stc_vec_len(twb->tape));
+
+    memcpy(bytes, twb->tape, sizeof(*bytes) * stc_vec_len(twb->tape));
+    if (len) *len = stc_vec_len(twb->tape);
+
+    return bytes;
 }

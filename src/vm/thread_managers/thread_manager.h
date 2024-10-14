@@ -149,6 +149,8 @@
             bru_thread_manager_inc_counter_noop;                              \
         (manager_interface)->memory     = bru_thread_manager_memory_noop;     \
         (manager_interface)->set_memory = bru_thread_manager_set_memory_noop; \
+        (manager_interface)->bytes      = bru_thread_manager_bytes_noop;      \
+        (manager_interface)->write_byte = bru_thread_manager_write_byte_noop; \
         (manager_interface)->captures   = bru_thread_manager_captures_noop;   \
         (manager_interface)->set_capture =                                    \
             bru_thread_manager_set_capture_noop;                              \
@@ -224,6 +226,14 @@ typedef struct bru_thread_manager_interface {
                        bru_len_t         idx,
                        const void       *val,
                        size_t            size);
+
+    // arbitrary writing bytes
+    void (*write_byte)(BruThreadManager *self,
+                       BruThread        *thread,
+                       bru_byte_t        byte);
+    bru_byte_t *(*bytes)(BruThreadManager *self,
+                         BruThread        *thread,
+                         size_t           *len);
 
     // captures
     const char *const *(*captures)(BruThreadManager *self,
@@ -350,6 +360,14 @@ void bru_thread_manager_set_memory_noop(BruThreadManager *tm,
                                         bru_len_t         idx,
                                         const void       *val,
                                         size_t            size);
+
+void bru_thread_manager_write_byte_noop(BruThreadManager *self,
+                                        BruThread        *thread,
+                                        bru_byte_t        byte);
+
+bru_byte_t *bru_thread_manager_bytes_noop(BruThreadManager *self,
+                                          BruThread        *thread,
+                                          size_t           *len);
 
 const char *const *bru_thread_manager_captures_noop(BruThreadManager *tm,
                                                     const BruThread  *thread,
