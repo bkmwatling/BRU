@@ -29,6 +29,7 @@ typedef enum {
     BRU_ACT_SAVE,
     BRU_ACT_EPSCHK,
     BRU_ACT_EPSSET,
+    BRU_ACT_WRITE,
 } BruActionType;
 
 typedef BruActionType BruPredicateType;

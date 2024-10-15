@@ -150,6 +150,8 @@ lockstep_scheduler_next_start:
             case BRU_CHAR:
             case BRU_PRED:
                 if (!self->in_lockstep) {
+                    // FIXME: memory leak on thread below if schedule returns
+                    // FALSE
                     lockstep_scheduler_schedule(self, thread);
                     goto lockstep_scheduler_next_start;
                 }

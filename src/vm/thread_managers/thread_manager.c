@@ -101,6 +101,26 @@ void bru_thread_manager_set_memory_noop(BruThreadManager *self,
     BRU_UNUSED(size);
 }
 
+void bru_thread_manager_write_byte_noop(BruThreadManager *self,
+
+                                        BruThread *thread,
+                                        bru_byte_t byte)
+{
+    BRU_UNUSED(self);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(byte);
+}
+
+bru_byte_t *bru_thread_manager_bytes_noop(BruThreadManager *self,
+                                          BruThread        *thread,
+                                          size_t           *nbytes)
+{
+    BRU_UNUSED(self);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(nbytes);
+    return NULL;
+}
+
 const char *const *bru_thread_manager_captures_noop(BruThreadManager *self,
                                                     const BruThread  *thread,
                                                     bru_len_t        *ncaptures)

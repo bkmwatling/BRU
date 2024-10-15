@@ -145,7 +145,7 @@ inst_print_formatted(FILE                  *stream,
 
         case BRU_CHAR:
             BRU_MEMREAD(p, pc, char *);
-            fprintf(stream, "char %.*s", stc_utf8_nbytes(p), p);
+            fprintf(stream, "char '%.*s'", stc_utf8_nbytes(p), p);
             break;
 
         case BRU_PRED:
@@ -251,6 +251,16 @@ inst_print_formatted(FILE                  *stream,
 
         case BRU_STATE: fputs("state", stream); break;
 
+        case BRU_WRITE:
+            fputs("write", stream);
+            fprintf(stream, " 0x%x", *pc);
+            pc++;
+            break;
+
+        case BRU_WRITE0: fputs("write0", stream); break;
+
+        case BRU_WRITE1: fputs("write1", stream); break;
+
         default:
             fprintf(stderr, "bytecode = %d\n", pc[-1]);
             assert(0 && "unreachable");
@@ -312,6 +322,9 @@ static void print_offset_as_absolute_index(FILE             *stream,
             case BRU_INC: insts += sizeof(bru_len_t); break;
             case BRU_ZWA: insts += 2 * sizeof(bru_offset_t) + 1; break;
             case BRU_STATE: break;
+            case BRU_WRITE: insts += sizeof(bru_byte_t); break;
+            case BRU_WRITE0: break;
+            case BRU_WRITE1: break;
             default:
                 fprintf(stderr, "bytecode = %d\n", insts[-1]);
                 assert(0 && "unreachable");

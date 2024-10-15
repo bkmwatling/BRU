@@ -11,14 +11,12 @@ struct bru_srvm {
     BruThreadManager *thread_manager; /**< the thread manager to execute with */
     const BruProgram *program;        /**< the program of the SRVM to execute */
     const char       *curr_sp;        /**< the SP to generate threads from    */
-    int          matching_finished;   /**< flag to indicate matching is done  */
-    bru_len_t    ncaptures; /**< the number of captures in the program        */
-    const char **captures;  /**< the array of (start, end) capture pairs      */
+    int matching_finished;            /**< flag to indicate matching is done  */
 };
 
 /* --- Private function prototypes ------------------------------------------ */
 
-static int srvm_run(BruSRVM *self, const char *text);
+static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text);
 
 /* --- API function definitions --------------------------------------------- */
 
@@ -30,33 +28,34 @@ BruSRVM *bru_srvm_new(BruThreadManager *thread_manager, const BruProgram *prog)
     srvm->program           = prog;
     srvm->curr_sp           = NULL;
     srvm->matching_finished = FALSE;
-    srvm->ncaptures         = prog->ncaptures;
-    srvm->captures          = malloc(2 * srvm->ncaptures * sizeof(char *));
-    memset(srvm->captures, 0, 2 * srvm->ncaptures * sizeof(char *));
 
     return srvm;
 }
 
 void bru_srvm_free(BruSRVM *self)
 {
-    bru_thread_manager_free(self->thread_manager);
-    free(self->captures);
+    bru_thread_manager_kill(self->thread_manager);
     free(self);
 }
 
-int bru_srvm_match(BruSRVM *self, const char *text)
+void bru_srvm_match_free(BruSRVMMatch *self)
 {
-    if (text == NULL) return 0;
+    free(self->captures);
+    free(self->bytes);
+    free(self);
+}
+
+BruSRVMMatch *bru_srvm_match(BruSRVM *self, const char *text)
+{
+    if (text == NULL) return NULL;
 
     self->curr_sp           = text;
     self->matching_finished = FALSE;
-    memset(self->captures, 0, 2 * self->ncaptures * sizeof(char *));
     bru_thread_manager_reset(self->thread_manager);
-
     return srvm_run(self, text);
 }
 
-int bru_srvm_find(BruSRVM *self, const char *text)
+BruSRVMMatch *bru_srvm_find(BruSRVM *self, const char *text)
 {
     if (text == NULL) return 0;
 
@@ -65,60 +64,60 @@ int bru_srvm_find(BruSRVM *self, const char *text)
         self->matching_finished = FALSE;
         bru_thread_manager_reset(self->thread_manager);
     }
-    memset(self->captures, 0, 2 * self->ncaptures * sizeof(char *));
 
     return srvm_run(self, text);
-}
-
-StcStringView bru_srvm_capture(BruSRVM *self, bru_len_t idx)
-{
-    if (idx >= self->ncaptures) return (StcStringView){ 0, NULL };
-
-    return stc_sv_from_range(self->captures[2 * idx],
-                             self->captures[2 * idx + 1]);
-}
-
-StcStringView *bru_srvm_captures(BruSRVM *self, bru_len_t *ncaptures)
-{
-    bru_len_t      i;
-    StcStringView *captures = malloc(self->ncaptures * sizeof(StcStringView));
-
-    if (ncaptures) *ncaptures = self->ncaptures;
-    for (i = 0; i < self->ncaptures; i++)
-        captures[i] =
-            stc_sv_from_range(self->captures[2 * i], self->captures[2 * i + 1]);
-
-    return captures;
 }
 
 int bru_srvm_matches(BruThreadManager *thread_manager,
                      const BruProgram *prog,
                      const char       *text)
 {
-    BruSRVM *srvm    = bru_srvm_new(thread_manager, prog);
-    int      matches = bru_srvm_match(srvm, text);
+    BruSRVM      *srvm    = bru_srvm_new(thread_manager, prog);
+    BruSRVMMatch *match   = bru_srvm_match(srvm, text);
+    int           matched = match != NULL;
     bru_srvm_free(srvm);
+    bru_srvm_match_free(match);
 
-    return matches;
+    return matched;
 }
 
 /* --- Private function definitions ----------------------------------------- */
 
-static int srvm_run(BruSRVM *self, const char *text)
+static BruSRVMMatch *srvm_match_from_thread(BruThreadManager *tm,
+                                            BruThread        *thread)
 {
-    void              *null    = NULL;
-    int                matched = FALSE, cond;
-    const BruProgram  *prog    = self->program;
-    BruThreadManager  *tm      = self->thread_manager;
-    void              *thread, *t;
-    const bru_byte_t  *pc;
-    const char        *sp, *codepoint, *matched_sp;
+    BruSRVMMatch      *match;
     const char *const *captures;
-    char             **epsset_marker;
-    bru_len_t          ncaptures, k;
-    bru_offset_t       x, y;
-    bru_cntr_t         cval, n;
-    BruIntervals      *intervals;
+    bru_len_t          k;
+
+    if (thread == NULL) return NULL;
+
+    match = calloc(1, sizeof(*match));
+    bru_thread_manager_bytes(tm, match->bytes, thread, &match->nbytes);
+    bru_thread_manager_captures(tm, captures, thread, &match->ncaptures);
+    match->captures = malloc(sizeof(*match->captures) * match->ncaptures);
+    for (k = 0; k < match->ncaptures; k++)
+        match->captures[k] =
+            stc_sv_from_range(captures[2 * k], captures[2 * k + 1]);
+
+    return match;
+}
+
+static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
+{
+    void             *null = NULL;
+    int               cond;
+    const BruProgram *prog = self->program;
+    BruThreadManager *tm   = self->thread_manager;
+    BruThread        *thread, *t;
+    const bru_byte_t *pc;
+    const char       *sp, *codepoint, *matched_sp;
+    char            **epsset_marker;
+    bru_len_t         k;
+    bru_offset_t      x, y;
+    bru_cntr_t        cval, n;
+    bru_byte_t        byte;
+    BruIntervals     *intervals;
 
     if (self->matching_finished) return FALSE;
 
@@ -141,13 +140,6 @@ static int srvm_run(BruSRVM *self, const char *text)
                     break;
 
                 case BRU_MATCH:
-                    matched_sp = sp;
-                    matched    = 1;
-                    if (self->captures)
-                        memcpy(self->captures,
-                               bru_thread_manager_captures(tm, captures, thread,
-                                                           &ncaptures),
-                               2 * self->ncaptures * sizeof(char *));
                     bru_thread_manager_notify_thread_match(tm, thread);
                     break;
 
@@ -330,18 +322,42 @@ static int srvm_run(BruSRVM *self, const char *text)
                     bru_thread_manager_schedule_thread(tm, thread);
                     break;
 
+                case BRU_WRITE:
+                    BRU_MEMREAD(byte, pc, bru_byte_t);
+                    bru_thread_manager_write_byte(tm, thread, byte);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_WRITE0:
+                    byte = '0';
+                    bru_thread_manager_write_byte(tm, thread, byte);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_WRITE1:
+                    byte = '1';
+                    bru_thread_manager_write_byte(tm, thread, byte);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
                 case BRU_NBYTECODES: assert(0 && "unreachable");
             }
         }
 
+        bru_thread_manager_get_match(tm, thread);
         if (bru_thread_manager_done_exec(tm, cond)) {
             self->matching_finished = TRUE;
             break;
         }
-        self->curr_sp = matched && matched_sp != self->curr_sp
+        if (thread) bru_thread_manager_sp(tm, matched_sp, thread);
+        self->curr_sp = thread && matched_sp > self->curr_sp
                             ? matched_sp
                             : stc_utf8_str_next(self->curr_sp);
-    } while (!matched);
 
-    return matched;
+    } while (thread == NULL);
+
+    return srvm_match_from_thread(tm, thread);
 }

@@ -9,12 +9,21 @@
 
 typedef struct bru_srvm BruSRVM;
 
+typedef struct {
+    StcStringView *captures; /**< the recorded match's captures               */
+    bru_byte_t    *bytes;    /**< the recorded match's output bytes           */
+
+    bru_len_t ncaptures; /**< the number of captures                          */
+    size_t    nbytes; /**< the number of bytes                                */
+} BruSRVMMatch;
+
 #if !defined(BRU_VM_SRVM_DISABLE_SHORT_NAMES) && \
     (defined(BRU_VM_SRVM_ENABLE_SHORT_NAMES) ||  \
      !defined(BRU_VM_DISABLE_SHORT_NAMES) &&     \
          (defined(BRU_VM_ENABLE_SHORT_NAMES) ||  \
           defined(BRU_ENABLE_SHORT_NAMES)))
-typedef BruSRVM SRVM;
+typedef BruSRVM      SRVM;
+typedef BruSRVMMatch SRVMMatch;
 
 #    define srvm_new      bru_srvm_new
 #    define srvm_free     bru_srvm_free
@@ -53,7 +62,14 @@ void bru_srvm_free(BruSRVM *self);
  *
  * @return truthy value if the SRVM matched against the input string; else 0
  */
-int bru_srvm_match(BruSRVM *self, const char *text);
+BruSRVMMatch *bru_srvm_match(BruSRVM *self, const char *text);
+
+/**
+ * Free the memory allocated for the SRVM match object.
+ *
+ * @param[in] self the SRVM match object to free
+ */
+void bru_srvm_match_free(BruSRVMMatch *self);
 
 /**
  * Find the next match of the regex of the SRVM inside the input string if
@@ -64,28 +80,7 @@ int bru_srvm_match(BruSRVM *self, const char *text);
  *
  * @return truthy value if the SRVM found a match in the input string; else 0
  */
-int bru_srvm_find(BruSRVM *self, const char *text);
-
-/**
- * Get the string view into the input string of the capture at the given index
- * from the previous match.
- *
- * @param[in] self the SRVM to get the capture from
- * @param[in] idx  the index of the capture
- *
- * @return the string view of the capture
- */
-StcStringView bru_srvm_capture(BruSRVM *self, bru_len_t idx);
-
-/**
- * Get the string views of all the captures from the previous match of the SRVM.
- *
- * @param[in]  self      the SRVM to get the captures from
- * @param[out] ncaptures the number of captures in the returned array
- *
- * @return the array of capture string views from the SRVM
- */
-StcStringView *bru_srvm_captures(BruSRVM *self, bru_len_t *ncaptures);
+BruSRVMMatch *bru_srvm_find(BruSRVM *self, const char *text);
 
 /**
  * Determine whether the regex represented by the program matches the input text
