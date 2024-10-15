@@ -92,8 +92,8 @@ static size_t count(const BruRegexNode *re);
 static void   emit(BruStateMachine *sm, const BruRfa *rfa);
 
 #if defined(BRU_DEBUG) || defined(BRU_DEBUG_GLUSHKOV)
-static void ppl_print(PosPairList *self, FILE *stream);
-static void rfa_print(Rfa *self, FILE *stream);
+static void ppl_print(BruPosPairList *self, FILE *stream);
+static void rfa_print(BruRfa *self, FILE *stream);
 #else
 #    define ppl_print(...)
 #    define rfa_print(...)
@@ -638,9 +638,9 @@ static void emit(BruStateMachine *sm, const BruRfa *rfa)
 /* --- Debug functions ------------------------------------------------------ */
 
 #if defined(BRU_DEBUG) || defined(BRU_DEBUG_GLUSHKOV)
-static void ppl_print(PosPairList *self, FILE *stream)
+static void ppl_print(BruPosPairList *self, FILE *stream)
 {
-    PosPair               *pp;
+    BruPosPair            *pp;
     const BruAction       *act;
     BruActionListIterator *iter;
     size_t                 act_idx;
@@ -672,7 +672,7 @@ static void ppl_print(PosPairList *self, FILE *stream)
     }
 }
 
-static void rfa_print(Rfa *rfa, FILE *stream)
+static void rfa_print(BruRfa *rfa, FILE *stream)
 {
     size_t i;
 
