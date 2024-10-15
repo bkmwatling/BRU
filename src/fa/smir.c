@@ -669,8 +669,14 @@ BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self)
 
 const BruAction *bru_smir_action_list_iterator_next(BruActionListIterator *self)
 {
+    BruActionList *al = self->current;
+
     if (self->current == self->sentinel) return NULL;
     self->current = self->current ? self->current->next : self->sentinel->next;
+    if (al && al->act == NULL) {
+        // marked for removal in bru_smir_action_list_iterator_remove
+        free(al);
+    }
     if (self->current == self->sentinel) return NULL;
 
     return self->current->act;
@@ -678,8 +684,14 @@ const BruAction *bru_smir_action_list_iterator_next(BruActionListIterator *self)
 
 const BruAction *bru_smir_action_list_iterator_prev(BruActionListIterator *self)
 {
+    BruActionList *al = self->current;
+
     if (self->current == self->sentinel) return NULL;
     self->current = self->current ? self->current->prev : self->sentinel->prev;
+    if (al && al->act == NULL) {
+        // marked for removal in bru_smir_action_list_iterator_remove
+        free(al);
+    }
     if (self->current == self->sentinel) return NULL;
 
     return self->current->act;
@@ -689,16 +701,16 @@ void bru_smir_action_list_iterator_remove(BruActionListIterator *self)
 {
     BruActionList *al;
 
-    if (!self->current || self->current == self->sentinel) return;
+    if (!self->current || self->current->act == NULL ||
+        self->current == self->sentinel)
+        return;
 
     al             = self->current;
     al->prev->next = al->next;
     al->next->prev = al->prev;
-    self->current  = al->prev == self->sentinel ? NULL : al->prev;
 
-    al->prev = al->next = NULL;
     bru_smir_action_free(al->act);
-    free(al);
+    al->act = NULL;
 }
 
 void bru_smir_action_list_print(const BruActionList *self, FILE *stream)
