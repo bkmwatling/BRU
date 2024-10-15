@@ -107,6 +107,11 @@ static void spencer_thread_manager_init(BruThreadManager *tm,
     BruThread               *thread;
 
     self->start_sp = start_sp;
+
+    if (self->match) {
+        bru_thread_manager_kill_thread(tm, self->match);
+        self->match = NULL;
+    }
     bru_vt_call_function(tm, thread, alloc_thread);
     bru_thread_manager_init_thread(tm, thread, start_pc, start_sp);
     bru_thread_manager_schedule_thread(tm, thread);

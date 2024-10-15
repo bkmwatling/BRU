@@ -347,14 +347,13 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
             }
         }
 
-        // TODO
         bru_thread_manager_get_match(tm, thread);
         if (bru_thread_manager_done_exec(tm, cond)) {
             self->matching_finished = TRUE;
             break;
         }
         if (thread) bru_thread_manager_sp(tm, matched_sp, thread);
-        self->curr_sp = thread && matched_sp != self->curr_sp
+        self->curr_sp = thread && matched_sp > self->curr_sp
                             ? matched_sp
                             : stc_utf8_str_next(self->curr_sp);
 

@@ -99,6 +99,10 @@ static void thompson_thread_manager_init(BruThreadManager *tm,
     self->start_pc = start_pc;
     self->sp = self->start_sp = start_sp;
     bru_scheduler_init(self->scheduler);
+    if (self->match) {
+        bru_thread_manager_kill_thread(tm, self->match);
+        self->match = NULL;
+    }
 
     bru_vt_call_function(tm, thread, alloc_thread);
     bru_thread_manager_init_thread(tm, thread, start_pc, start_sp);
@@ -107,11 +111,16 @@ static void thompson_thread_manager_init(BruThreadManager *tm,
 
 static void thompson_thread_manager_reset(BruThreadManager *tm)
 {
-    BruThread    *t;
-    BruScheduler *ts =
-        ((BruThompsonThreadManager *) bru_vt_curr_impl(tm))->scheduler;
+    BruThread                *t;
+    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    BruScheduler             *ts   = self->scheduler;
 
     while ((t = bru_scheduler_next(ts))) bru_thread_manager_kill_thread(tm, t);
+
+    if (self->match) {
+        bru_thread_manager_kill_thread(tm, self->match);
+        self->match = NULL;
+    }
 }
 
 static void thompson_thread_manager_free(BruThreadManager *tm)
@@ -124,9 +133,7 @@ static void thompson_thread_manager_free(BruThreadManager *tm)
 
 static void thompson_thread_manager_kill(BruThreadManager *tm)
 {
-    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
-
-    if (self->match) bru_thread_manager_kill_thread(tm, self->match);
+    bru_thread_manager_reset(tm);
     _bru_thread_manager_free(tm);
 }
 
