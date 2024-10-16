@@ -9,72 +9,72 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-typedef struct bru_thompson_thread {
+typedef struct {
     const bru_byte_t *pc;
     const char      **sp;
-} BruThompsonThread;
+} BruLockstepThread;
 
-typedef struct bru_thompson_thread_manager {
-    BruScheduler     *scheduler; /**< Thompson scheduler for scheduling       */
+typedef struct {
+    BruScheduler     *scheduler; /**< lockstep scheduler for scheduling       */
     const bru_byte_t *start_pc;  /**< the starting PC for new threads         */
     const char       *start_sp;  /**< the starting SP for the current run     */
     const char       *sp;        /**< the string pointer for lockstep         */
     BruThread        *match;     /**< the matched thread                      */
-} BruThompsonThreadManager;
+} BruLockstepThreadManager;
 
-/* --- ThompsonThreadManager function prototypes ---------------------------- */
+/* --- LockstepThreadManager function prototypes ---------------------------- */
 
-static void       thompson_thread_manager_init(BruThreadManager *tm,
+static void       lockstep_thread_manager_init(BruThreadManager *tm,
                                                const bru_byte_t *start_pc,
                                                const char       *start_sp);
-static void       thompson_thread_manager_reset(BruThreadManager *tm);
-static void       thompson_thread_manager_free(BruThreadManager *tm);
-static void       thompson_thread_manager_kill(BruThreadManager *tm);
-static int        thompson_thread_manager_done_exec(BruThreadManager *tm);
-static BruThread *thompson_thread_manager_get_match(BruThreadManager *tm);
+static void       lockstep_thread_manager_reset(BruThreadManager *tm);
+static void       lockstep_thread_manager_free(BruThreadManager *tm);
+static void       lockstep_thread_manager_kill(BruThreadManager *tm);
+static int        lockstep_thread_manager_done_exec(BruThreadManager *tm);
+static BruThread *lockstep_thread_manager_get_match(BruThreadManager *tm);
 
-static BruThread *thompson_thread_manager_alloc_thread(BruThreadManager *tm);
-static BruThread *thompson_thread_manager_spawn_thread(BruThreadManager *tm);
-static void       thompson_thread_manager_init_thread(BruThreadManager *tm,
+static BruThread *lockstep_thread_manager_alloc_thread(BruThreadManager *tm);
+static BruThread *lockstep_thread_manager_spawn_thread(BruThreadManager *tm);
+static void       lockstep_thread_manager_init_thread(BruThreadManager *tm,
                                                       BruThread        *thread,
                                                       const bru_byte_t *pc,
                                                       const char       *sp);
-static void       thompson_thread_manager_copy_thread(BruThreadManager *tm,
+static void       lockstep_thread_manager_copy_thread(BruThreadManager *tm,
                                                       const BruThread  *src,
                                                       BruThread        *dst);
-static int        thompson_thread_manager_check_thread_eq(BruThreadManager *tm,
+static int        lockstep_thread_manager_check_thread_eq(BruThreadManager *tm,
                                                           const BruThread  *t1,
                                                           const BruThread  *t2);
-static void       thompson_thread_manager_schedule_thread(BruThreadManager *tm,
+static void       lockstep_thread_manager_schedule_thread(BruThreadManager *tm,
                                                           BruThread        *t);
-#define thompson_thread_manager_schedule_thread_in_order \
-    thompson_thread_manager_schedule_thread
-static BruThread *thompson_thread_manager_next_thread(BruThreadManager *tm);
-static void thompson_thread_manager_notify_thread_match(BruThreadManager *tm,
+#define lockstep_thread_manager_schedule_thread_in_order \
+    lockstep_thread_manager_schedule_thread
+static BruThread *lockstep_thread_manager_next_thread(BruThreadManager *tm);
+static void lockstep_thread_manager_notify_thread_match(BruThreadManager *tm,
                                                         BruThread        *t);
-static BruThread *thompson_thread_manager_clone_thread(BruThreadManager *tm,
+static BruThread *lockstep_thread_manager_clone_thread(BruThreadManager *tm,
                                                        const BruThread  *t);
-static void       thompson_thread_manager_kill_thread(BruThreadManager *tm,
+static void       lockstep_thread_manager_kill_thread(BruThreadManager *tm,
                                                       BruThread        *t);
-static void       thompson_thread_manager_free_thread(BruThreadManager *tm,
+static void       lockstep_thread_manager_free_thread(BruThreadManager *tm,
                                                       BruThread        *t);
 
-static const bru_byte_t *thompson_thread_manager_pc(BruThreadManager *tm,
+static const bru_byte_t *lockstep_thread_manager_pc(BruThreadManager *tm,
                                                     const BruThread  *t);
-static void              thompson_thread_manager_set_pc(BruThreadManager *tm,
+static void              lockstep_thread_manager_set_pc(BruThreadManager *tm,
                                                         BruThread        *t,
                                                         const bru_byte_t *pc);
-static const char       *thompson_thread_manager_sp(BruThreadManager *tm,
+static const char       *lockstep_thread_manager_sp(BruThreadManager *tm,
                                                     const BruThread  *t);
-static void thompson_thread_manager_inc_sp(BruThreadManager *tm, BruThread *t);
+static void lockstep_thread_manager_inc_sp(BruThreadManager *tm, BruThread *t);
 
-/* --- ThompsonThreadManager function definitions --------------------------- */
+/* --- LockstepThreadManager function definitions --------------------------- */
 
-BruThreadManager *bru_thompson_thread_manager_new(void)
+BruThreadManager *bru_lockstep_thread_manager_new(void)
 {
-    BruThompsonThreadManager  *ttm = malloc(sizeof(*ttm));
+    BruLockstepThreadManager  *ttm = malloc(sizeof(*ttm));
     BruThreadManagerInterface *tmi =
-        bru_thread_manager_interface_new(ttm, sizeof(BruThompsonThread));
+        bru_thread_manager_interface_new(ttm, sizeof(BruLockstepThread));
     BruThreadManager *tm = malloc(sizeof(*tm));
 
     // NOLINTNEXTLINE(bugprone-sizeof-expression)
@@ -83,17 +83,17 @@ BruThreadManager *bru_thompson_thread_manager_new(void)
     ttm->scheduler = bru_lockstep_scheduler_new(tm);
     ttm->match     = NULL;
 
-    BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(tmi, thompson);
+    BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(tmi, lockstep);
     BRU_THREAD_MANAGER_SET_NOOP_FUNCS(tmi);
 
     return tm;
 }
 
-static void thompson_thread_manager_init(BruThreadManager *tm,
+static void lockstep_thread_manager_init(BruThreadManager *tm,
                                          const bru_byte_t *start_pc,
                                          const char       *start_sp)
 {
-    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
     BruThread                *thread;
 
     self->start_pc = start_pc;
@@ -109,10 +109,10 @@ static void thompson_thread_manager_init(BruThreadManager *tm,
     bru_thread_manager_schedule_thread(tm, thread);
 }
 
-static void thompson_thread_manager_reset(BruThreadManager *tm)
+static void lockstep_thread_manager_reset(BruThreadManager *tm)
 {
     BruThread                *t;
-    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
     BruScheduler             *ts   = self->scheduler;
 
     while ((t = bru_scheduler_next(ts))) bru_thread_manager_kill_thread(tm, t);
@@ -123,95 +123,95 @@ static void thompson_thread_manager_reset(BruThreadManager *tm)
     }
 }
 
-static void thompson_thread_manager_free(BruThreadManager *tm)
+static void lockstep_thread_manager_free(BruThreadManager *tm)
 {
-    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
 
     bru_scheduler_free(self->scheduler);
     free(self);
 }
 
-static void thompson_thread_manager_kill(BruThreadManager *tm)
+static void lockstep_thread_manager_kill(BruThreadManager *tm)
 {
     bru_thread_manager_reset(tm);
     _bru_thread_manager_free(tm);
 }
 
-static int thompson_thread_manager_done_exec(BruThreadManager *tm)
+static int lockstep_thread_manager_done_exec(BruThreadManager *tm)
 {
-    return *((BruThompsonThreadManager *) bru_vt_curr_impl(tm))->start_sp ==
+    return *((BruLockstepThreadManager *) bru_vt_curr_impl(tm))->start_sp ==
            '\0';
 }
 
-static BruThread *thompson_thread_manager_get_match(BruThreadManager *tm)
+static BruThread *lockstep_thread_manager_get_match(BruThreadManager *tm)
 {
-    return ((BruThompsonThreadManager *) bru_vt_curr_impl(tm))->match;
+    return ((BruLockstepThreadManager *) bru_vt_curr_impl(tm))->match;
 }
 
-static BruThread *thompson_thread_manager_alloc_thread(BruThreadManager *tm)
+static BruThread *lockstep_thread_manager_alloc_thread(BruThreadManager *tm)
 {
     return _bru_thread_manager_malloc_thread(tm);
 }
 
-static BruThread *thompson_thread_manager_spawn_thread(BruThreadManager *tm)
+static BruThread *lockstep_thread_manager_spawn_thread(BruThreadManager *tm)
 {
     BruThread *_t;
     return bru_vt_call_function(tm, _t, alloc_thread);
 }
 
-static void thompson_thread_manager_init_thread(BruThreadManager *tm,
+static void lockstep_thread_manager_init_thread(BruThreadManager *tm,
                                                 BruThread        *thread,
                                                 const bru_byte_t *pc,
                                                 const char       *sp)
 {
     BRU_UNUSED(sp);
-    BruThompsonThreadManager  *self = bru_vt_curr_impl(tm);
+    BruLockstepThreadManager  *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
-    BruThompsonThread         *tt =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruLockstepThread         *tt =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     tt->pc = pc;
     tt->sp = &self->sp;
 }
 
-static void thompson_thread_manager_copy_thread(BruThreadManager *tm,
+static void lockstep_thread_manager_copy_thread(BruThreadManager *tm,
                                                 const BruThread  *src,
                                                 BruThread        *dst)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThompsonThread         *tt_src =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, src);
-    BruThompsonThread *tt_dst =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, dst);
+    BruLockstepThread         *tt_src =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, src);
+    BruLockstepThread *tt_dst =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, dst);
 
     tt_dst->pc = tt_src->pc;
     tt_dst->sp = tt_src->sp;
 }
 
-static int thompson_thread_manager_check_thread_eq(BruThreadManager *tm,
+static int lockstep_thread_manager_check_thread_eq(BruThreadManager *tm,
                                                    const BruThread  *t1,
                                                    const BruThread  *t2)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThompsonThread         *tt1 =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, t1);
-    BruThompsonThread *tt2 =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, t2);
+    BruLockstepThread         *tt1 =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, t1);
+    BruLockstepThread *tt2 =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, t2);
 
     return tt1->pc == tt2->pc;
 }
 
-static void thompson_thread_manager_schedule_thread(BruThreadManager *tm,
+static void lockstep_thread_manager_schedule_thread(BruThreadManager *tm,
                                                     BruThread        *t)
 {
-    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
     if (!bru_scheduler_schedule(self->scheduler, t))
         bru_thread_manager_kill_thread(tm, t);
 }
 
-static BruThread *thompson_thread_manager_next_thread(BruThreadManager *tm)
+static BruThread *lockstep_thread_manager_next_thread(BruThreadManager *tm)
 {
-    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
     BruThread                *thread;
 
     // advance the SP after a lockstep only if we still have threads to
@@ -230,10 +230,10 @@ static BruThread *thompson_thread_manager_next_thread(BruThreadManager *tm)
     return bru_scheduler_next(self->scheduler);
 }
 
-static void thompson_thread_manager_notify_thread_match(BruThreadManager *tm,
+static void lockstep_thread_manager_notify_thread_match(BruThreadManager *tm,
                                                         BruThread        *t)
 {
-    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
     BruScheduler             *ts   = self->scheduler;
     BruThread               **low_priority_threads;
     size_t                    i, nthreads;
@@ -249,7 +249,7 @@ static void thompson_thread_manager_notify_thread_match(BruThreadManager *tm,
     stc_vec_free(low_priority_threads);
 }
 
-static BruThread *thompson_thread_manager_clone_thread(BruThreadManager *tm,
+static BruThread *lockstep_thread_manager_clone_thread(BruThreadManager *tm,
                                                        const BruThread  *t)
 {
     BruThread *clone;
@@ -260,52 +260,52 @@ static BruThread *thompson_thread_manager_clone_thread(BruThreadManager *tm,
     return clone;
 }
 
-static void thompson_thread_manager_kill_thread(BruThreadManager *tm,
+static void lockstep_thread_manager_kill_thread(BruThreadManager *tm,
                                                 BruThread        *t)
 {
     bru_vt_call_procedure(tm, free_thread, t);
 }
 
-static void thompson_thread_manager_free_thread(BruThreadManager *tm,
+static void lockstep_thread_manager_free_thread(BruThreadManager *tm,
                                                 BruThread        *t)
 {
     _bru_thread_manager_free_thread(tm, t);
 }
 
-/* --- Thread function definitions ------------------------------------------ */
+/* --- LockstepThread function definitions ---------------------------------- */
 
-static const bru_byte_t *thompson_thread_manager_pc(BruThreadManager *tm,
+static const bru_byte_t *lockstep_thread_manager_pc(BruThreadManager *tm,
                                                     const BruThread  *t)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThompsonThread         *tt =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    BruLockstepThread         *tt =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
 
     return tt->pc;
 }
 
-static void thompson_thread_manager_set_pc(BruThreadManager *tm,
+static void lockstep_thread_manager_set_pc(BruThreadManager *tm,
                                            BruThread        *t,
                                            const bru_byte_t *pc)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThompsonThread         *tt =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    BruLockstepThread         *tt =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
 
     tt->pc = pc;
 }
 
-static const char *thompson_thread_manager_sp(BruThreadManager *tm,
+static const char *lockstep_thread_manager_sp(BruThreadManager *tm,
                                               const BruThread  *t)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThompsonThread         *tt =
-        (BruThompsonThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    BruLockstepThread         *tt =
+        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
 
     return *tt->sp;
 }
 
-static void thompson_thread_manager_inc_sp(BruThreadManager *tm, BruThread *t)
+static void lockstep_thread_manager_inc_sp(BruThreadManager *tm, BruThread *t)
 {
     BRU_UNUSED(tm);
     BRU_UNUSED(t);
