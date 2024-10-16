@@ -204,8 +204,8 @@ static int thompson_thread_manager_check_thread_eq(BruThreadManager *tm,
 static void thompson_thread_manager_schedule_thread(BruThreadManager *tm,
                                                     BruThread        *t)
 {
-    if (!bru_scheduler_schedule(
-            ((BruThompsonThreadManager *) bru_vt_curr_impl(tm))->scheduler, t))
+    BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
+    if (!bru_scheduler_schedule(self->scheduler, t))
         bru_thread_manager_kill_thread(tm, t);
 }
 
@@ -214,6 +214,8 @@ static BruThread *thompson_thread_manager_next_thread(BruThreadManager *tm)
     BruThompsonThreadManager *self = bru_vt_curr_impl(tm);
     BruThread                *thread;
 
+    // advance the SP after a lockstep only if we still have threads to
+    // execute, or we don't have a match yet in which case we spawn a new thread
     if (bru_lockstep_scheduler_done_step(self->scheduler) && *self->sp &&
         (!self->match || bru_scheduler_has_next(self->scheduler))) {
         self->sp = stc_utf8_str_next(self->sp);

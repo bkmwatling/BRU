@@ -1,7 +1,7 @@
 #include "captures.h"
 #include <string.h>
 
-/* --- Data structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
     bru_len_t ncaptures; /**< number of captures to allocate space for        */

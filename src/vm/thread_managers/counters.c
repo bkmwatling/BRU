@@ -1,7 +1,7 @@
 #include "counters.h"
 #include <string.h>
 
-/* --- Data structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
     bru_len_t ncounters; /**< number of counters to allocate space for        */
