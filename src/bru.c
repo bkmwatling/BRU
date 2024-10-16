@@ -319,7 +319,7 @@ static int match(BruOptions *options)
     if (options->scheduler_type == SCH_SPENCER)
         thread_manager = bru_spencer_thread_manager_new();
     else if (options->scheduler_type == SCH_LOCKSTEP)
-        thread_manager = bru_thompson_thread_manager_new();
+        thread_manager = bru_lockstep_thread_manager_new();
 
     if (prog->ncaptures)
         thread_manager = bru_thread_manager_with_captures_new(thread_manager,

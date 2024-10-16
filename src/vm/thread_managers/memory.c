@@ -1,7 +1,7 @@
 #include "memory.h"
 #include <string.h>
 
-/* --- Data structures ------------------------------------------------------ */
+/* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
     bru_len_t memlen; /**< the size of the extra memory                       */
@@ -108,15 +108,10 @@ static int thread_check_eq_with_memory(BruThreadManager *tm,
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
     bru_byte_t *mem1 = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, t1);
     bru_byte_t *mem2 = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, t2);
-    size_t      i;
-    int         eq;
+    int         _eq;
 
-    if (!bru_vt_call_super_function(tm, tmi, eq, check_thread_eq, t1, t2))
-        return eq;
-
-    for (i = 0; i < self->memlen && (eq = mem1[i] == mem2[i]); i++);
-
-    return eq;
+    return bru_vt_call_super_function(tm, tmi, _eq, check_thread_eq, t1, t2) &&
+           memcmp(mem1, mem2, self->memlen * sizeof(*mem1)) == 0;
 }
 
 static void *

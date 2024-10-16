@@ -92,7 +92,9 @@ static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
     BruLockstepScheduler *self = impl;
     const bru_byte_t     *_pc;
 
-    if (lockstep_threads_contain(self->tm, self->sync, thread)) return FALSE;
+    if (lockstep_threads_contain(self->tm, self->next, thread) ||
+        lockstep_threads_contain(self->tm, self->sync, thread))
+        return FALSE;
 
     switch (*bru_thread_manager_pc(self->tm, _pc, thread)) {
         case BRU_CHAR:
@@ -150,9 +152,8 @@ lockstep_scheduler_next_start:
             case BRU_CHAR:
             case BRU_PRED:
                 if (!self->in_lockstep) {
-                    // FIXME: memory leak on thread below if schedule returns
-                    // FALSE
-                    lockstep_scheduler_schedule(self, thread);
+                    if (!lockstep_scheduler_schedule(self, thread))
+                        bru_thread_manager_kill_thread(self->tm, thread);
                     goto lockstep_scheduler_next_start;
                 }
                 break;
