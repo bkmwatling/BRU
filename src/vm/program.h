@@ -24,6 +24,14 @@
 #define BRU_BCPUSH(insts, bytecode) stc_vec_push_back(insts, bytecode)
 
 /**
+ * Read the bytecode from PC, and move PC past the bytecode in the underlying
+ * byte stream.
+ *
+ * @param[in,out] pc the PC to read the bytecode from
+ */
+#define BRU_BCREAD(pc) ((BruBytecode) (*(pc)++))
+
+/**
  * Write a value of given type to PC and advance PC past that value.
  *
  * @param[in,out] pc   the PC to write the value to
@@ -81,40 +89,36 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-/* Bytecodes */
-#define BRU_NOOP       0
-#define BRU_MATCH      1
-#define BRU_BEGIN      2
-#define BRU_END        3
-#define BRU_MEMO       4
-#define BRU_CHAR       5
-#define BRU_PRED       6
-#define BRU_SAVE       7
-#define BRU_JMP        8
-#define BRU_SPLIT      9
-#define BRU_GSPLIT     10
-#define BRU_LSPLIT     11
-#define BRU_TSWITCH    12
-#define BRU_EPSRESET   13
-#define BRU_EPSSET     14
-#define BRU_EPSCHK     15
-#define BRU_RESET      16
-#define BRU_CMP        17
-#define BRU_INC        18
-#define BRU_ZWA        19
-#define BRU_STATE      20
-#define BRU_WRITE      21
-#define BRU_WRITE0     22
-#define BRU_WRITE1     23
-#define BRU_NBYTECODES 24
+typedef enum {
+    BRU_NOOP = 0,
+    BRU_MATCH,
+    BRU_BEGIN,
+    BRU_END,
+    BRU_MEMO,
+    BRU_CHAR,
+    BRU_PRED,
+    BRU_SAVE,
+    BRU_JMP,
+    BRU_SPLIT,
+    BRU_GSPLIT,
+    BRU_LSPLIT,
+    BRU_TSWITCH,
+    BRU_EPSRESET,
+    BRU_EPSSET,
+    BRU_EPSCHK,
+    BRU_RESET,
+    BRU_CMP,
+    BRU_INC,
+    BRU_ZWA,
+    BRU_STATE,
+    BRU_WRITE,
+    BRU_WRITE0,
+    BRU_WRITE1,
+    BRU_NBYTECODES
+} BruBytecode;
 
-/* Order for cmp */
-#define BRU_LT 1
-#define BRU_LE 2
-#define BRU_EQ 3
-#define BRU_NE 4
-#define BRU_GE 5
-#define BRU_GT 6
+/* Order for comparisons */
+typedef enum { BRU_LT = 1, BRU_LE, BRU_EQ, BRU_NE, BRU_GE, BRU_GT } BruOrd;
 
 typedef struct {
     const char *regex; /**< the original regular expression string            */
@@ -142,11 +146,13 @@ typedef struct {
           defined(BRU_ENABLE_SHORT_NAMES)))
 #    define BCWRITE  BRU_BCWRITE
 #    define BCPUSH   BRU_BCPUSH
+#    define BCREAD   BRU_BCREAD
 #    define MEMWRITE BRU_MEMWRITE
 #    define MEMPUSH  BRU_MEMPUSH
 #    define MEMCPY   BRU_MEMCPY
 #    define MEMREAD  BRU_MEMREAD
 
+typedef BruBytecode Bytecode;
 #    define NOOP       BRU_NOOP
 #    define MATCH      BRU_MATCH
 #    define BEGIN      BRU_BEGIN
@@ -170,6 +176,7 @@ typedef struct {
 #    define STATE      BRU_STATE
 #    define NBYTECODES BRU_NBYTECODES
 
+typedef BruOrd Ord;
 #    define LT BRU_LT
 #    define LE BRU_LE
 #    define EQ BRU_EQ

@@ -521,9 +521,9 @@ static void rfa_construct(BruRfa                *self,
             break;
 
         /* TODO: */
-        case BRU_COUNTER:
+        case BRU_COUNTER: /* fallthrough */
             // TODO: PCRE/RE2 semantics
-        case BRU_LOOKAHEAD:
+        case BRU_LOOKAHEAD: /* fallthrough */
         case BRU_BACKREFERENCE: assert(0 && "TODO");
         case BRU_NREGEXTYPES: assert(0 && "unreachable");
     }

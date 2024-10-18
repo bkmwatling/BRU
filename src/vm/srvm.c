@@ -133,7 +133,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
             }
 
             bru_thread_manager_pc(tm, pc, thread);
-            switch (*pc++) {
+            switch (BRU_BCREAD(pc)) {
                 case BRU_NOOP:
                     bru_thread_manager_set_pc(tm, thread, pc);
                     bru_thread_manager_schedule_thread(tm, thread);
@@ -275,7 +275,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     BRU_MEMREAD(k, pc, bru_len_t);
                     BRU_MEMREAD(n, pc, bru_cntr_t);
                     bru_thread_manager_counter(tm, cval, thread, k);
-                    switch (*pc++) {
+                    switch ((BruOrd) *pc++) {
                         case BRU_LT: cond = (cval < n); break;
                         case BRU_LE: cond = (cval <= n); break;
                         case BRU_EQ: cond = (cval == n); break;

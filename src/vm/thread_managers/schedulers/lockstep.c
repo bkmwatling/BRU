@@ -100,7 +100,7 @@ static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
         return FALSE;
 
     switch (*bru_thread_manager_pc(self->tm, _pc, thread)) {
-        case BRU_CHAR:
+        case BRU_CHAR: /* fallthrough */
         case BRU_PRED:
             if (stc_vec_is_empty(self->next))
                 // NOLINTNEXTLINE(bugprone-sizeof-expression)
@@ -152,7 +152,7 @@ lockstep_scheduler_next_start:
     if (self->curr_idx < stc_vec_len(self->curr)) {
         thread = self->curr[self->curr_idx++];
         switch (*bru_thread_manager_pc(self->tm, _pc, thread)) {
-            case BRU_CHAR:
+            case BRU_CHAR: /* fallthrough */
             case BRU_PRED:
                 if (!self->in_lockstep) {
                     if (!lockstep_scheduler_schedule(self, thread))

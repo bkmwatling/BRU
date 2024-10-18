@@ -125,13 +125,14 @@ static int lockstep_alt_scheduler_schedule(void *impl, BruThread *thread)
         lockstep_alt_scheduler_schedule_in_order(impl, thread);
     } else {
         switch (*bru_thread_manager_pc(self->tm, _pc, thread)) {
-            case BRU_CHAR:
+            case BRU_CHAR: /* fallthrough */
             case BRU_PRED:
                 if (lockstep_threads_contain(self->tm, self->locked, thread))
                     return FALSE;
                 // NOLINTNEXTLINE(bugprone-sizeof-expression)
                 stc_vec_push_back(self->locked, thread);
                 break;
+
             default:
                 if (self->active)
                     // NOLINTNEXTLINE(bugprone-sizeof-expression)

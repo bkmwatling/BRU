@@ -533,8 +533,8 @@ void bru_smir_action_print(const BruAction *self, FILE *stream)
     char *s;
 
     switch (self->type) {
-        case BRU_ACT_BEGIN: fprintf(stream, "begin"); break;
-        case BRU_ACT_END: fprintf(stream, "end"); break;
+        case BRU_ACT_BEGIN: fputs("begin", stream); break;
+        case BRU_ACT_END: fputs("end", stream); break;
         case BRU_ACT_CHAR:
             fprintf(stream, "char %.*s", stc_utf8_nbytes(self->ch), self->ch);
             break;
@@ -545,9 +545,8 @@ void bru_smir_action_print(const BruAction *self, FILE *stream)
             break;
         case BRU_ACT_WRITE:
             fprintf(stream,
-                    self->c == '0'   ? "write0"
-                    : self->c == '1' ? "write1"
-                                     : "write %c",
+                    self->c == '0' ? "write0"
+                                   : (self->c == '1' ? "write1" : "write %c"),
                     self->c);
             break;
         case BRU_ACT_MEMO: fprintf(stream, "memo %zu", self->k); break;

@@ -387,6 +387,7 @@ static BruParseResult parse_atom(const BruParser *self,
                 res.code = BRU_PARSE_UNQUANTIFIABLE;
                 break;
             }
+            /* fallthrough */
 
         default:
             *re = bru_regex_literal(ps->ch);
@@ -441,21 +442,21 @@ parse_quantifier(const BruParser *self,
 
     /* check that child is quantifiable */
     switch ((*re)->type) {
-        case BRU_EPSILON:
-        case BRU_CARET:
+        case BRU_EPSILON: /* fallthrough */
+        case BRU_CARET:   /* fallthrough */
         /* case MEMOISE: */
         case BRU_DOLLAR: return PARSE_RES(BRU_PARSE_UNQUANTIFIABLE, ps->ch);
 
-        case BRU_LITERAL:
-        case BRU_CC:
-        case BRU_ALT:
-        case BRU_CONCAT:
-        case BRU_CAPTURE:
-        case BRU_STAR:
-        case BRU_PLUS:
-        case BRU_QUES:
-        case BRU_COUNTER:
-        case BRU_LOOKAHEAD:
+        case BRU_LITERAL:   /* fallthrough */
+        case BRU_CC:        /* fallthrough */
+        case BRU_ALT:       /* fallthrough */
+        case BRU_CONCAT:    /* fallthrough */
+        case BRU_CAPTURE:   /* fallthrough */
+        case BRU_STAR:      /* fallthrough */
+        case BRU_PLUS:      /* fallthrough */
+        case BRU_QUES:      /* fallthrough */
+        case BRU_COUNTER:   /* fallthrough */
+        case BRU_LOOKAHEAD: /* fallthrough */
         case BRU_BACKREFERENCE:
             if (!ps->allow_repeated_nullability && max == BRU_CNTR_MAX &&
                 (*re)->nullable) {
@@ -579,7 +580,6 @@ static BruParseResult parse_paren(const BruParser *self,
     ps->ch++;
 
     switch (*ps->ch) {
-
         /* control verbs */
         case '*':
             unsupported_code = BRU_UNSUPPORTED_CONTROL_VERB;
@@ -594,13 +594,13 @@ static BruParseResult parse_paren(const BruParser *self,
                     goto unsupported_group;
 
                 /* named groups */
-                case 'P':
+                case 'P': /* fallthrough */
                 case '\'':
                     unsupported_code = BRU_UNSUPPORTED_NAMED_GROUP;
                     goto unsupported_group;
 
                 /* relative group back ref */
-                case '-':
+                case '-': /* fallthrough */
                 case '+':
                     unsupported_code = BRU_UNSUPPORTED_RELATIVE_GROUP;
                     goto unsupported_group;
@@ -638,11 +638,11 @@ static BruParseResult parse_paren(const BruParser *self,
                     goto unsupported_group;
 
                 /* flags */
-                case 'i':
-                case 'J':
-                case 'm':
-                case 's':
-                case 'U':
+                case 'i': /* fallthrough */
+                case 'J': /* fallthrough */
+                case 'm': /* fallthrough */
+                case 's': /* fallthrough */
+                case 'U': /* fallthrough */
                 case 'x':
                     unsupported_code = BRU_UNSUPPORTED_FLAGS;
                     goto unsupported_group;
@@ -913,32 +913,36 @@ static BruParseResult parse_escape(BruParseState *ps,
     res.code = BRU_PARSE_SUCCESS;
     ch       = ps->ch++;
     switch (*ps->ch) {
-        case 'B':
+        case 'B': /* fallthrough */
         case 'b':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_WORD_BOUNDARY, ps);
             *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
+
         case 'A':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_START_BOUNDARY, ps);
             *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
-        case 'z':
+
+        case 'z': /* fallthrough */
         case 'Z':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_END_BOUNDARY, ps);
             *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
+
         case 'G':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_FIRST_MATCH_BOUNDARY, ps);
             *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
+
         case 'g':
             ps->ch++;
             if (*ps->ch == '{') {
@@ -953,6 +957,7 @@ static BruParseResult parse_escape(BruParseState *ps,
             SET_RID(*re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
+
         case 'k':
             switch (ps->ch[1]) {
                 case '<': SKIP_UNTIL(*ps->ch == '>', res, ps); break;
@@ -978,14 +983,15 @@ static BruParseResult parse_escape(BruParseState *ps,
         // \ is not escaped)
         case 'Q':
             SKIP_UNTIL(*ps->ch == 'E' && ps->ch[-1] == '\\', res, ps);
-            if (FAILED(res.code)) return res;
+            if (FAILED(res.code)) return res; /* fallthrough */
         case 'E': // NOTE: \E only has special meaning if \Q was already seen
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_QUOTING, ps);
             *re = bru_regex_new(BRU_EPSILON);
             SET_RID(*re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
-        case 'p':
+
+        case 'p': /* fallthrough */
         case 'P':
             ps->ch++;
             if (*ps->ch == '{') {
@@ -997,6 +1003,7 @@ static BruParseResult parse_escape(BruParseState *ps,
             SET_RID(*re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
+
         case 'R':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_NEWLINE_SEQUENCE, ps);
             *re = bru_regex_new(BRU_EPSILON);
@@ -1078,12 +1085,12 @@ static BruParseResult parse_escape_char(BruParseState *ps,
                 }
             } else {
                 // TODO: technically should be of length 1 <= n <= 3
-                while (*next_ch < '8' && isdigit(*next_ch++))
-                    ;
+                while (*next_ch < '8' && isdigit(*next_ch++));
                 next_ch--;
             }
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
+
         case 'x':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_HEX, ps);
             *ch = "";
@@ -1097,12 +1104,12 @@ static BruParseResult parse_escape_char(BruParseState *ps,
                 }
             } else {
                 // TODO: technically should be of length 1 <= n <= 2
-                while (isxdigit(*next_ch++))
-                    ;
+                while (isxdigit(*next_ch++));
                 next_ch--;
             }
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
+
         case 'u':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_UNICODE, ps);
             *ch = "";
@@ -1116,8 +1123,7 @@ static BruParseResult parse_escape_char(BruParseState *ps,
                 }
             } else {
                 // TODO: technically should be of length 1 <= n <= 4
-                while (isxdigit(*next_ch++))
-                    ;
+                while (isxdigit(*next_ch++));
                 next_ch--;
             }
             res.code = BRU_PARSE_UNSUPPORTED;
@@ -1210,7 +1216,7 @@ parse_escape_cc(BruParseState *ps, BruIntervalList *list /**< out parameter */)
             PUSH_INTERVAL("a", "z");
             break;
 
-        case 'C':
+        case 'C': /* fallthrough */
         case 'X': res.code = BRU_PARSE_INVALID_ESCAPE; break;
 
         default: res.code = BRU_PARSE_NO_MATCH; break;
@@ -1326,17 +1332,21 @@ static void find_matching_closing_parenthesis(BruParseState *ps)
             case '[':
                 if (!in_quote) in_cc = TRUE;
                 break;
+
             case ']':
                 if (in_cc) in_cc = FALSE;
                 break;
+
             case ')':
                 if (!in_cc && !in_quote) {
                     if (!(--nparen)) return;
                 }
                 break;
+
             case '(':
                 if (!in_cc && !in_quote) nparen++;
                 break;
+
             case '\\':
                 ps->ch++;
                 if (in_cc) break;
@@ -1345,6 +1355,7 @@ static void find_matching_closing_parenthesis(BruParseState *ps)
                 else if (*ps->ch == 'E' && in_quote)
                     in_quote = FALSE;
                 break;
+
             default: break;
         }
         if (*ps->ch) ps->ch++;
@@ -1379,7 +1390,7 @@ static void print_unsupported_feature(unsigned int feature_idx, FILE *stream)
         "UNSUPPORTED_RESET_MATCH_START",
         "UNSUPPORTED_QUOTING",
         "UNSUPPORTED_UNICODE_PROPERTY",
-        "UNSUPPORTED_NEWLINE_SEQUENCE",
+        "UNSUPPORTED_NEWLINE_SEQUENCE"
     };
 
     if (feature_idx >= BRU_NUM_UNSUPPORTED_CODES) return;
