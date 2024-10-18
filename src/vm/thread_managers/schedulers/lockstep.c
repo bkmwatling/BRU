@@ -8,9 +8,9 @@ typedef struct {
     BruThreadManager *tm; /**< the thread manager using this scheduler        */
     int in_lockstep; /**< whether to execute the synchronisation thread queue */
 
-    BruThread **curr; /**< stc_vec for current queue of threads to execute    */
-    BruThread **next; /**< stc_vec for next queue of threads to be executed   */
-    BruThread **sync; /**< stc_vec for synchronisation queue for lockstep     */
+    StcVec(BruThread *) curr; /**< current queue of threads to execute        */
+    StcVec(BruThread *) next; /**< next queue of threads to be executed       */
+    StcVec(BruThread *) sync; /**< synchronisation queue for lockstep         */
 } BruLockstepScheduler;
 
 /* --- LockstepScheduler function prototypes -------------------------------- */
@@ -55,7 +55,7 @@ BruThread **
 bru_lockstep_scheduler_remove_low_priority_threads(BruScheduler *self)
 {
     BruLockstepScheduler *ls      = self->impl;
-    BruThread           **threads = NULL;
+    StcVec(BruThread *)   threads = NULL;
     size_t                ncurr   = stc_vec_len(ls->curr);
     size_t                i;
 

@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../stc/fatp/vec.h"
-#include "../stc/util/utf.h"
+#include <stc/fatp/vec.h>
+#include <stc/util/utf.h>
 
 #include "../types.h"
 #include "../utils.h"

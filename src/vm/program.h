@@ -1,9 +1,7 @@
 #ifndef BRU_VM_PROGRAM_H
 #define BRU_VM_PROGRAM_H
 
-#include <stdio.h>
-
-#include "../stc/fatp/vec.h"
+#include <stc/fatp/vec.h>
 
 #include "../re/sre.h"
 #include "../types.h"
@@ -122,14 +120,14 @@ typedef struct {
     const char *regex; /**< the original regular expression string            */
 
     // VM execution
-    bru_byte_t *insts; /**< stc_vec of the instruction byte stream            */
-    bru_byte_t *aux;   /**< stc_vec of the auxillary memory for the program   */
+    StcVec(bru_byte_t) insts; /**< the instruction byte stream                */
+    StcVec(bru_byte_t) aux;   /**< the auxillary memory for the program       */
 
     // shared thread memory
     size_t nmemo_insts; /**< the number of memoisation instructions           */
 
     // thread memory
-    bru_cntr_t *counters;  /**< stc_vec of the counter memory default values  */
+    StcVec(bru_cntr_t) counters; /**< the counter memory default values       */
     size_t thread_mem_len; /**< the number of bytes needed for thread memory  */
     size_t ncaptures;      /**< the number of captures in the program/regex   */
 

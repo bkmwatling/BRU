@@ -12,7 +12,7 @@
  * The type of the VTable is user-defined, and can be done using the provided
  * BruVTable macro, e.g.
  *
- *      typedef BruVTable_of(BruSomeObjectInterface) BruSomeObject;
+ *      typedef bru_vtable_of(BruSomeObjectInterface) BruSomeObject;
  *
  * Then each function defined in BruSomeObjectInterface must take as first
  * argument something of type BruSomeObject *. This is the same type as the
@@ -33,19 +33,19 @@
  * The second invariant is satisfied by using the provided macros.
  */
 
-#include "../stc/common.h"
-#include "../stc/fatp/vec.h"
+#include <stc/fatp/vec.h>
+
 #include "../types.h"
 
-// place this within your interface struct (used by BruVTable_of)
-#define VTABLE_FIELDS \
-    void  *__vt_impl; \
+// place this within your interface struct (used by bru_vtable_of)
+#define BRU_VTABLE_FIELDS \
+    void  *__vt_impl;     \
     size_t __vt_idx
-#define BruVTable_of(interface_type)                                 \
-    struct {                                                         \
-        size_t           i;          /**< current interface index */ \
-        size_t          *call_stack; /**< previous values of 'i'  */ \
-        interface_type **table;      /**< list of interfaces      */ \
+#define bru_vtable_of(interface_type)                                          \
+    struct {                                                                   \
+        size_t                   i;          /**< current interface index   */ \
+        StcVec(size_t)           call_stack; /**< previous values of 'i'    */ \
+        StcVec(interface_type *) table;      /**< StcVec of interfaces      */ \
     }
 
 #define bru_vt_save_curr_idx(vt)    (stc_vec_push_back((vt)->call_stack, (vt)->i))
@@ -119,7 +119,7 @@
                               ##__VA_ARGS__)
 
 /**
- * Look for a non-null function pointer at ((vt)->table[__i])+offset.
+ * Look for a non-null function pointer at (((vt)->table[__i]) + offset).
  *
  * This function should never need to be called explicitly -- rather use the
  * bru_vt_lookup* macros defined above.

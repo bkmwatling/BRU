@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "../../stc/fatp/vec.h"
+#include <stc/fatp/vec.h>
 
 #include "../../utils.h"
 #include "lockstep.h"
@@ -235,7 +235,7 @@ static void lockstep_thread_manager_notify_thread_match(BruThreadManager *tm,
 {
     BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
     BruScheduler             *ts   = self->scheduler;
-    BruThread               **low_priority_threads;
+    StcVec(BruThread *)       low_priority_threads;
     size_t                    i, nthreads;
 
     if (self->match) bru_thread_manager_kill_thread(tm, self->match);

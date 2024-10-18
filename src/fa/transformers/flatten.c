@@ -13,15 +13,15 @@
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct {
-    BruStateMachine *origin_sm;   /**< the original machine                   */
-    BruStateMachine *new_sm;      /**< the new machine                        */
-    bru_byte_t      *created;     /**< map from original to states to record of
-                                 creation in new machine                */
-    bru_state_id    *state_map;   /**< map from original states to new states */
-    bru_state_id    *state_queue; /**< queue of states in original machine that
-                                       have been added to new machine         */
-    size_t eliminated_path_count; /**< the number of transitions eliminated
-                                       since they were not useful             */
+    BruStateMachine     *origin_sm;   /**< the original machine               */
+    BruStateMachine     *new_sm;      /**< the new machine                    */
+    bru_byte_t          *created;     /**< map from original states to record
+                                           of creation in new machine         */
+    bru_state_id        *state_map;   /**< map from original to new states    */
+    StcVec(bru_state_id) state_queue; /**< queue of states in original machine
+                                           that were added to new machine     */
+    size_t eliminated_path_count;     /**< the number of transitions eliminated
+                                           since they were not useful         */
 } BruFlattenGlobals;
 
 /* --- Helper functions ----------------------------------------------------- */
@@ -155,8 +155,8 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
 {
     BruActionListIterator *ali;
     const BruAction       *act;
-    size_t                *epssets, satisfiable = TRUE;
-    size_t                 idx, num;
+    StcVec(size_t)         epssets;
+    size_t                 idx, num, satisfiable = TRUE;
 
     // TODO: use Set instead of Vec
     stc_vec_default_init(epssets);
@@ -341,7 +341,6 @@ static void flatten_dfs(bru_state_id       original_src,
             // insert state in new machine if not created before
             // TODO: possibly remove need for 'created' by having special value
             // in 'state_map' indicating if it has been created or not
-
             new_src = globals->state_map[original_src];
 
             if (!globals->created[original_dst]) {

@@ -1,6 +1,8 @@
 #ifndef BRU_FA_TRANSFORMER_H
 #define BRU_FA_TRANSFORMER_H
 
+#include <stc/fatp/slice.h>
+
 #include "../smir.h"
 
 typedef BruStateMachine *bru_transformer_f(BruStateMachine *);
@@ -23,10 +25,12 @@ typedef bru_trans_predicate_f trans_predicate_f;
 #    define transform_with_trans       bru_transform_with_trans
 #endif /* BRU_FA_TRANSFORMER_ENABLE_SHORT_NAMES */
 
+/* TODO: revisit and make functions GREAT AGAIN */
+
 /**
  * Create the submachine induced by a set of state identifiers.
  *
- * The set is indicated by a boolean vector of length equal to the number of
+ * The set is indicated by a boolean array of length equal to the number of
  * states in the state machine. If a state identifier in the given state machine
  * maps to a non-zero value in the boolean vector, it will be in the new state
  * machine.
@@ -35,7 +39,7 @@ typedef bru_trans_predicate_f trans_predicate_f;
  * states in the transformed state machine.
  *
  * @param[in]     sm     the state machine
- * @param[in,out] states the boolean vector indicating which states to keep,
+ * @param[in,out] states the boolean array indicating which states to keep,
  *                       i.e., the map of old state identifiers to new state
  *                       identifiers where 0 indicates the state does not
  *                       exist
@@ -48,7 +52,7 @@ BruStateMachine *bru_transform_from_states(BruStateMachine *sm,
 /**
  * Create the submachine induced by a set of transition identifiers.
  *
- * The set is indicated by a vector of transition identifiers to keep.
+ * The set is indicated by a slice of transition identifiers to keep.
  * If a transition identifier in the given state machine is in the vector, then
  * both of its source and destination states will be in the transformed state
  * machine.
@@ -59,12 +63,13 @@ BruStateMachine *bru_transform_from_states(BruStateMachine *sm,
  * different order to the original state machine.
  *
  * @param[in] sm          the state machine
- * @param[in] transitions the vector indicating which transitions to keep
+ * @param[in] transitions the slice indicating which transitions to keep
  *
  * @return the submachine
  */
-BruStateMachine *bru_transform_from_transitions(BruStateMachine *sm,
-                                                bru_trans_id    *tranitions);
+BruStateMachine *
+bru_transform_from_transitions(BruStateMachine       *sm,
+                               StcSlice(bru_trans_id) tranitions);
 
 /**
  * Create the submachine induced by the states matching a predicate.

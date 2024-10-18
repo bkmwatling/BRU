@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../stc/fatp/vec.h"
+#include <stc/fatp/vec.h>
 
 #include "../utils.h"
 #include "smir.h"
@@ -66,10 +66,10 @@ struct bru_action_list_iterator {
 };
 
 struct bru_state_machine {
-    const char *regex;
-    BruState   *states;
-    BruTrans   *initial_functions_sentinel;
-    size_t      ninits;
+    const char      *regex;
+    StcVec(BruState) states;
+    BruTrans        *initial_functions_sentinel;
+    size_t           ninits;
 };
 
 /* --- Helper functions ----------------------------------------------------- */
@@ -764,10 +764,10 @@ void *bru_smir_get_post_meta(BruStateMachine *self, bru_state_id sid)
 
 void bru_smir_reorder_states(BruStateMachine *self, bru_state_id *sid_ordering)
 {
-    BruState     *states;
-    bru_trans_id *out;
-    bru_state_id  sid, dst;
-    size_t        i, n, nstates;
+    StcVec(BruState) states;
+    bru_trans_id    *out;
+    bru_state_id     sid, dst;
+    size_t           i, n, nstates;
 
     if (!sid_ordering) return;
 
@@ -820,10 +820,10 @@ typedef struct {
 } BruRidToIdx;
 
 typedef struct {
-    BruRidToIdx *thread_map;           /**< stc_vec for thread mapping        */
-    BruRidToIdx *memoisation_map;      /**< stc_vec for memoisation mapping   */
-    bru_len_t    next_thread_idx;      /**< next index for thread map         */
-    bru_len_t    next_memoisation_idx; /**< next index for memoisation map    */
+    StcVec(BruRidToIdx) thread_map;      /**< thread mapping                  */
+    StcVec(BruRidToIdx) memo_map;        /**< memoisation mapping             */
+    bru_len_t           next_thread_idx; /**< next index for thread map       */
+    bru_len_t           next_memo_idx;   /**< next index for memoisation map  */
 
     // TODO: counter memory
 } BruMemoryMaps; // map RIDs to memory indices
@@ -887,17 +887,17 @@ static bru_byte_t *compile_actions(bru_byte_t          *pc,
                                    const BruActionList *acts,
                                    BruMemoryMaps       *mmaps)
 {
-#define GET_IDX(mmap, next_idx, idx_inc, uid)                          \
-    do {                                                               \
-        for (idx = 0, len = stc_vec_len_unsafe(mmap);                  \
-             idx < len && (mmap)[idx].rid != (uid); idx++);            \
-        if (idx == len) {                                              \
-            idx         = (next_idx);                                  \
-            (next_idx) += (idx_inc);                                   \
-            stc_vec_push_back(mmap, ((BruRidToIdx) { (uid), (idx) })); \
-        } else {                                                       \
-            idx = (mmap)[idx].idx;                                     \
-        }                                                              \
+#define GET_IDX(mmap, next_idx, idx_inc, uid)                         \
+    do {                                                              \
+        for (idx = 0, len = stc_vec_len_unsafe(mmap);                 \
+             idx < len && (mmap)[idx].rid != (uid); idx++);           \
+        if (idx == len) {                                             \
+            idx         = (next_idx);                                 \
+            (next_idx) += (idx_inc);                                  \
+            stc_vec_push_back(mmap, ((BruRidToIdx){ (uid), (idx) })); \
+        } else {                                                      \
+            idx = (mmap)[idx].idx;                                    \
+        }                                                             \
     } while (0)
 
     BruActionList *n;
@@ -937,8 +937,7 @@ static bru_byte_t *compile_actions(bru_byte_t          *pc,
                 break;
             case BRU_ACT_MEMO:
                 BRU_BCWRITE(pc, BRU_MEMO);
-                GET_IDX(mmaps->memoisation_map, mmaps->next_memoisation_idx, 1,
-                        n->act->k);
+                GET_IDX(mmaps->memo_map, mmaps->next_memo_idx, 1, n->act->k);
                 BRU_MEMWRITE(pc, bru_len_t, idx);
                 break;
 
@@ -1166,7 +1165,7 @@ BruProgram *bru_smir_compile_with_meta(BruStateMachine *sm,
     size_t         n, sid;
 
     stc_vec_default_init(mmaps.thread_map);
-    stc_vec_default_init(mmaps.memoisation_map);
+    stc_vec_default_init(mmaps.memo_map);
 
     n            = bru_smir_get_num_states(sm);
     state_blocks = malloc((n + 2) * sizeof(*state_blocks));
@@ -1185,11 +1184,11 @@ BruProgram *bru_smir_compile_with_meta(BruStateMachine *sm,
         compile_transitions(sm, prog, sid, state_blocks, &mmaps);
 
     prog->thread_mem_len = mmaps.next_thread_idx;
-    prog->nmemo_insts    = stc_vec_len_unsafe(mmaps.memoisation_map);
+    prog->nmemo_insts    = stc_vec_len_unsafe(mmaps.memo_map);
 
     // cleanup
     stc_vec_free(mmaps.thread_map);
-    stc_vec_free(mmaps.memoisation_map);
+    stc_vec_free(mmaps.memo_map);
     free(state_blocks);
 
     return prog;

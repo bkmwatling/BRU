@@ -41,10 +41,10 @@ BruScheduler *bru_lockstep_alt_scheduler_new(BruThreadManager *tm);
  *
  * @param self[in] the lockstep scheduler
  *
- * @return a new stc_vec containing the lower priority threads, or NULL if there
+ * @return a new StcVec containing the lower priority threads, or NULL if there
  *         aren't any
  */
-BruThread **
+StcVec(BruThread *)
 bru_lockstep_alt_scheduler_remove_low_priority_threads(BruScheduler *self);
 
 /**

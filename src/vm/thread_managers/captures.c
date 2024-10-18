@@ -1,5 +1,7 @@
-#include "captures.h"
+#include <stdlib.h>
 #include <string.h>
+
+#include "captures.h"
 
 /* --- Type definitions ----------------------------------------------------- */
 

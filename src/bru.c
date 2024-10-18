@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stc/fatp/string_view.h"
-#include "stc/util/argparser.h"
-#include "stc/util/utf.h"
+#include <stc/fatp/string_view.h>
+#include <stc/util/argparser.h>
+#include <stc/util/utf.h>
 
 #include "re/parser.h"
 #include "vm/compiler.h"

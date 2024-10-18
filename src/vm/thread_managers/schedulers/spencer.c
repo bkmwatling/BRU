@@ -5,9 +5,9 @@
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct bru_spencer_scheduler {
-    size_t in_order_idx; /**< the index for inserting threads when in-order   */
-    BruThread  *active;  /**< the active thread for the scheduler             */
-    BruThread **stack;   /**< stc_vec for thread stack for DFS scheduling     */
+    size_t              in_order_idx; /**< index to insert threads in-order   */
+    BruThread          *active;       /**< active thread for the scheduler    */
+    StcVec(BruThread *) stack;        /**< thread stack for DFS scheduling    */
 } BruSpencerScheduler;
 
 /* --- Scheduler function prototypes ---------------------------------------- */
@@ -90,14 +90,14 @@ static int spencer_scheduler_has_next(const void *impl)
 static BruThread *spencer_scheduler_next(void *impl)
 {
     BruSpencerScheduler *self   = impl;
-    BruThread           *thread = (BruThread *) self->active;
+    BruThread           *thread = self->active;
 
     self->in_order_idx = stc_vec_len_unsafe(self->stack) + 1;
     self->active       = NULL;
     if (thread == NULL && !stc_vec_is_empty(self->stack))
-        thread = (BruThread *) stc_vec_pop(self->stack);
+        thread = stc_vec_pop(self->stack);
 
-    return (BruThread *) thread;
+    return thread;
 }
 
 static void spencer_scheduler_free(void *impl)

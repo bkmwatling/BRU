@@ -38,10 +38,12 @@
 #define bru_thread_manager_get_match(manager, thread_out) \
     bru_vt_call_function(manager, thread_out, get_match)
 
-// NOTE:
-// below macro used internally by thread manager implementations only.
-// Use the bru_thread_manager_kill macro defined above to kill a thread manager
-// and deallocate all of its memory.
+/**
+ * NOTE:
+ * below macro used internally by thread manager implementations only.
+ * Use the bru_thread_manager_kill macro defined above to kill a thread manager
+ * and deallocate all of its memory.
+ */
 #define _bru_thread_manager_free(manager)                                     \
     do {                                                                      \
         bru_vt_call_procedure(manager, free);                                 \
@@ -49,11 +51,13 @@
             bru_thread_manager_interface_free(stc_vec_pop((manager)->table)); \
     } while (0)
 
-// NOTE:
-// alloc_thread and free_thread are not attached to each instance.
-// This is because they essentially allocate and free the entire block of thread
-// memory according to the size of the thread the manager uses, which is always
-// the size of the leaf instance.
+/**
+ * NOTE:
+ * alloc_thread and free_thread are not attached to each instance.
+ * This is because they essentially allocate and free the entire block of thread
+ * memory according to the size of the thread the manager uses, which is always
+ * the size of the leaf instance.
+ */
 #define _bru_thread_manager_malloc_thread(manager)                   \
     ((BruThread *) malloc(                                           \
          (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size) + \
@@ -181,7 +185,7 @@
 
 typedef bru_byte_t BruThread; /**< BruThread is a collection of bytes         */
 
-typedef BruVTable_of(struct bru_thread_manager_interface) BruThreadManager;
+typedef bru_vtable_of(struct bru_thread_manager_interface) BruThreadManager;
 
 typedef struct bru_thread_manager_interface {
     void (*init)(BruThreadManager *self,
@@ -280,7 +284,7 @@ typedef struct bru_thread_manager_interface {
                         bru_len_t         idx);
 
     size_t _thread_size; /**< size of the thread used by this manager         */
-    VTABLE_FIELDS;
+    BRU_VTABLE_FIELDS;
 } BruThreadManagerInterface;
 
 #define BRU_THREAD_FROM_INSTANCE(instance, thread) \

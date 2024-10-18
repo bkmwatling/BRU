@@ -1,6 +1,8 @@
-#include "thread_manager.h"
-#include "../../utils.h"
+#include <stdlib.h>
 #include <string.h>
+
+#include "../../utils.h"
+#include "thread_manager.h"
 
 /* --- Thread manager NO-OP functions --------------------------------------- */
 

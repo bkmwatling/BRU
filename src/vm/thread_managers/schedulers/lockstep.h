@@ -11,6 +11,9 @@
          (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                               \
           defined(BRU_ENABLE_SHORT_NAMES)))
 #    define lockstep_scheduler_new bru_lockstep_scheduler_new
+#    define lockstep_scheduler_remove_low_priority_threads \
+        bru_lockstep_scheduler_remove_low_priority_threads
+#    define lockstep_scheduler_done_step bru_lockstep_scheduler_done_step
 #endif /* BRU_VM_THREAD_MANAGER_SCHEDULER_LOCKSTEP_ENABLE_SHORT_NAMES */
 
 /* --- lockstep Scheduler function prototypes ---------------------------- */
@@ -32,17 +35,17 @@ BruScheduler *bru_lockstep_scheduler_new(BruThreadManager *tm);
  * Remove (and return) the low priority threads from the scheduler.
  *
  * 'Low priority' in this case refers to any threads in the currently executing
- * queue. The order of the threads in the returned stc_vec is not necessarily
+ * queue. The order of the threads in the returned StcVec is not necessarily
  * the prioritised order.
  *
  * The returned vec will need to be free'd appropriately.
  *
  * @param self[in] the lockstep scheduler
  *
- * @return a new stc_vec containing the lower priority threads, or NULL if there
+ * @return a new StcVec containing the lower priority threads, or NULL if there
  *         aren't any.
  */
-BruThread **
+StcVec(BruThread *)
 bru_lockstep_scheduler_remove_low_priority_threads(BruScheduler *self);
 
 /**

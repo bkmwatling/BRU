@@ -1,7 +1,7 @@
 #ifndef BRU_VM_SRVM_H
 #define BRU_VM_SRVM_H
 
-#include "../stc/fatp/string_view.h"
+#include <stc/fatp/string_view.h>
 
 #include "thread_managers/thread_manager.h"
 

@@ -10,7 +10,7 @@ typedef void (*_bru_fptr)(void);
      *((_bru_fptr *) ((vt)->table[(vt)->i] + func_offset)))
 
 // VTable of byte arrays
-typedef BruVTable_of(bru_byte_t) _bru_vtable;
+typedef bru_vtable_of(bru_byte_t) _bru_vtable;
 
 void _bru_vt_lookup_from(void *vt, size_t offset, size_t __i)
 {
