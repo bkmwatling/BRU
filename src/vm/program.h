@@ -12,6 +12,8 @@
  *
  * @param[in,out] pc       the PC to write the bytecode to
  * @param[in]     bytecode the bytecode to write to PC
+ *
+ * @return the bytecode written to the byte stream
  */
 #define BRU_BCWRITE(pc, bytecode) (*(pc)++ = (bytecode))
 
@@ -20,6 +22,8 @@
  *
  * @param[in] insts    the instruction byte stream
  * @param[in] bytecode the bytecode to push onto the instruction byte stream
+ *
+ * @return the bytecode pushed to the byte stream
  */
 #define BRU_BCPUSH(insts, bytecode) stc_vec_push_back(insts, bytecode)
 
@@ -28,6 +32,8 @@
  * byte stream.
  *
  * @param[in,out] pc the PC to read the bytecode from
+ *
+ * @return the bytecode read from the PC
  */
 #define BRU_BCREAD(pc) ((BruBytecode) (*(pc)++))
 
@@ -117,7 +123,7 @@ typedef enum {
     BRU_NBYTECODES
 } BruBytecode;
 
-/* Order for comparisons */
+/**< Order for comparisons */
 typedef enum { BRU_LT = 1, BRU_LE, BRU_EQ, BRU_NE, BRU_GE, BRU_GT } BruOrd;
 
 typedef struct {
