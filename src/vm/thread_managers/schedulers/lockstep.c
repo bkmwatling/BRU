@@ -7,6 +7,7 @@
 typedef struct {
     BruThreadManager *tm; /**< the thread manager using this scheduler        */
     int in_lockstep; /**< whether to execute the synchronisation thread queue */
+    size_t curr_idx; /**< index into current queue for next_thread            */
 
     StcVec(BruThread *) curr; /**< current queue of threads to execute        */
     StcVec(BruThread *) next; /**< next queue of threads to be executed       */
@@ -23,9 +24,9 @@ static void       lockstep_scheduler_free(void *impl);
 
 /* --- Helper function prototypes ------------------------------------------- */
 
-static int lockstep_threads_contain(BruThreadManager *tm,
-                                    BruThread       **threads,
-                                    BruThread        *thread);
+static int lockstep_threads_contain(BruThreadManager   *tm,
+                                    StcVec(BruThread *) threads,
+                                    BruThread          *thread);
 
 /* --- Lockstep function prototypes ----------------------------------------- */
 
@@ -36,6 +37,7 @@ BruScheduler *bru_lockstep_scheduler_new(BruThreadManager *tm)
 
     ts->tm          = tm;
     ts->in_lockstep = FALSE;
+    ts->curr_idx    = 0;
     stc_vec_default_init(ts->curr); // NOLINT(bugprone-sizeof-expression)
     stc_vec_default_init(ts->next); // NOLINT(bugprone-sizeof-expression)
     stc_vec_default_init(ts->sync); // NOLINT(bugprone-sizeof-expression)
@@ -51,12 +53,12 @@ BruScheduler *bru_lockstep_scheduler_new(BruThreadManager *tm)
     return s;
 }
 
-BruThread **
+StcVec(BruThread *)
 bru_lockstep_scheduler_remove_low_priority_threads(BruScheduler *self)
 {
     BruLockstepScheduler *ls      = self->impl;
     StcVec(BruThread *)   threads = NULL;
-    size_t                ncurr   = stc_vec_len(ls->curr);
+    size_t                ncurr   = stc_vec_len(ls->curr) - ls->curr_idx;
     size_t                i;
 
     if (ncurr) {
@@ -75,7 +77,7 @@ bru_lockstep_scheduler_remove_low_priority_threads(BruScheduler *self)
 int bru_lockstep_scheduler_done_step(BruScheduler *self)
 {
     BruLockstepScheduler *ls = self->impl;
-    return stc_vec_is_empty(ls->curr) && ls->in_lockstep;
+    return ls->curr_idx >= stc_vec_len(ls->curr) && ls->in_lockstep;
 }
 
 /* --- LockstepScheduler function definitions ------------------------------- */
@@ -85,6 +87,7 @@ static void lockstep_scheduler_init(void *impl)
     BruLockstepScheduler *self = impl;
 
     self->in_lockstep = FALSE;
+    self->curr_idx    = 0;
 }
 
 static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
@@ -118,8 +121,8 @@ static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
 static int lockstep_scheduler_has_next(const void *impl)
 {
     const BruLockstepScheduler *self = impl;
-    return !(stc_vec_is_empty(self->curr) && stc_vec_is_empty(self->next) &&
-             stc_vec_is_empty(self->sync));
+    return self->curr_idx < stc_vec_len(self->curr) ||
+           !(stc_vec_is_empty(self->next) && stc_vec_is_empty(self->sync));
 }
 
 static BruThread *lockstep_scheduler_next(void *impl)
@@ -130,7 +133,9 @@ static BruThread *lockstep_scheduler_next(void *impl)
     const bru_byte_t     *_pc;
 
 lockstep_scheduler_next_start:
-    if (stc_vec_is_empty(self->curr)) {
+    if (self->curr_idx >= stc_vec_len(self->curr)) {
+        self->curr_idx = 0;
+        stc_vec_clear(self->curr);
         if (stc_vec_is_empty(self->next)) {
             self->in_lockstep = TRUE;
             tmp               = self->curr;
@@ -144,10 +149,8 @@ lockstep_scheduler_next_start:
         }
     }
 
-    if (!stc_vec_is_empty(self->curr)) {
-        thread = self->curr[0];
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_remove(self->curr, 0);
+    if (self->curr_idx < stc_vec_len(self->curr)) {
+        thread = self->curr[self->curr_idx++];
         switch (*bru_thread_manager_pc(self->tm, _pc, thread)) {
             case BRU_CHAR:
             case BRU_PRED:
@@ -174,9 +177,9 @@ static void lockstep_scheduler_free(void *impl)
     free(self);
 }
 
-static int lockstep_threads_contain(BruThreadManager *tm,
-                                    BruThread       **threads,
-                                    BruThread        *thread)
+static int lockstep_threads_contain(BruThreadManager   *tm,
+                                    StcVec(BruThread *) threads,
+                                    BruThread          *thread)
 {
     size_t i, len;
     int    _cmp;
