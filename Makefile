@@ -8,22 +8,26 @@
 # path
 INSTALL_PREFIX := ~/.local
 
-# compiler flags
-DEBUG          := -ggdb -gdwarf-4
-OPTIMISE       := -O0
-WARNING        := -Wall -Wextra -Wno-variadic-macros -Wno-overlength-strings \
-				  -Wno-gnu-zero-variadic-macro-arguments -Wswitch-enum -pedantic
-EXTRA          := -std=c11
-INCLUDE         = $(addprefix -I,$(INCLUDEDIR))
-STCOPT         := -DSTC_UTF_DISABLE_SV
-CFLAGS          = $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(INCLUDE) $(STCOPT)
-DFLAGS         := # -DBRU_DEBUG -DBRU_BENCHMARK
-
 # commands
 CC             := clang
 RM             := rm -f
 COMPILE         = $(CC) $(CFLAGS) $(DFLAGS)
 INSTALL        := install --preserve-timestamps
+
+# compiler flags
+DEBUG          := -ggdb -gdwarf-4
+OPTIMISE       := -O0
+WARNING        := -Wall -Wextra -Wswitch-enum
+ifeq ($(CC), gcc) # GCC gives warnings for empty variadic macros with -Wpedantic
+	WARNING    += -Wno-unused-value
+else ifeq ($(CC), clang)
+	WARNING    += -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
+endif
+EXTRA          := -std=c11
+INCLUDE         = $(addprefix -I,$(INCLUDEDIR))
+STCOPT         := -DSTC_UTF_DISABLE_SV
+CFLAGS          = $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(INCLUDE) $(STCOPT)
+DFLAGS         := #-DBRU_DEBUG -DBRU_BENCHMARK
 
 # directories
 LOCALBIN       := $(INSTALL_PREFIX)/bin
