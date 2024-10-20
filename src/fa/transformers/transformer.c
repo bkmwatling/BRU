@@ -146,15 +146,15 @@ BruStateMachine *bru_transform_with_states(BruStateMachine       *sm,
     unsigned int *states;
     bru_state_id  sid;
 
-    if (!spf || !sm) return sm;
+    if (!(spf && sm)) return sm;
 
-    states = malloc(sizeof(unsigned int) * bru_smir_get_num_states(sm));
+    states = malloc(sizeof(*states) * bru_smir_get_num_states(sm));
     for (sid = 1; sid <= bru_smir_get_num_states(sm); sid++)
         states[sid - 1] = spf(sm, sid);
-    sm = bru_transform_from_states(sm, states);
 
+    sm = bru_transform_from_states(sm, states);
     free(states);
-    return bru_transform_from_states(sm, states);
+    return sm;
 }
 
 BruStateMachine *bru_transform_with_trans(BruStateMachine       *sm,
@@ -165,7 +165,7 @@ BruStateMachine *bru_transform_with_trans(BruStateMachine       *sm,
     bru_state_id         sid;
     size_t               n, i;
 
-    if (!tpf || !sm) return sm;
+    if (!(tpf && sm)) return sm;
 
     stc_vec_default_init(transitions);
 
