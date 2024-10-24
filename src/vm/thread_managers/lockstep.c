@@ -11,7 +11,6 @@
 
 typedef struct {
     const bru_byte_t *pc;
-    const char      **sp;
 } BruLockstepThread;
 
 typedef struct {
@@ -165,13 +164,11 @@ static void lockstep_thread_manager_init_thread(BruThreadManager *tm,
                                                 const char       *sp)
 {
     BRU_UNUSED(sp);
-    BruLockstepThreadManager  *self = bru_vt_curr_impl(tm);
-    BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
     BruLockstepThread         *tt =
         (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     tt->pc = pc;
-    tt->sp = &self->sp;
 }
 
 static void lockstep_thread_manager_copy_thread(BruThreadManager *tm,
@@ -185,7 +182,6 @@ static void lockstep_thread_manager_copy_thread(BruThreadManager *tm,
         (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, dst);
 
     tt_dst->pc = tt_src->pc;
-    tt_dst->sp = tt_src->sp;
 }
 
 static int lockstep_thread_manager_check_thread_eq(BruThreadManager *tm,
@@ -298,11 +294,10 @@ static void lockstep_thread_manager_set_pc(BruThreadManager *tm,
 static const char *lockstep_thread_manager_sp(BruThreadManager *tm,
                                               const BruThread  *t)
 {
-    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruLockstepThread         *tt =
-        (BruLockstepThread *) BRU_THREAD_FROM_INSTANCE(tmi, t);
+    BRU_UNUSED(t);
+    BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
 
-    return *tt->sp;
+    return self->sp;
 }
 
 static void lockstep_thread_manager_inc_sp(BruThreadManager *tm, BruThread *t)
