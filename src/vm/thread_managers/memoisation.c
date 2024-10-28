@@ -18,9 +18,12 @@ static void memoised_thread_manager_free(BruThreadManager *tm);
 static void memoised_thread_manager_init_memoisation(BruThreadManager *tm,
                                                      size_t      nmemo_insts,
                                                      const char *text);
-static int  memoised_thread_manager_memoise(BruThreadManager *tm,
-                                            BruThread        *t,
-                                            bru_len_t         idx);
+static int  memoised_thread_manager_memoise_check(BruThreadManager *tm,
+                                                  BruThread        *t,
+                                                  bru_len_t         idx);
+static void memoised_thread_manager_memoise_set(BruThreadManager *tm,
+                                                BruThread        *t,
+                                                bru_len_t         idx);
 
 /* --- API function definitions --------------------------------------------- */
 
@@ -38,7 +41,8 @@ BruThreadManager *bru_memoised_thread_manager_new(BruThreadManager *tm)
     tmi->reset = memoised_thread_manager_reset;
     tmi->free  = memoised_thread_manager_free;
     tmi->init_memoisation = memoised_thread_manager_init_memoisation;
-    tmi->memoise          = memoised_thread_manager_memoise;
+    tmi->memoise_check    = memoised_thread_manager_memoise_check;
+    tmi->memoise_set      = memoised_thread_manager_memoise_set;
 
     // NOLINTNEXTLINE(bugprone-sizeof-expression)
     bru_vt_extend(tm, tmi);
@@ -87,9 +91,9 @@ static void memoised_thread_manager_init_memoisation(BruThreadManager *tm,
            nmemo_insts * self->text_len * sizeof(*self->memoisation_memory));
 }
 
-static int memoised_thread_manager_memoise(BruThreadManager *tm,
-                                           BruThread        *t,
-                                           bru_len_t         idx)
+static int memoised_thread_manager_memoise_check(BruThreadManager *tm,
+                                                 BruThread        *t,
+                                                 bru_len_t         idx)
 {
     BruMemoisedThreadManager *self = bru_vt_curr_impl(tm);
     const char               *_sp;
@@ -97,8 +101,18 @@ static int memoised_thread_manager_memoise(BruThreadManager *tm,
     size_t i =
         idx * self->text_len + (bru_thread_manager_sp(tm, _sp, t) - self->text);
 
-    if (self->memoisation_memory[i]) return FALSE;
-    self->memoisation_memory[i] = TRUE;
+    return self->memoisation_memory[i];
+}
 
-    return TRUE;
+static void memoised_thread_manager_memoise_set(BruThreadManager *tm,
+                                                BruThread        *t,
+                                                bru_len_t         idx)
+{
+    BruMemoisedThreadManager *self = bru_vt_curr_impl(tm);
+    const char               *_sp;
+
+    size_t i =
+        idx * self->text_len + (bru_thread_manager_sp(tm, _sp, t) - self->text);
+
+    self->memoisation_memory[i] = TRUE;
 }

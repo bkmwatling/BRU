@@ -95,33 +95,40 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
+#define BRU_FOR_LIST_OF_INSTRUCTIONS(DO) \
+    DO(BRU_NOOP)                         \
+    DO(BRU_MATCH)                        \
+    DO(BRU_BEGIN)                        \
+    DO(BRU_END)                          \
+    DO(BRU_MEMOCHK)                      \
+    DO(BRU_MEMOSET)                      \
+    DO(BRU_CHAR)                         \
+    DO(BRU_PRED)                         \
+    DO(BRU_SAVE)                         \
+    DO(BRU_JMP)                          \
+    DO(BRU_SPLIT)                        \
+    DO(BRU_GSPLIT)                       \
+    DO(BRU_LSPLIT)                       \
+    DO(BRU_TSWITCH)                      \
+    DO(BRU_EPSRESET)                     \
+    DO(BRU_EPSSET)                       \
+    DO(BRU_EPSCHK)                       \
+    DO(BRU_RESET)                        \
+    DO(BRU_CMP)                          \
+    DO(BRU_INC)                          \
+    DO(BRU_ZWA)                          \
+    DO(BRU_STATE)                        \
+    DO(BRU_WRITE)                        \
+    DO(BRU_WRITE0)                       \
+    DO(BRU_WRITE1)
+
+#define BRU_DEFINE_ENUM_VALUE(INST) INST,
+
 typedef enum {
-    BRU_NOOP = 0,
-    BRU_MATCH,
-    BRU_BEGIN,
-    BRU_END,
-    BRU_MEMO,
-    BRU_CHAR,
-    BRU_PRED,
-    BRU_SAVE,
-    BRU_JMP,
-    BRU_SPLIT,
-    BRU_GSPLIT,
-    BRU_LSPLIT,
-    BRU_TSWITCH,
-    BRU_EPSRESET,
-    BRU_EPSSET,
-    BRU_EPSCHK,
-    BRU_RESET,
-    BRU_CMP,
-    BRU_INC,
-    BRU_ZWA,
-    BRU_STATE,
-    BRU_WRITE,
-    BRU_WRITE0,
-    BRU_WRITE1,
-    BRU_NBYTECODES
+    BRU_FOR_LIST_OF_INSTRUCTIONS(BRU_DEFINE_ENUM_VALUE) BRU_NBYTECODES
 } BruBytecode;
+
+#undef BRU_DEFINE_ENUM_VALUE
 
 /**< Order for comparisons */
 typedef enum { BRU_LT = 1, BRU_LE, BRU_EQ, BRU_NE, BRU_GE, BRU_GT } BruOrd;

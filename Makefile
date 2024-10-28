@@ -27,7 +27,7 @@ EXTRA          := -std=c11
 INCLUDE         = $(addprefix -I,$(INCLUDEDIR))
 STCOPT         := -DSTC_UTF_DISABLE_SV
 CFLAGS          = $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(INCLUDE) $(STCOPT)
-DFLAGS         := #-DBRU_DEBUG -DBRU_BENCHMARK
+DFLAGS         += #-DBRU_DEBUG -DBRU_BENCHMARK
 
 # directories
 LOCALBIN       := $(INSTALL_PREFIX)/bin

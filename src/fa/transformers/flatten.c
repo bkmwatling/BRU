@@ -47,12 +47,13 @@ static int action_list_signature(const BruActionList *actions)
         ali = bru_smir_action_list_iter(actions);
         while ((a = bru_smir_action_list_iterator_next(ali))) {
             switch (bru_smir_action_type(a)) {
-                case BRU_ACT_CHAR:   /* fallthrough */
-                case BRU_ACT_PRED:   /* fallthrough */
-                case BRU_ACT_WRITE:  /* fallthrough */
-                case BRU_ACT_MEMO:   /* fallthrough */
-                case BRU_ACT_EPSCHK: /* fallthrough */
-                case BRU_ACT_EPSSET: /* fallthrough */
+                case BRU_ACT_CHAR:    /* fallthrough */
+                case BRU_ACT_PRED:    /* fallthrough */
+                case BRU_ACT_WRITE:   /* fallthrough */
+                case BRU_ACT_MEMOCHK: /* fallthrough */
+                case BRU_ACT_MEMOSET: /* fallthrough */
+                case BRU_ACT_EPSCHK:  /* fallthrough */
+                case BRU_ACT_EPSSET:  /* fallthrough */
                 case BRU_ACT_SAVE: break;
 
                 case BRU_ACT_BEGIN: /* fallthrough */
@@ -101,12 +102,13 @@ static int is_epsilon_state(const BruActionList *actions)
             case BRU_ACT_CHAR: /* fallthrough */
             case BRU_ACT_PRED: is_epsilon = FALSE; goto done;
 
-            case BRU_ACT_BEGIN:  /* fallthrough */
-            case BRU_ACT_END:    /* fallthrough */
-            case BRU_ACT_WRITE:  /* fallthrough */
-            case BRU_ACT_MEMO:   /* fallthrough */
-            case BRU_ACT_SAVE:   /* fallthrough */
-            case BRU_ACT_EPSCHK: /* fallthrough */
+            case BRU_ACT_BEGIN:   /* fallthrough */
+            case BRU_ACT_END:     /* fallthrough */
+            case BRU_ACT_WRITE:   /* fallthrough */
+            case BRU_ACT_MEMOCHK: /* fallthrough */
+            case BRU_ACT_MEMOSET: /* fallthrough */
+            case BRU_ACT_SAVE:    /* fallthrough */
+            case BRU_ACT_EPSCHK:  /* fallthrough */
             case BRU_ACT_EPSSET: break;
         }
     }
@@ -130,12 +132,13 @@ static void remove_unnecessary_actions(const BruActionList *actions)
                 bru_smir_action_list_iterator_remove(ali);
                 break;
 
-            case BRU_ACT_BEGIN: /* fallthrough */
-            case BRU_ACT_END:   /* fallthrough */
-            case BRU_ACT_CHAR:  /* fallthrough */
-            case BRU_ACT_PRED:  /* fallthrough */
-            case BRU_ACT_WRITE: /* fallthrough */
-            case BRU_ACT_MEMO:  /* fallthrough */
+            case BRU_ACT_BEGIN:   /* fallthrough */
+            case BRU_ACT_END:     /* fallthrough */
+            case BRU_ACT_CHAR:    /* fallthrough */
+            case BRU_ACT_PRED:    /* fallthrough */
+            case BRU_ACT_WRITE:   /* fallthrough */
+            case BRU_ACT_MEMOCHK: /* fallthrough */
+            case BRU_ACT_MEMOSET: /* fallthrough */
             case BRU_ACT_SAVE: break;
         }
     }
@@ -164,12 +167,13 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
 
     while ((act = bru_smir_action_list_iterator_next(ali))) {
         switch (bru_smir_action_type(act)) {
-            case BRU_ACT_BEGIN: /* fallthrough */
-            case BRU_ACT_END:   /* fallthrough */
-            case BRU_ACT_CHAR:  /* fallthrough */
-            case BRU_ACT_PRED:  /* fallthrough */
-            case BRU_ACT_WRITE: /* fallthrough */
-            case BRU_ACT_MEMO:  /* fallthrough */
+            case BRU_ACT_BEGIN:   /* fallthrough */
+            case BRU_ACT_END:     /* fallthrough */
+            case BRU_ACT_CHAR:    /* fallthrough */
+            case BRU_ACT_PRED:    /* fallthrough */
+            case BRU_ACT_WRITE:   /* fallthrough */
+            case BRU_ACT_MEMOCHK: /* fallthrough */
+            case BRU_ACT_MEMOSET: /* fallthrough */
             case BRU_ACT_SAVE: break;
 
             case BRU_ACT_EPSCHK:

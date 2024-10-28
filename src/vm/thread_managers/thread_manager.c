@@ -39,15 +39,24 @@ void bru_thread_manager_init_memoisation_noop(BruThreadManager *self,
     BRU_UNUSED(text);
 }
 
-int bru_thread_manager_memoise_noop(BruThreadManager *self,
-                                    BruThread        *thread,
-                                    bru_len_t         idx)
+int bru_thread_manager_memoise_check_noop(BruThreadManager *self,
+                                          BruThread        *thread,
+                                          bru_len_t         idx)
 {
     BRU_UNUSED(self);
     BRU_UNUSED(thread);
     BRU_UNUSED(idx);
 
     return TRUE;
+}
+
+void bru_thread_manager_memoise_set_noop(BruThreadManager *self,
+                                         BruThread        *thread,
+                                         bru_len_t         idx)
+{
+    BRU_UNUSED(self);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
 }
 
 bru_cntr_t bru_thread_manager_counter_noop(BruThreadManager *self,

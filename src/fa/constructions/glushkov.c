@@ -653,13 +653,19 @@ static void ppl_print(BruPosPairList *self, FILE *stream)
             switch (bru_smir_action_type(act)) {
                 case BRU_ACT_BEGIN: fprintf(stream, "^"); break;
                 case BRU_ACT_END: fprintf(stream, "$"); break;
-                case BRU_ACT_MEMO: fprintf(stream, "#"); break;
+                case BRU_ACT_MEMOCHK: fprintf(stream, "#?"); break;
+                case BRU_ACT_MEMOSET: fprintf(stream, "#+"); break;
 
                 case BRU_ACT_SAVE:
                     fprintf(stream, "%c_%lu", act_idx % 2 == 0 ? '[' : ']',
                             act_idx / 2);
                     break;
 
+                case BRU_ACT_CHAR:
+                case BRU_ACT_PRED:
+                case BRU_ACT_EPSCHK:
+                case BRU_ACT_EPSSET:
+                case BRU_ACT_WRITE:
                 default:
                     fprintf(stream, "action type = %d\n",
                             bru_smir_action_type(act));

@@ -138,9 +138,14 @@ inst_print_formatted(FILE                  *stream,
         case BRU_BEGIN: fputs("begin", stream); break;
         case BRU_END: fputs("end", stream); break;
 
-        case BRU_MEMO:
+        case BRU_MEMOCHK:
             BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "memo " BRU_LEN_FMT, n);
+            fprintf(stream, "memchk " BRU_LEN_FMT, n);
+            break;
+
+        case BRU_MEMOSET:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "memset " BRU_LEN_FMT, n);
             break;
 
         case BRU_CHAR:
@@ -298,7 +303,8 @@ static void print_offset_as_absolute_index(FILE             *stream,
             case BRU_MATCH: /* fallthrough */
             case BRU_BEGIN: /* fallthrough */
             case BRU_END: break;
-            case BRU_MEMO: insts += sizeof(bru_len_t); break;
+            case BRU_MEMOCHK: /* fallthrough */
+            case BRU_MEMOSET: insts += sizeof(bru_len_t); break;
             case BRU_CHAR: insts += sizeof(char *); break;
             case BRU_PRED: /* fallthrough */
             case BRU_SAVE: insts += sizeof(bru_len_t); break;

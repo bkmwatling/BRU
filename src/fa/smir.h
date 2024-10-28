@@ -25,7 +25,8 @@ typedef enum {
     BRU_ACT_CHAR,
     BRU_ACT_PRED,
 
-    BRU_ACT_MEMO,
+    BRU_ACT_MEMOCHK,
+    BRU_ACT_MEMOSET,
     BRU_ACT_SAVE,
     BRU_ACT_EPSCHK,
     BRU_ACT_EPSSET,

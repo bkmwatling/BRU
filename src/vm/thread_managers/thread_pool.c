@@ -70,7 +70,10 @@ static void thread_pool_kill(BruThreadManager *tm)
 #ifdef BRU_BENCHMARK
         nthreads++;
 #endif /* BRU_BENCHMARK */
-        bru_thread_manager_kill_thread(tm, p->thread);
+        // NOTE: we do not kill the thread via bru_thread_manager_kill_thread,
+        // since the thread entered into the pool through a call to kill
+        // already, so we just call the super manager's kill.
+        bru_vt_call_super_procedure(tm, tmi, kill_thread, p->thread);
         free(p);
     }
 

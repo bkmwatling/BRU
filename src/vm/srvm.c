@@ -161,14 +161,21 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     }
                     break;
 
-                case BRU_MEMO:
+                case BRU_MEMOCHK:
                     BRU_MEMREAD(k, pc, bru_len_t);
-                    if (bru_thread_manager_memoise(tm, cond, thread, k)) {
+                    if (!bru_thread_manager_memoise_check(tm, cond, thread,
+                                                          k)) {
                         bru_thread_manager_set_pc(tm, thread, pc);
                         bru_thread_manager_schedule_thread(tm, thread);
                     } else {
                         bru_thread_manager_kill_thread(tm, thread);
                     }
+                    break;
+
+                case BRU_MEMOSET:
+                    BRU_MEMREAD(k, pc, bru_len_t);
+                    bru_thread_manager_memoise_set(tm, thread, k);
+                    bru_thread_manager_kill_thread(tm, thread);
                     break;
 
                 case BRU_CHAR:

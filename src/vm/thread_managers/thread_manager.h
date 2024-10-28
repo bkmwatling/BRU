@@ -97,8 +97,12 @@
 
 #define bru_thread_manager_init_memoisation(manager, nmemo_in, text_len_in) \
     bru_vt_call_procedure(manager, init_memoisation, nmemo_in, text_len_in)
-#define bru_thread_manager_memoise(manager, memoised_out, thread_in, idx_in) \
-    bru_vt_call_function(manager, memoised_out, memoise, thread_in, idx_in)
+#define bru_thread_manager_memoise_check(manager, memoised_out, thread_in, \
+                                         idx_in)                           \
+    bru_vt_call_function(manager, memoised_out, memoise_check, thread_in,  \
+                         idx_in)
+#define bru_thread_manager_memoise_set(manager, thread_in, idx_in) \
+    bru_vt_call_procedure(manager, memoise_set, thread_in, idx_in)
 #define bru_thread_manager_counter(manager, counter_out, thread_in, idx_in) \
     bru_vt_call_function(manager, counter_out, counter, thread_in, idx_in)
 #define bru_thread_manager_set_counter(manager, thread_in, idx_in, val_in) \
@@ -166,7 +170,10 @@
     do {                                                                      \
         (manager_interface)->init_memoisation =                               \
             bru_thread_manager_init_memoisation_noop;                         \
-        (manager_interface)->memoise = bru_thread_manager_memoise_noop;       \
+        (manager_interface)->memoise_check =                                  \
+            bru_thread_manager_memoise_check_noop;                            \
+        (manager_interface)->memoise_set =                                    \
+            bru_thread_manager_memoise_set_noop;                              \
         (manager_interface)->counter = bru_thread_manager_counter_noop;       \
         (manager_interface)->set_counter =                                    \
             bru_thread_manager_set_counter_noop;                              \
@@ -243,7 +250,12 @@ typedef struct bru_thread_manager_interface {
     void (*init_memoisation)(BruThreadManager *self,
                              size_t            nmemo_insts,
                              const char       *text);
-    int (*memoise)(BruThreadManager *self, BruThread *thread, bru_len_t idx);
+    int (*memoise_check)(BruThreadManager *self,
+                         BruThread        *thread,
+                         bru_len_t         idx);
+    void (*memoise_set)(BruThreadManager *self,
+                        BruThread        *thread,
+                        bru_len_t         idx);
 
     // counters
     bru_cntr_t (*counter)(BruThreadManager *self,
@@ -321,7 +333,8 @@ typedef struct bru_thread_manager_interface {
 #    define thread_manager_inc_sp bru_thread_manager_inc_sp
 
 #    define thread_manager_init_memoisation bru_thread_manager_init_memoisation
-#    define thread_manager_memoise          bru_thread_manager_memoise
+#    define thread_manager_memoise_check    bru_thread_manager_memoise_check
+#    define thread_manager_memoise_set      bru_thread_manager_memoise_set
 #    define thread_manager_counter          bru_thread_manager_counter
 #    define thread_manager_set_counter      bru_thread_manager_set_counter
 #    define thread_manager_inc_counter      bru_thread_manager_inc_counter
@@ -342,7 +355,9 @@ typedef BruThreadManagerInterface ThreadManagerInterface;
 
 #    define thread_manager_init_memoisation_noop \
         bru_thread_manager_init_memoisation_noop
-#    define thread_manager_memoise_noop     bru_thread_manager_memoise_noop
+#    define thread_manager_memoise_check_noop \
+        bru_thread_manager_memoise_check_noop
+#    define thread_manager_memoise_set_noop bru_thread_manager_memoise_set_noop
 #    define thread_manager_counter_noop     bru_thread_manager_counter_noop
 #    define thread_manager_set_counter_noop bru_thread_manager_set_counter_noop
 #    define thread_manager_inc_counter_noop bru_thread_manager_inc_counter_noop
@@ -384,9 +399,13 @@ void bru_thread_manager_init_memoisation_noop(BruThreadManager *tm,
                                               size_t            nmemo_insts,
                                               const char       *text);
 
-int bru_thread_manager_memoise_noop(BruThreadManager *tm,
-                                    BruThread        *thread,
-                                    bru_len_t         idx);
+int bru_thread_manager_memoise_check_noop(BruThreadManager *tm,
+                                          BruThread        *thread,
+                                          bru_len_t         idx);
+
+void bru_thread_manager_memoise_set_noop(BruThreadManager *tm,
+                                         BruThread        *thread,
+                                         bru_len_t         idx);
 
 bru_cntr_t bru_thread_manager_counter_noop(BruThreadManager *tm,
                                            const BruThread  *thread,
