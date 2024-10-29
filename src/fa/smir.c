@@ -484,6 +484,26 @@ const BruAction *bru_smir_action_num(BruActionType type, size_t k)
     return act;
 }
 
+int bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
+{
+    if (a1->type != a2->type) return FALSE;
+    switch (a1->type) {
+        case BRU_ACT_BEGIN:
+        case BRU_ACT_END: return TRUE;
+        case BRU_ACT_CHAR:
+            return strncmp(a1->ch, a2->ch, stc_utf8_nbytes(a1->ch)) == 0;
+        case BRU_ACT_PRED:
+            assert(FALSE && "TODO: equality of predicates");
+            break;
+        case BRU_ACT_MEMOCHK:
+        case BRU_ACT_MEMOSET:
+        case BRU_ACT_SAVE:
+        case BRU_ACT_EPSCHK:
+        case BRU_ACT_EPSSET: return a1->k == a2->k;
+        case BRU_ACT_WRITE: return a1->c == a2->c;
+    }
+}
+
 const BruAction *bru_smir_action_clone(const BruAction *self)
 {
     const BruAction *clone;
@@ -713,6 +733,16 @@ void bru_smir_action_list_iterator_remove(BruActionListIterator *self)
 
     bru_smir_action_free(al->act);
     al->act = NULL;
+}
+
+void bru_smir_action_list_iterator_free(BruActionListIterator *self)
+{
+    if (self->current != self->sentinel)
+        if (self->current && self->current->act == NULL) {
+            // marked for removal in bru_smir_action_list_iterator_remove
+            free(self->current);
+        }
+    free(self);
 }
 
 void bru_smir_action_list_print(const BruActionList *self, FILE *stream)

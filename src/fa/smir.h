@@ -108,6 +108,7 @@ typedef bru_compile_f compile_f;
 #    define smir_action_char      bru_smir_action_char
 #    define smir_action_predicate bru_smir_action_predicate
 #    define smir_action_num       bru_smir_action_num
+#    define smir_action_equal     bru_smir_action_equal
 #    define smir_action_clone     bru_smir_action_clone
 #    define smir_action_free      bru_smir_action_free
 #    define smir_action_type      bru_smir_action_type
@@ -502,6 +503,16 @@ const BruAction *bru_smir_action_predicate(const BruIntervals *pred);
 const BruAction *bru_smir_action_num(BruActionType type, size_t k);
 
 /**
+ * Check if two actions are equivalent.
+ *
+ * @param[in] a1 the first action
+ * @param[in] a2 the second action
+ *
+ * @return TRUE if the actions are equivalent, else FALSE
+ */
+int bru_smir_action_equal(const BruAction *a1, const BruAction *a2);
+
+/**
  * Clone an action.
  *
  * @param[in] self the action to clone
@@ -639,8 +650,6 @@ void bru_smir_action_list_prepend(BruActionList *self, BruActionList *acts);
  * Create an interator for a list of actions to be able to go over the actions
  * of the list.
  *
- * Note: the iterator must be freed with a single call to free.
- *
  * @param[in] self the list of actions to iterator over
  *
  * @return the interator for the list of actions
@@ -690,6 +699,13 @@ bru_smir_action_list_iterator_prev(BruActionListIterator *self);
  * @param[in] self the action list iterator
  */
 void bru_smir_action_list_iterator_remove(BruActionListIterator *self);
+
+/**
+ * Free the memory of the action list iterator.
+ *
+ * @param[in] self the action list iterator
+ */
+void bru_smir_action_list_iterator_free(BruActionListIterator *self);
 
 /**
  * Print the list of actions.
