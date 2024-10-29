@@ -54,24 +54,22 @@ const BruProgram *bru_compiler_compile(const BruCompiler *self)
     if (res.code != BRU_PARSE_SUCCESS) return NULL;
 
     switch (self->opts.construction) {
+        case BRU_FLAT:
         case BRU_THOMPSON: sm = bru_thompson_construct(re, &self->opts); break;
         case BRU_GLUSHKOV: sm = bru_glushkov_construct(re, &self->opts); break;
-        case BRU_FLAT:
-            tmp = bru_thompson_construct(re, &self->opts);
-            if (self->opts.encode_priorities)
-                tmp = bru_transform_path_encode(tmp);
-            sm = bru_transform_flatten(tmp, self->parser->opts.logfile);
-            bru_smir_free(tmp);
-            break;
     }
     bru_regex_node_free(re.root);
 
-    if (self->opts.encode_priorities && self->opts.construction != BRU_FLAT)
-        sm = bru_transform_path_encode(sm);
+    if (self->opts.encode_priorities) sm = bru_transform_path_encode(sm);
 
     if (self->opts.memo_scheme != BRU_MS_NONE)
         sm = bru_transform_memoise(sm, self->opts.memo_scheme,
                                    self->parser->opts.logfile);
+    if (self->opts.construction == BRU_FLAT) {
+        tmp = bru_transform_flatten(sm, self->parser->opts.logfile);
+        bru_smir_free(sm);
+        sm = tmp;
+    }
 
 #ifdef BRU_DEBUG
     bru_smir_print(sm, stderr);

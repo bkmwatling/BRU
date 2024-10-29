@@ -173,8 +173,9 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
             case BRU_ACT_PRED:    /* fallthrough */
             case BRU_ACT_WRITE:   /* fallthrough */
             case BRU_ACT_MEMOCHK: /* fallthrough */
-            case BRU_ACT_MEMOSET: /* fallthrough */
             case BRU_ACT_SAVE: break;
+
+            case BRU_ACT_MEMOSET: satisfiable = FALSE; goto done;
 
             case BRU_ACT_EPSCHK:
                 num = bru_smir_action_get_num(act);
