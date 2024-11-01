@@ -90,7 +90,7 @@ static bru_byte_t *memoise_cn(BruStateMachine *sm)
  */
 static void memoise_states(BruStateMachine *sm, bru_byte_t *sids, FILE *logfile)
 {
-    bru_state_id sid;
+    bru_state_id sid, new_sid;
     bru_trans_id tid;
     size_t       nstates, k = SIZE_MAX;
     // NOTE: `k` can be any value -- it must only be unique amongst MEMO
@@ -102,9 +102,11 @@ static void memoise_states(BruStateMachine *sm, bru_byte_t *sids, FILE *logfile)
         if (sids[sid - 1]) {
             bru_smir_state_prepend_action(
                 sm, sid, bru_smir_action_num(BRU_ACT_MEMOCHK, k));
-            tid = bru_smir_add_transition(sm, sid);
-            bru_smir_trans_append_action(
-                sm, tid, bru_smir_action_num(BRU_ACT_MEMOSET, k--));
+            tid     = bru_smir_add_transition(sm, sid);
+            new_sid = bru_smir_add_state(sm);
+            bru_smir_state_append_action(
+                sm, new_sid, bru_smir_action_num(BRU_ACT_MEMOSET, k--));
+            bru_smir_set_dst(sm, tid, new_sid);
         }
 
 #ifdef BRU_BENCHMARK

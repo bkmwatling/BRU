@@ -31,6 +31,8 @@ typedef enum {
     BRU_ACT_EPSCHK,
     BRU_ACT_EPSSET,
     BRU_ACT_WRITE,
+
+    BRU_ACT_NACTIONS,
 } BruActionType;
 
 typedef BruActionType BruPredicateType;
@@ -260,6 +262,17 @@ bru_trans_id bru_smir_set_final(BruStateMachine *self, bru_state_id sid);
  * @return the unique transition identifer
  */
 bru_trans_id bru_smir_add_transition(BruStateMachine *self, bru_state_id sid);
+
+/**
+ * Remove a transition from the state machine.
+ *
+ * NOTE: This function will invalidate transition identifiers belonging to the
+ * same state.
+ *
+ * @param[in] self the state machine
+ * @param[in] tid  the transition identifier
+ */
+void bru_smir_remove_transition(BruStateMachine *self, bru_trans_id tid);
 
 /**
  * Get the outgoing transitions of a state.

@@ -670,6 +670,8 @@ static void ppl_print(BruPosPairList *self, FILE *stream)
                     fprintf(stream, "action type = %d\n",
                             bru_smir_action_type(act));
                     assert(0 && "unreachable");
+
+                case BRU_ACT_NACTIONS: assert(0 && "unreachable");
             }
             fprintf(stream, ",");
         }

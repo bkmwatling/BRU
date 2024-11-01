@@ -210,6 +210,22 @@ bru_trans_id bru_smir_add_transition(BruStateMachine *self, bru_state_id sid)
     return trans_id_from_parts(sid, (*n)++);
 }
 
+void bru_smir_remove_transition(BruStateMachine *self, bru_trans_id tid)
+{
+    bru_state_id sid = trans_id_sid(tid);
+    uint32_t     idx = trans_id_idx(tid);
+    BruTrans    *transitions, *transition;
+
+    transitions = sid ? self->states[sid - 1].out_transitions_sentinel
+                      : self->initial_functions_sentinel;
+
+    BRU_DLL_GET(transitions, idx, transition);
+
+    transition->prev->next = transition->next;
+    transition->next->prev = transition->prev;
+    trans_free(transition);
+}
+
 bru_trans_id *
 bru_smir_get_out_transitions(BruStateMachine *self, bru_state_id sid, size_t *n)
 {
@@ -501,6 +517,7 @@ int bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
         case BRU_ACT_EPSCHK:
         case BRU_ACT_EPSSET: return a1->k == a2->k;
         case BRU_ACT_WRITE: return a1->c == a2->c;
+        case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
     }
 }
 
@@ -527,6 +544,8 @@ const BruAction *bru_smir_action_clone(const BruAction *self)
         case BRU_ACT_EPSSET:
             clone = bru_smir_action_num(self->type, self->k);
             break;
+
+        case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
     }
 
     return clone;
@@ -576,6 +595,7 @@ void bru_smir_action_print(const BruAction *self, FILE *stream)
         case BRU_ACT_SAVE: fprintf(stream, "save %zu", self->k); break;
         case BRU_ACT_EPSCHK: fprintf(stream, "epschk %zu", self->k); break;
         case BRU_ACT_EPSSET: fprintf(stream, "epsset %zu", self->k); break;
+        case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
     }
 }
 
@@ -905,6 +925,7 @@ static size_t count_bytes_actions(const BruActionList *acts,
                 size                  += sizeof(bru_len_t);
                 *continue_compilation  = FALSE;
                 goto done;
+            case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
         }
     }
 
@@ -1003,6 +1024,8 @@ static bru_byte_t *compile_actions(bru_byte_t          *pc,
                         sizeof(const char *), n->act->k);
                 BRU_MEMWRITE(pc, bru_len_t, idx);
                 break;
+
+            case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
         }
     }
 

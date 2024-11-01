@@ -65,6 +65,37 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   thread manager and scheduler back to _Thompson_ as there is also a _Thompson_
   construction, which would introduce ambiguities.
 
+- [ ] Perform validation on transition and state identifiers in smir.c
+
+  **File:** `fa/smir.c`
+  **Location:** Functions operating on bru_trans_id and bru_state_id
+  **Date reported:** 2024-11-01
+  **Reported by:** [aroodt][aroodt]
+  **Relevant branch:** `fix/smir-id-validation`
+
+  State and transition identifiers should be validated prior to use, as there is
+  no guarantee they will be valid. I recommend simple functions for checking
+  validity of each identifier should be good enough.
+
+- [ ] Provide list of transformations at compile time
+
+  **File:** `vm/compile.c`
+  **Location:** function `compiler_compile`
+  **Date reported:** 2024-11-01
+  **Reported by:** [aroodt][aroodt]
+  **Relevant branch:** `feature/transformer-compile-sequence`
+
+  The current compilation pipeline is hardcoded in `compile.c`, but it would be
+  convenient and user-friendly to allow providing a list of transformations
+  to be made on the constructed SMIR. Possibly this should be provided in a
+  separate function entirely. One could maybe use variadic functions, with NULL
+  indicating the list of transforms is finished. This will require defining a
+  struct to contain each transform and any arguments required outside of the
+  state machine being transformed. The intermediate state machines should also
+  be appropriately free'd. In my opinion, the original state machine and the
+  final state machine should be the only state machines left malloc'd (and they
+  may be the same state machine if the transforms never created a new one).
+
 <!-- NOTE: links to profile webpages associated with your slug/identifier -->
 [aroodt]: https://www.github.com/aroodt
 [bkmwatling]: https://www.gitlab.com/bkmwatling
