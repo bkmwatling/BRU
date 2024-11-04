@@ -5,6 +5,7 @@
 # @file bru.c
 # @version 0.1
 
+
 # path
 INSTALL_PREFIX := ~/.local
 
@@ -15,7 +16,15 @@ COMPILE         = $(CC) $(CFLAGS) $(DFLAGS)
 INSTALL        := install --preserve-timestamps
 
 # compiler flags
+ifeq ($(DEBUG_SYMBOLS), 1)
 DEBUG          := -ggdb -gdwarf-4
+endif
+
+ifeq ($(ASAN), 1)
+# Note: run `source set_asan_env_vars.sh` if you want to use Address Sanitizer
+ASAN_DEBUG     := -fsanitize=address -shared-libasan -ferror-limit=1
+endif
+
 OPTIMISE       := -O0
 WARNING        := -Wall -Wextra -Wswitch-enum
 ifeq ($(CC), gcc) # GCC gives warnings for empty variadic macros with -Wpedantic
@@ -23,10 +32,10 @@ ifeq ($(CC), gcc) # GCC gives warnings for empty variadic macros with -Wpedantic
 else ifeq ($(CC), clang)
 	WARNING    += -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
 endif
-EXTRA          := -std=c11
+EXTRA          := -std=c11 -fPIC
 INCLUDE         = $(addprefix -I,$(INCLUDEDIR))
 STCOPT         := -DSTC_UTF_DISABLE_SV
-CFLAGS          = $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(INCLUDE) $(STCOPT)
+CFLAGS          = $(DEBUG) $(ASAN_DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(INCLUDE) $(STCOPT)
 DFLAGS         += #-DBRU_DEBUG -DBRU_BENCHMARK
 
 # directories
