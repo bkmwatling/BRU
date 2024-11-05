@@ -75,4 +75,7 @@
     for ((elem) = (dll)->next; (idx) > 0 && (elem) != (dll); \
          (idx)--, (elem) = (elem)->next)
 
+char escape(const char s);
+char *escape_string(const char *s);
+
 #endif /* BRU_UTILS_H */

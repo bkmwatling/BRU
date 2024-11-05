@@ -11,6 +11,7 @@
 #include "vm/srvm.h"
 // NOTE: deprecated/not useful, see all_matches ThreadManager
 // #include "vm/thread_managers/all_matches.h"
+#include "utils.h"
 #include "vm/thread_managers/benchmark.h"
 #include "vm/thread_managers/captures.h"
 #include "vm/thread_managers/counters.h"
@@ -302,9 +303,9 @@ static int match(BruOptions *options)
     BruSRVM          *srvm;
     StcStringView     capture;
     bru_len_t         i;
-    size_t            ncodepoints;
     BruSRVMMatch     *match;
     int               exit_code = EXIT_SUCCESS;
+    size_t            capture_start, capture_end;
 
     c = bru_compiler_new(
         bru_parser_new(sdup(options->regex), options->parser_opts),
@@ -360,15 +361,16 @@ static int match(BruOptions *options)
                     "bytes: %.*s\n"
                     "captures:\n"
                     "  input: '%s'\n",
-                    (int) match->nbytes, match->bytes, options->text);
+                    (int) match->nbytes, match->bytes,
+                    escape_string(options->text));
             for (i = 0; i < match->ncaptures; i++) {
                 capture = match->captures[i];
                 fprintf(options->outfile, "%7hu: ", i);
                 if (capture.str) {
-                    ncodepoints = stc_utf8_str_ncodepoints(options->text) -
-                                  stc_utf8_str_ncodepoints(capture.str);
-                    fprintf(options->outfile, "%*s'" STC_SV_FMT "'\n",
-                            (int) ncodepoints, "", STC_SV_ARG(capture));
+                    capture_start = capture.str - options->text;
+                    capture_end   = capture_start + capture.len;
+                    fprintf(options->outfile, "(%d, %d)\n", (int) capture_start,
+                            (int) capture_end);
                 } else {
                     fprintf(options->outfile, "not captured\n");
                 }
