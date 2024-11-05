@@ -3,23 +3,19 @@
 
 /**
  * The Scheduler interface specifies functions for manipulating execution order
- * of threads in the SRVM.
- *
- * It has since been deprecated in favour of using the thread manager interface.
+ * of threads. It is used by different thread managers.
  */
 
-#include "thread_manager.h"
+#include "../thread_manager.h"
 
+#define bru_scheduler_init(scheduler) ((scheduler)->init((scheduler)->impl))
 #define bru_scheduler_schedule(scheduler, thread) \
     ((scheduler)->schedule((scheduler)->impl, (thread)))
 #define bru_scheduler_schedule_in_order(scheduler, thread) \
     ((scheduler)->schedule_in_order((scheduler)->impl, (thread)))
 #define bru_scheduler_has_next(scheduler) \
     ((scheduler)->has_next((scheduler)->impl))
-#define bru_scheduler_next(scheduler)  ((scheduler)->next((scheduler)->impl))
-#define bru_scheduler_clear(scheduler) ((scheduler)->clear((scheduler)->impl))
-#define bru_scheduler_notify_match(scheduler) \
-    ((scheduler)->notify_match((scheduler)->impl))
+#define bru_scheduler_next(scheduler) ((scheduler)->next((scheduler)->impl))
 #define bru_scheduler_free(scheduler)         \
     do {                                      \
         (scheduler)->free((scheduler)->impl); \
@@ -27,12 +23,50 @@
     } while (0)
 
 typedef struct {
-    void       (*schedule)(void *scheduler_impl, BruThread *thread);
-    void       (*schedule_in_order)(void *scheduler_impl, BruThread *thread);
-    int        (*has_next)(const void *scheduler_impl);
+    /**
+     * Initialise the scheduler.
+     */
+    void (*init)(void *scheduler_impl);
+
+    /**
+     * Schedules a thread.
+     *
+     * The scheduling order is an implementation detail.
+     *
+     * Returns true/false values if scheduling succeeds/fails.
+     */
+    int (*schedule)(void *scheduler_impl, BruThread *thread);
+
+    /**
+     * Schedules a thread.
+     *
+     * The order in which the thread is scheduled must be such that consecutive
+     * calls to schedule_in_order result in later threads being run after
+     * earlier threads (i.e., scheduling order must be maintained).
+     *
+     * Returns true/false values if scheduling succeeds/fails.
+     */
+    int (*schedule_in_order)(void *scheduler_impl, BruThread *thread);
+
+    /**
+     * Check if the scheduler is empty.
+     */
+    int (*has_next)(const void *scheduler_impl);
+
+    /**
+     * Get the next thread for execution.
+     *
+     * Returns NULL if the scheduler is empty.
+     */
     BruThread *(*next)(void *scheduler_impl);
-    void       (*clear)(void *scheduler_impl);
-    void       (*free)(void *scheduler_impl);
+
+    /**
+     * Free the resources used by the scheduler.
+     *
+     * NOTE: Threads still held by the scheduler _must_ be free'd manually, it
+     * is not handled by this function.
+     */
+    void (*free)(void *scheduler_impl);
 
     void *impl; /**< the underlying implementation of the scheduler           */
 } BruScheduler;
@@ -42,12 +76,11 @@ typedef struct {
      !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                         \
          (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                      \
           defined(BRU_ENABLE_SHORT_NAMES)))
+#    define scheduler_init              bru_scheduler_init
 #    define scheduler_schedule          bru_scheduler_schedule
 #    define scheduler_schedule_in_order bru_scheduler_schedule_in_order
 #    define scheduler_has_next          bru_scheduler_has_next
 #    define scheduler_next              bru_scheduler_next
-#    define scheduler_clear             bru_scheduler_clear
-#    define scheduler_notify_match      bru_scheduler_notify_match
 #    define scheduler_free              bru_scheduler_free
 
 typedef BruScheduler Scheduler;

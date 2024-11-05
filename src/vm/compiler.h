@@ -27,7 +27,8 @@ typedef struct {
     int                 only_std_split;    /**< whether to only use `split`   */
     BruCaptureSemantics capture_semantics; /**< capture semantics to use      */
     BruMemoScheme       memo_scheme;       /**< memoisation scheme to use     */
-    int mark_states; /**< whether to compile state instructions               */
+    int mark_states;       /**< whether to compile state instructions         */
+    int encode_priorities; /**< whether to encode priorities on transitions   */
 } BruCompilerOpts;
 
 typedef struct {

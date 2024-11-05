@@ -21,170 +21,286 @@
 
 #include "../../types.h"
 #include "../program.h"
+#include "../vtable.h"
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define bru_thread_manager_init(manager, start_pc, start_sp) \
-    (manager)->init((manager)->impl, (start_pc), (start_sp))
-#define bru_thread_manager_reset(manager) (manager)->reset((manager)->impl)
-#define bru_thread_manager_free(manager)  \
-    do {                                  \
-        (manager)->free((manager)->impl); \
-        free((manager));                  \
+#define bru_thread_manager_init(manager, start_pc_in, start_sp_in) \
+    bru_vt_call_procedure(manager, init, start_pc_in, start_sp_in)
+#define bru_thread_manager_reset(manager) bru_vt_call_procedure(manager, reset)
+#define bru_thread_manager_kill(manager)      \
+    do {                                      \
+        bru_vt_call_procedure(manager, kill); \
+        bru_vt_release(manager);              \
     } while (0)
-#define bru_thread_manager_done_exec(manager) \
-    (manager)->done_exec((manager)->impl)
+#define bru_thread_manager_done_exec(manager, is_done_out) \
+    bru_vt_call_function(manager, is_done_out, done_exec)
+#define bru_thread_manager_get_match(manager, thread_out) \
+    bru_vt_call_function(manager, thread_out, get_match)
 
-#define bru_thread_manager_schedule_thread(manager, thread) \
-    (manager)->schedule_thread((manager)->impl, (thread))
-#define bru_thread_manager_schedule_thread_in_order(manager, thread) \
-    (manager)->schedule_thread_in_order((manager)->impl, (thread))
-#define bru_thread_manager_next_thread(manager) \
-    (manager)->next_thread((manager)->impl)
-#define bru_thread_manager_notify_thread_match(manager, thread) \
-    (manager)->notify_thread_match((manager)->impl, (thread))
-#define bru_thread_manager_clone_thread(manager, thread) \
-    (manager)->clone_thread((manager)->impl, (thread))
-#define bru_thread_manager_kill_thread(manager, thread) \
-    (manager)->kill_thread((manager)->impl, (thread))
-
-#define bru_thread_manager_pc(manager, thread) \
-    (manager)->pc((manager)->impl, (thread))
-#define bru_thread_manager_set_pc(manager, thread, pc) \
-    (manager)->set_pc((manager)->impl, (thread), (pc))
-#define bru_thread_manager_sp(manager, thread) \
-    (manager)->sp((manager)->impl, (thread))
-#define bru_thread_manager_inc_sp(manager, thread) \
-    (manager)->inc_sp((manager)->impl, (thread))
-
-#define bru_thread_manager_init_memoisation(manager, nmemo, text_len) \
-    (manager)->init_memoisation((manager)->impl, (nmemo), (text_len));
-#define bru_thread_manager_memoise(manager, thread, idx) \
-    (manager)->memoise((manager)->impl, (thread), (idx))
-#define bru_thread_manager_counter(manager, thread, idx) \
-    (manager)->counter((manager)->impl, (thread), (idx))
-#define bru_thread_manager_set_counter(manager, thread, idx, val) \
-    (manager)->set_counter((manager)->impl, (thread), (idx), (val))
-#define bru_thread_manager_inc_counter(manager, thread, idx) \
-    (manager)->inc_counter((manager)->impl, (thread), (idx))
-#define bru_thread_manager_memory(manager, thread, idx) \
-    (manager)->memory((manager)->impl, (thread), (idx))
-#define bru_thread_manager_set_memory(manager, thread, idx, val, size) \
-    (manager)->set_memory((manager)->impl, (thread), (idx), (val), (size))
-#define bru_thread_manager_captures(manager, thread, ncaptures) \
-    (manager)->captures((manager)->impl, (thread), (ncaptures))
-#define bru_thread_manager_set_capture(manager, thread, idx) \
-    (manager)->set_capture((manager)->impl, (thread), (idx))
-
-#define BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(manager, prefix)                \
+/**
+ * NOTE:
+ * below macro used internally by thread manager implementations only.
+ * Use the bru_thread_manager_kill macro defined above to kill a thread manager
+ * and deallocate all of its memory.
+ */
+#define _bru_thread_manager_free(manager)                                     \
     do {                                                                      \
-        (manager)->init      = prefix##_thread_manager_init;                  \
-        (manager)->reset     = prefix##_thread_manager_reset;                 \
-        (manager)->free      = prefix##_thread_manager_free;                  \
-        (manager)->done_exec = prefix##_thread_manager_done_exec;             \
-                                                                              \
-        (manager)->schedule_thread = prefix##_thread_manager_schedule_thread; \
-        (manager)->schedule_thread_in_order =                                 \
-            prefix##_thread_manager_schedule_thread_in_order;                 \
-        (manager)->next_thread = prefix##_thread_manager_next_thread;         \
-        (manager)->notify_thread_match =                                      \
-            prefix##_thread_manager_notify_thread_match;                      \
-        (manager)->clone_thread = prefix##_thread_manager_clone_thread;       \
-        (manager)->kill_thread  = prefix##_thread_manager_kill_thread;        \
-                                                                              \
-        (manager)->pc     = prefix##_thread_pc;                               \
-        (manager)->set_pc = prefix##_thread_set_pc;                           \
-        (manager)->sp     = prefix##_thread_sp;                               \
-        (manager)->inc_sp = prefix##_thread_inc_sp;                           \
+        bru_vt_call_procedure(manager, free);                                 \
+        while (!stc_vec_is_empty((manager)->table))                           \
+            bru_thread_manager_interface_free(stc_vec_pop((manager)->table)); \
     } while (0)
 
-#define BRU_THREAD_MANAGER_SET_ALL_FUNCS(manager, prefix)       \
-    do {                                                        \
-        BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(manager, prefix); \
-                                                                \
-        (manager)->init_memoisation =                           \
-            prefix##_thread_manager_init_memoisation;           \
-        (manager)->memoise     = prefix##_thread_memoise;       \
-        (manager)->counter     = prefix##_thread_counter;       \
-        (manager)->set_counter = prefix##_thread_set_counter;   \
-        (manager)->inc_counter = prefix##_thread_inc_counter;   \
-        (manager)->memory      = prefix##_thread_memory;        \
-        (manager)->set_memory  = prefix##_thread_set_memory;    \
-        (manager)->captures    = prefix##_thread_captures;      \
-        (manager)->set_capture = prefix##_thread_set_capture;   \
+/**
+ * NOTE:
+ * alloc_thread and free_thread are not attached to each instance.
+ * This is because they essentially allocate and free the entire block of thread
+ * memory according to the size of the thread the manager uses, which is always
+ * the size of the leaf instance.
+ */
+#define _bru_thread_manager_malloc_thread(manager)                   \
+    ((BruThread *) malloc(                                           \
+         (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size) + \
+     (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size)
+#define _bru_thread_manager_free_thread(manager, thread) \
+    free((thread) - (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size)
+
+#define bru_thread_manager_init_thread(manager, thread_in, pc_in, sp_in) \
+    bru_vt_call_procedure(manager, init_thread, thread_in, pc_in, sp_in)
+#define bru_thread_manager_copy_thread(manager, thread_src, thread_dst) \
+    bru_vt_call_procedure(manager, copy_thread, thread_src, thread_dst)
+#define bru_thread_manager_schedule_thread(manager, thread_in) \
+    bru_vt_call_procedure(manager, schedule_thread, thread_in)
+#define bru_thread_manager_schedule_thread_in_order(manager, thread_in) \
+    bru_vt_call_procedure(manager, schedule_thread_in_order, thread_in)
+#define bru_thread_manager_next_thread(manager, thread_out) \
+    bru_vt_call_function(manager, thread_out, next_thread)
+#define bru_thread_manager_notify_thread_match(manager, thread_in) \
+    bru_vt_call_procedure(manager, notify_thread_match, thread_in)
+#define bru_thread_manager_clone_thread(manager, thread_out, thread_in) \
+    bru_vt_call_function(manager, thread_out, clone_thread, thread_in)
+#define bru_thread_manager_kill_thread(manager, thread_in) \
+    bru_vt_call_procedure(manager, kill_thread, thread_in)
+#define bru_thread_manager_check_thread_eq(manager, cmp_out, thread1_in, \
+                                           thread2_in)                   \
+    bru_vt_call_function(manager, cmp_out, check_thread_eq, thread1_in,  \
+                         thread2_in)
+
+#define bru_thread_manager_pc(manager, pc_out, thread_in) \
+    bru_vt_call_function(manager, pc_out, pc, thread_in)
+#define bru_thread_manager_set_pc(manager, thread_in, pc_in) \
+    bru_vt_call_procedure(manager, set_pc, thread_in, pc_in)
+#define bru_thread_manager_sp(manager, sp_out, thread_in) \
+    bru_vt_call_function(manager, sp_out, sp, thread_in)
+#define bru_thread_manager_inc_sp(manager, thread_in) \
+    bru_vt_call_procedure(manager, inc_sp, thread_in)
+
+#define bru_thread_manager_init_memoisation(manager, nmemo_in, text_len_in) \
+    bru_vt_call_procedure(manager, init_memoisation, nmemo_in, text_len_in)
+#define bru_thread_manager_memoise_check(manager, memoised_out, thread_in, \
+                                         idx_in)                           \
+    bru_vt_call_function(manager, memoised_out, memoise_check, thread_in,  \
+                         idx_in)
+#define bru_thread_manager_memoise_set(manager, thread_in, idx_in) \
+    bru_vt_call_procedure(manager, memoise_set, thread_in, idx_in)
+#define bru_thread_manager_counter(manager, counter_out, thread_in, idx_in) \
+    bru_vt_call_function(manager, counter_out, counter, thread_in, idx_in)
+#define bru_thread_manager_set_counter(manager, thread_in, idx_in, val_in) \
+    bru_vt_call_procedure(manager, set_counter, thread_in, idx_in, val_in)
+#define bru_thread_manager_inc_counter(manager, thread_in, idx_in) \
+    bru_vt_call_procedure(manager, inc_counter, thread_in, idx_in)
+#define bru_thread_manager_memory(manager, memory_out, thread_in, idx_in) \
+    bru_vt_call_function(manager, memory_out, memory, thread_in, idx_in)
+#define bru_thread_manager_set_memory(manager, thread_in, idx_in, val_in, \
+                                      size_in)                            \
+    bru_vt_call_procedure(manager, set_memory, thread_in, idx_in, val_in, \
+                          size_in)
+#define bru_thread_manager_bytes(manager, bytes_out, thread_in, nbytes_in) \
+    bru_vt_call_function(manager, bytes_out, bytes, thread_in, nbytes_in)
+#define bru_thread_manager_write_byte(manager, thread_in, byte_in) \
+    bru_vt_call_procedure(manager, write_byte, thread_in, byte_in)
+#define bru_thread_manager_captures(manager, captures_out, thread_in, \
+                                    ncaptures_in)                     \
+    bru_vt_call_function(manager, captures_out, captures, thread_in,  \
+                         ncaptures_in)
+#define bru_thread_manager_set_capture(manager, thread_in, idx_in) \
+    bru_vt_call_procedure(manager, set_capture, thread_in, idx_in)
+
+#define BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(manager_interface, prefix)    \
+    do {                                                                    \
+        (manager_interface)->init      = prefix##_thread_manager_init;      \
+        (manager_interface)->reset     = prefix##_thread_manager_reset;     \
+        (manager_interface)->kill      = prefix##_thread_manager_kill;      \
+        (manager_interface)->free      = prefix##_thread_manager_free;      \
+        (manager_interface)->done_exec = prefix##_thread_manager_done_exec; \
+        (manager_interface)->get_match = prefix##_thread_manager_get_match; \
+                                                                            \
+        (manager_interface)->alloc_thread =                                 \
+            prefix##_thread_manager_alloc_thread;                           \
+        (manager_interface)->spawn_thread =                                 \
+            prefix##_thread_manager_spawn_thread;                           \
+        (manager_interface)->init_thread =                                  \
+            prefix##_thread_manager_init_thread;                            \
+        (manager_interface)->copy_thread =                                  \
+            prefix##_thread_manager_copy_thread;                            \
+        (manager_interface)->clone_thread =                                 \
+            prefix##_thread_manager_clone_thread;                           \
+        (manager_interface)->kill_thread =                                  \
+            prefix##_thread_manager_kill_thread;                            \
+        (manager_interface)->free_thread =                                  \
+            prefix##_thread_manager_free_thread;                            \
+        (manager_interface)->check_thread_eq =                              \
+            prefix##_thread_manager_check_thread_eq;                        \
+        (manager_interface)->schedule_thread =                              \
+            prefix##_thread_manager_schedule_thread;                        \
+        (manager_interface)->schedule_thread_in_order =                     \
+            prefix##_thread_manager_schedule_thread_in_order;               \
+        (manager_interface)->next_thread =                                  \
+            prefix##_thread_manager_next_thread;                            \
+        (manager_interface)->notify_thread_match =                          \
+            prefix##_thread_manager_notify_thread_match;                    \
+                                                                            \
+        (manager_interface)->pc     = prefix##_thread_manager_pc;           \
+        (manager_interface)->set_pc = prefix##_thread_manager_set_pc;       \
+        (manager_interface)->sp     = prefix##_thread_manager_sp;           \
+        (manager_interface)->inc_sp = prefix##_thread_manager_inc_sp;       \
+    } while (0)
+
+#define BRU_THREAD_MANAGER_SET_NOOP_FUNCS(manager_interface)                  \
+    do {                                                                      \
+        (manager_interface)->init_memoisation =                               \
+            bru_thread_manager_init_memoisation_noop;                         \
+        (manager_interface)->memoise_check =                                  \
+            bru_thread_manager_memoise_check_noop;                            \
+        (manager_interface)->memoise_set =                                    \
+            bru_thread_manager_memoise_set_noop;                              \
+        (manager_interface)->counter = bru_thread_manager_counter_noop;       \
+        (manager_interface)->set_counter =                                    \
+            bru_thread_manager_set_counter_noop;                              \
+        (manager_interface)->inc_counter =                                    \
+            bru_thread_manager_inc_counter_noop;                              \
+        (manager_interface)->memory     = bru_thread_manager_memory_noop;     \
+        (manager_interface)->set_memory = bru_thread_manager_set_memory_noop; \
+        (manager_interface)->bytes      = bru_thread_manager_bytes_noop;      \
+        (manager_interface)->write_byte = bru_thread_manager_write_byte_noop; \
+        (manager_interface)->captures   = bru_thread_manager_captures_noop;   \
+        (manager_interface)->set_capture =                                    \
+            bru_thread_manager_set_capture_noop;                              \
     } while (0)
 
 /* --- Type definitions ----------------------------------------------------- */
 
-// the basic thread represent a state in the VM:
-// some pointer into the instruction stream, and a pointer into the matching
-// string.
-//
-// Any extensions of this (captures, counters, etc) can happen, but the datatype
-// must adhere to this spec.
-typedef struct {
-    const bru_byte_t *pc; /**< the program counter of the thread              */
-    const char       *sp; /**< the string pointer of the thread               */
-} BruThread;
+typedef bru_byte_t BruThread; /**< BruThread is a collection of bytes         */
 
-typedef struct thread_manager {
-    void (*init)(void             *thread_manager_impl,
+typedef bru_vtable_of(struct bru_thread_manager_interface) BruThreadManager;
+
+typedef struct bru_thread_manager_interface {
+    void (*init)(BruThreadManager *self,
                  const bru_byte_t *start_pc,
                  const char       *start_sp);
-    void (*reset)(void *thread_manager_impl);
-    void (*free)(void *thread_manager_impl); /**< free the thread manager     */
-    int  (*done_exec)(void *thread_manager_impl);
+    void (*reset)(BruThreadManager *self);
+    int (*done_exec)(BruThreadManager *self);
+    BruThread *(*get_match)(BruThreadManager *self);
+
+    /**
+     * 'kill' is used to traverse the thread managers without removing them
+     * from the hierarchy.
+     *
+     * 'free' is used to free the resources of the thread manager, and should
+     * be called by using the bru_thread_manager_free function.
+     *
+     * The intention is that your base thread manager implements 'kill' by
+     * deferring to bru_thread_manager_free.
+     */
+    void (*kill)(BruThreadManager *self); /**< kill the thread manager        */
+    void (*free)(BruThreadManager *self); /**< free the thread manager        */
 
     // below functions manipulate thread execution
-    void       (*schedule_thread)(void *thread_manager_impl, BruThread *thread);
-    void       (*schedule_thread_in_order)(void      *thread_manager_impl,
-                                     BruThread *thread);
-    BruThread *(*next_thread)(void *thread_manager_impl);
-    void (*notify_thread_match)(void *thread_manager_impl, BruThread *thread);
-    BruThread *(*clone_thread)(void            *thread_manager_impl,
-                               const BruThread *thread);
-    void       (*kill_thread)(void *thread_manager_impl, BruThread *thread);
+    BruThread *(*alloc_thread)(BruThreadManager *self);
+    BruThread *(*spawn_thread)(BruThreadManager *self);
+    void (*init_thread)(BruThreadManager *self,
+                        BruThread        *thread,
+                        const bru_byte_t *pc,
+                        const char       *sp);
+    void (*copy_thread)(BruThreadManager *self,
+                        const BruThread  *src,
+                        BruThread        *dst);
+    BruThread *(*clone_thread)(BruThreadManager *self, const BruThread *thread);
+    void (*kill_thread)(BruThreadManager *self, BruThread *thread);
+    void (*free_thread)(BruThreadManager *self, BruThread *thread);
+
+    /**< return 0 if equal, non-zero otherwise */
+    int (*check_thread_eq)(BruThreadManager *self,
+                           const BruThread  *t1,
+                           const BruThread  *t2);
+    void (*schedule_thread)(BruThreadManager *self, BruThread *thread);
+    void (*schedule_thread_in_order)(BruThreadManager *self, BruThread *thread);
+    BruThread *(*next_thread)(BruThreadManager *self);
+    void (*notify_thread_match)(BruThreadManager *self, BruThread *thread);
 
     // functions that manipulate thread memory
-    const bru_byte_t *(*pc)(void *thread_manager_impl, const BruThread *thread);
-    void              (*set_pc)(void             *thread_manager_impl,
+    const bru_byte_t *(*pc)(BruThreadManager *self, const BruThread *thread);
+    void (*set_pc)(BruThreadManager *self,
                    BruThread        *thread,
                    const bru_byte_t *pc);
-    const char       *(*sp)(void *thread_manager_impl, const BruThread *thread);
-    void              (*inc_sp)(void *thread_manager_impl, BruThread *thread);
+    const char *(*sp)(BruThreadManager *self, const BruThread *thread);
+    void (*inc_sp)(BruThreadManager *self, BruThread *thread);
 
-    // non-required interface functions
-    void (*init_memoisation)(void       *thread_manager_impl,
-                             size_t      nmemo_insts,
-                             const char *text);
-    int (*memoise)(void *thread_manager_impl, BruThread *thread, bru_len_t idx);
-    bru_cntr_t         (*counter)(void            *thread_manager_impl,
-                          const BruThread *thread,
-                          bru_len_t        idx);
-    void               (*set_counter)(void      *thread_manager_impl,
-                        BruThread *thread,
-                        bru_len_t  idx,
-                        bru_cntr_t val);
-    void               (*inc_counter)(void      *thread_manager_impl,
-                        BruThread *thread,
-                        bru_len_t  idx);
-    void              *(*memory)(void            *thread_manager_impl,
-                    const BruThread *thread,
-                    bru_len_t        idx);
-    void               (*set_memory)(void       *thread_manager_impl,
-                       BruThread  *thread,
-                       bru_len_t   idx,
-                       const void *val,
-                       size_t      size);
-    const char *const *(*captures)(void            *thread_manager_impl,
-                                   const BruThread *thread,
-                                   bru_len_t       *ncaptures);
-    void               (*set_capture)(void      *thread_manager_impl,
-                        BruThread *thread,
-                        bru_len_t  idx);
+    // memoisation
+    void (*init_memoisation)(BruThreadManager *self,
+                             size_t            nmemo_insts,
+                             const char       *text);
+    int (*memoise_check)(BruThreadManager *self,
+                         BruThread        *thread,
+                         bru_len_t         idx);
+    void (*memoise_set)(BruThreadManager *self,
+                        BruThread        *thread,
+                        bru_len_t         idx);
 
-    void *impl; /**< the underlying implementation                            */
-} BruThreadManager;
+    // counters
+    bru_cntr_t (*counter)(BruThreadManager *self,
+                          const BruThread  *thread,
+                          bru_len_t         idx);
+    void (*set_counter)(BruThreadManager *self,
+                        BruThread        *thread,
+                        bru_len_t         idx,
+                        bru_cntr_t        val);
+    void (*inc_counter)(BruThreadManager *self,
+                        BruThread        *thread,
+                        bru_len_t         idx);
+
+    // arbitrary memory
+    void *(*memory)(BruThreadManager *self,
+                    const BruThread  *thread,
+                    bru_len_t         idx);
+    void (*set_memory)(BruThreadManager *self,
+                       BruThread        *thread,
+                       bru_len_t         idx,
+                       const void       *val,
+                       size_t            size);
+
+    // arbitrary writing bytes
+    bru_byte_t *(*bytes)(BruThreadManager *self,
+                         BruThread        *thread,
+                         size_t           *nbytes);
+    void (*write_byte)(BruThreadManager *self,
+                       BruThread        *thread,
+                       bru_byte_t        byte);
+
+    // captures
+    const char *const *(*captures)(BruThreadManager *self,
+                                   const BruThread  *thread,
+                                   bru_len_t        *ncaptures);
+    void (*set_capture)(BruThreadManager *self,
+                        BruThread        *thread,
+                        bru_len_t         idx);
+
+    size_t _thread_size; /**< size of the thread used by this manager         */
+    BRU_VTABLE_FIELDS;
+} BruThreadManagerInterface;
+
+#define BRU_THREAD_FROM_INSTANCE(instance, thread) \
+    ((thread) - (instance)->_thread_size)
 
 #if !defined(BRU_VM_THREAD_MANAGER_DISABLE_SHORT_NAMES) && \
     (defined(BRU_VM_THREAD_MANAGER_ENABLE_SHORT_NAMES) ||  \
@@ -194,7 +310,9 @@ typedef struct thread_manager {
 #    define thread_manager_init      bru_thread_manager_init
 #    define thread_manager_reset     bru_thread_manager_reset
 #    define thread_manager_free      bru_thread_manager_free
+#    define thread_manager_kill      bru_thread_manager_kill
 #    define thread_manager_done_exec bru_thread_manager_done_exec
+#    define thread_manager_get_match bru_thread_manager_get_match
 
 #    define thread_manager_schedule_thread bru_thread_manager_schedule_thread
 #    define thread_manager_schedule_thread_in_order \
@@ -202,8 +320,12 @@ typedef struct thread_manager {
 #    define thread_manager_next_thread bru_thread_manager_next_thread
 #    define thread_manager_notify_thread_match \
         bru_thread_manager_notify_thread_match
-#    define thread_manager_clone_thread bru_thread_manager_clone_thread
-#    define thread_manager_kill_thread  bru_thread_manager_kill_thread
+#    define thread_manager_alloc_thread    bru_thread_manager_alloc_thread
+#    define thread_manager_spawn_thread    bru_thread_manager_spawn_thread
+#    define thread_manager_init_thread     bru_thread_manager_init_thread
+#    define thread_manager_check_thread_eq bru_thread_manager_check_thread_eq
+#    define thread_manager_clone_thread    bru_thread_manager_clone_thread
+#    define thread_manager_kill_thread     bru_thread_manager_kill_thread
 
 #    define thread_manager_pc     bru_thread_manager_pc
 #    define thread_manager_set_pc bru_thread_manager_set_pc
@@ -211,7 +333,8 @@ typedef struct thread_manager {
 #    define thread_manager_inc_sp bru_thread_manager_inc_sp
 
 #    define thread_manager_init_memoisation bru_thread_manager_init_memoisation
-#    define thread_manager_memoise          bru_thread_manager_memoise
+#    define thread_manager_memoise_check    bru_thread_manager_memoise_check
+#    define thread_manager_memoise_set      bru_thread_manager_memoise_set
 #    define thread_manager_counter          bru_thread_manager_counter
 #    define thread_manager_set_counter      bru_thread_manager_set_counter
 #    define thread_manager_inc_counter      bru_thread_manager_inc_counter
@@ -219,17 +342,22 @@ typedef struct thread_manager {
 #    define thread_manager_set_memory       bru_thread_manager_set_memory
 #    define thread_manager_captures         bru_thread_manager_captures
 #    define thread_manager_set_capture      bru_thread_manager_set_capture
+#    define thread_manager_bytes            bru_thread_manager_bytes
+#    define thread_manager_write_byte       bru_thread_manager_write_byte
 
 #    define THREAD_MANAGER_SET_REQUIRED_FUNCS \
         BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS
 #    define THREAD_MANAGER_SET_ALL_FUNCS BRU_THREAD_MANAGER_SET_ALL_FUNCS
 
-typedef BruThread        Thread;
-typedef BruThreadManager ThreadManager;
+typedef BruThread                 Thread;
+typedef BruThreadManager          ThreadManager;
+typedef BruThreadManagerInterface ThreadManagerInterface;
 
 #    define thread_manager_init_memoisation_noop \
         bru_thread_manager_init_memoisation_noop
-#    define thread_manager_memoise_noop     bru_thread_manager_memoise_noop
+#    define thread_manager_memoise_check_noop \
+        bru_thread_manager_memoise_check_noop
+#    define thread_manager_memoise_set_noop bru_thread_manager_memoise_set_noop
 #    define thread_manager_counter_noop     bru_thread_manager_counter_noop
 #    define thread_manager_set_counter_noop bru_thread_manager_set_counter_noop
 #    define thread_manager_inc_counter_noop bru_thread_manager_inc_counter_noop
@@ -237,7 +365,29 @@ typedef BruThreadManager ThreadManager;
 #    define thread_manager_set_memory_noop  bru_thread_manager_set_memory_noop
 #    define thread_manager_captures_noop    bru_thread_manager_captures_noop
 #    define thread_manager_set_capture_noop bru_thread_manager_set_capture_noop
+#    define thread_manager_bytes_noop       bru_thread_manager_bytes_noop
+#    define thread_manager_write_byte_noop  bru_thread_manager_write_byte_noop
 #endif /* BRU_VM_THREAD_MANAGER_ENABLE_SHORT_NAMES */
+
+/* --- Thread manager interface function prototypes ------------------------- */
+
+/**
+ * Create a new interface for a thread manager.
+ *
+ * All interface functions are set to NULL.
+ *
+ * @param[in] impl  the implementing object
+ * @param[in] tsize the size of the thread used by the thread manager
+ */
+BruThreadManagerInterface *bru_thread_manager_interface_new(void  *impl,
+                                                            size_t tsize);
+
+/**
+ * Free the thread manager interface.
+ *
+ * @param[in] tmi the thread manager interface
+ */
+void bru_thread_manager_interface_free(BruThreadManagerInterface *tmi);
 
 /* --- Thread manager NO-OP function prototypes ----------------------------- */
 
@@ -245,43 +395,55 @@ typedef BruThreadManager ThreadManager;
 // nothing should happen. Sensical return values are used -- NULL for pointers,
 // truthy values for memoisation, and 0 for counter values.
 
-void bru_thread_manager_init_memoisation_noop(void       *thread_manager_impl,
-                                              size_t      nmemo_insts,
-                                              const char *text);
+void bru_thread_manager_init_memoisation_noop(BruThreadManager *tm,
+                                              size_t            nmemo_insts,
+                                              const char       *text);
 
-int bru_thread_manager_memoise_noop(void      *thread_manager_impl,
-                                    BruThread *thread,
-                                    bru_len_t  idx);
+int bru_thread_manager_memoise_check_noop(BruThreadManager *tm,
+                                          BruThread        *thread,
+                                          bru_len_t         idx);
 
-bru_cntr_t bru_thread_manager_counter_noop(void            *thread_manager_impl,
-                                           const BruThread *thread,
-                                           bru_len_t        idx);
+void bru_thread_manager_memoise_set_noop(BruThreadManager *tm,
+                                         BruThread        *thread,
+                                         bru_len_t         idx);
 
-void bru_thread_manager_set_counter_noop(void      *thread_manager_impl,
-                                         BruThread *thread,
-                                         bru_len_t  idx,
-                                         bru_cntr_t val);
+bru_cntr_t bru_thread_manager_counter_noop(BruThreadManager *tm,
+                                           const BruThread  *thread,
+                                           bru_len_t         idx);
 
-void bru_thread_manager_inc_counter_noop(void      *thread_manager_impl,
-                                         BruThread *thread,
-                                         bru_len_t  idx);
+void bru_thread_manager_set_counter_noop(BruThreadManager *tm,
+                                         BruThread        *thread,
+                                         bru_len_t         idx,
+                                         bru_cntr_t        val);
 
-void *bru_thread_manager_memory_noop(void            *thread_manager_impl,
-                                     const BruThread *thread,
-                                     bru_len_t        idx);
+void bru_thread_manager_inc_counter_noop(BruThreadManager *tm,
+                                         BruThread        *thread,
+                                         bru_len_t         idx);
 
-void bru_thread_manager_set_memory_noop(void       *thread_manager_impl,
-                                        BruThread  *thread,
-                                        bru_len_t   idx,
-                                        const void *val,
-                                        size_t      size);
+void *bru_thread_manager_memory_noop(BruThreadManager *tm,
+                                     const BruThread  *thread,
+                                     bru_len_t         idx);
 
-const char *const *bru_thread_manager_captures_noop(void *thread_manager_impl,
-                                                    const BruThread *thread,
-                                                    bru_len_t       *ncaptures);
+void bru_thread_manager_set_memory_noop(BruThreadManager *tm,
+                                        BruThread        *thread,
+                                        bru_len_t         idx,
+                                        const void       *val,
+                                        size_t            size);
 
-void bru_thread_manager_set_capture_noop(void      *thread_manager_impl,
-                                         BruThread *thread,
-                                         bru_len_t  idx);
+void bru_thread_manager_write_byte_noop(BruThreadManager *self,
+                                        BruThread        *thread,
+                                        bru_byte_t        byte);
+
+bru_byte_t *bru_thread_manager_bytes_noop(BruThreadManager *self,
+                                          BruThread        *thread,
+                                          size_t           *nbytes);
+
+const char *const *bru_thread_manager_captures_noop(BruThreadManager *tm,
+                                                    const BruThread  *thread,
+                                                    bru_len_t *ncaptures);
+
+void bru_thread_manager_set_capture_noop(BruThreadManager *tm,
+                                         BruThread        *thread,
+                                         bru_len_t         idx);
 
 #endif /* BRU_VM_THREAD_MANAGER_H */

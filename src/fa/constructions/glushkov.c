@@ -92,8 +92,8 @@ static size_t count(const BruRegexNode *re);
 static void   emit(BruStateMachine *sm, const BruRfa *rfa);
 
 #if defined(BRU_DEBUG) || defined(BRU_DEBUG_GLUSHKOV)
-static void ppl_print(PosPairList *self, FILE *stream);
-static void rfa_print(Rfa *self, FILE *stream);
+static void ppl_print(BruPosPairList *self, FILE *stream);
+static void rfa_print(BruRfa *self, FILE *stream);
 #else
 #    define ppl_print(...)
 #    define rfa_print(...)
@@ -521,9 +521,9 @@ static void rfa_construct(BruRfa                *self,
             break;
 
         /* TODO: */
-        case BRU_COUNTER:
+        case BRU_COUNTER: /* fallthrough */
             // TODO: PCRE/RE2 semantics
-        case BRU_LOOKAHEAD:
+        case BRU_LOOKAHEAD: /* fallthrough */
         case BRU_BACKREFERENCE: assert(0 && "TODO");
         case BRU_NREGEXTYPES: assert(0 && "unreachable");
     }
@@ -638,9 +638,9 @@ static void emit(BruStateMachine *sm, const BruRfa *rfa)
 /* --- Debug functions ------------------------------------------------------ */
 
 #if defined(BRU_DEBUG) || defined(BRU_DEBUG_GLUSHKOV)
-static void ppl_print(PosPairList *self, FILE *stream)
+static void ppl_print(BruPosPairList *self, FILE *stream)
 {
-    PosPair               *pp;
+    BruPosPair            *pp;
     const BruAction       *act;
     BruActionListIterator *iter;
     size_t                 act_idx;
@@ -653,17 +653,25 @@ static void ppl_print(PosPairList *self, FILE *stream)
             switch (bru_smir_action_type(act)) {
                 case BRU_ACT_BEGIN: fprintf(stream, "^"); break;
                 case BRU_ACT_END: fprintf(stream, "$"); break;
-                case BRU_ACT_MEMO: fprintf(stream, "#"); break;
+                case BRU_ACT_MEMOCHK: fprintf(stream, "#?"); break;
+                case BRU_ACT_MEMOSET: fprintf(stream, "#+"); break;
 
                 case BRU_ACT_SAVE:
                     fprintf(stream, "%c_%lu", act_idx % 2 == 0 ? '[' : ']',
                             act_idx / 2);
                     break;
 
+                case BRU_ACT_CHAR:
+                case BRU_ACT_PRED:
+                case BRU_ACT_EPSCHK:
+                case BRU_ACT_EPSSET:
+                case BRU_ACT_WRITE:
                 default:
                     fprintf(stream, "action type = %d\n",
                             bru_smir_action_type(act));
                     assert(0 && "unreachable");
+
+                case BRU_ACT_NACTIONS: assert(0 && "unreachable");
             }
             fprintf(stream, ",");
         }
@@ -672,7 +680,7 @@ static void ppl_print(PosPairList *self, FILE *stream)
     }
 }
 
-static void rfa_print(Rfa *rfa, FILE *stream)
+static void rfa_print(BruRfa *rfa, FILE *stream)
 {
     size_t i;
 

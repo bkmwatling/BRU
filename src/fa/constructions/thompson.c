@@ -212,8 +212,8 @@ emit(BruStateMachine *sm, const BruRegexNode *re, const BruCompilerOpts *opts)
             break;
 
         /* TODO: */
-        case BRU_COUNTER:
-        case BRU_LOOKAHEAD:
+        case BRU_COUNTER:   /* fallthrough */
+        case BRU_LOOKAHEAD: /* fallthrough */
         case BRU_BACKREFERENCE: assert(0 && "TODO"); break;
         case BRU_NREGEXTYPES: assert(0 && "unreachable"); break;
     }

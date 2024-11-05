@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stc/fatp/string_view.h"
-#include "stc/util/argparser.h"
-#include "stc/util/utf.h"
+#include <stc/fatp/string_view.h>
+#include <stc/util/argparser.h>
+#include <stc/util/utf.h>
 
 #include "re/parser.h"
 #include "vm/compiler.h"
@@ -12,9 +12,14 @@
 // NOTE: deprecated/not useful, see all_matches ThreadManager
 // #include "vm/thread_managers/all_matches.h"
 #include "vm/thread_managers/benchmark.h"
+#include "vm/thread_managers/captures.h"
+#include "vm/thread_managers/counters.h"
 #include "vm/thread_managers/lockstep.h"
 #include "vm/thread_managers/memoisation.h"
+#include "vm/thread_managers/memory.h"
 #include "vm/thread_managers/spencer.h"
+#include "vm/thread_managers/thread_pool.h"
+#include "vm/thread_managers/write.h"
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -175,6 +180,10 @@ static void add_compilation_args(StcArgParser *ap, BruOptions *options)
         ap, NULL, "--mark-states",
         "whether to compile state marking instructions",
         &options->compiler_opts.mark_states, FALSE);
+    stc_argparser_add_bool_option(
+        ap, NULL, "--encode-priorities",
+        "whether to encode transition priorities on the transitions",
+        &options->compiler_opts.encode_priorities, FALSE);
 }
 
 static void add_matching_args(StcArgParser *ap, BruOptions *options)
@@ -291,10 +300,11 @@ static int match(BruOptions *options)
     const BruProgram *prog;
     BruThreadManager *thread_manager = NULL;
     BruSRVM          *srvm;
-    StcStringView     capture, *captures;
-    bru_len_t         i, ncaptures;
+    StcStringView     capture;
+    bru_len_t         i;
     size_t            ncodepoints;
-    int               matched, exit_code = EXIT_SUCCESS;
+    BruSRVMMatch     *match;
+    int               exit_code = EXIT_SUCCESS;
 
     c = bru_compiler_new(
         bru_parser_new(sdup(options->regex), options->parser_opts),
@@ -307,11 +317,28 @@ static int match(BruOptions *options)
     }
 
     if (options->scheduler_type == SCH_SPENCER)
-        thread_manager = bru_spencer_thread_manager_new(
-            0, prog->thread_mem_len, prog->ncaptures, options->logfile);
+        thread_manager = bru_spencer_thread_manager_new();
     else if (options->scheduler_type == SCH_LOCKSTEP)
-        thread_manager = bru_thompson_thread_manager_new(
-            0, prog->thread_mem_len, prog->ncaptures, options->logfile);
+        thread_manager = bru_lockstep_thread_manager_new();
+
+    if (prog->ncaptures)
+        thread_manager = bru_thread_manager_with_captures_new(thread_manager,
+                                                              prog->ncaptures);
+    // TODO
+    // if (prog->counters)
+    //     thread_manager = bru_thread_manager_with_counters_new(thread_manager,
+    //                                                           prog->counters);
+
+    if (prog->thread_mem_len)
+        thread_manager = bru_thread_manager_with_memory_new(
+            thread_manager, prog->thread_mem_len);
+
+    if (prog->requires_writing)
+        thread_manager = bru_thread_manager_with_write_new(thread_manager);
+
+    // TODO: add command line flag for thread pool
+    thread_manager =
+        bru_thread_manager_with_pool_new(thread_manager, options->logfile);
 
     if (options->compiler_opts.memo_scheme != BRU_MS_NONE)
         thread_manager = bru_memoised_thread_manager_new(thread_manager);
@@ -324,16 +351,18 @@ static int match(BruOptions *options)
     //         thread_manager, options->logfile, options->text);
 
     srvm = bru_srvm_new(thread_manager, prog);
-    if (!(matched = bru_srvm_find(srvm, options->text)))
+    if (!(match = bru_srvm_find(srvm, options->text)))
         fputs("No match\n", options->outfile);
     else
         do {
-            fputs("Found match\n", options->outfile);
-            fprintf(options->outfile, "captures:\n");
-            captures = bru_srvm_captures(srvm, &ncaptures);
-            fprintf(options->outfile, "  input: '%s'\n", options->text);
-            for (i = 0; i < ncaptures; i++) {
-                capture = captures[i];
+            fprintf(options->outfile,
+                    "Found match\n"
+                    "bytes: %.*s\n"
+                    "captures:\n"
+                    "  input: '%s'\n",
+                    (int) match->nbytes, match->bytes, options->text);
+            for (i = 0; i < match->ncaptures; i++) {
+                capture = match->captures[i];
                 fprintf(options->outfile, "%7hu: ", i);
                 if (capture.str) {
                     ncodepoints = stc_utf8_str_ncodepoints(options->text) -
@@ -344,8 +373,8 @@ static int match(BruOptions *options)
                     fprintf(options->outfile, "not captured\n");
                 }
             }
-            free(captures);
-        } while ((matched = bru_srvm_find(srvm, options->text)));
+            bru_srvm_match_free(match);
+        } while ((match = bru_srvm_find(srvm, options->text)));
     bru_program_free((BruProgram *) prog);
     bru_srvm_free(srvm);
 
@@ -359,8 +388,8 @@ int main(int argc, const char **argv)
 {
     int           exit_code;
     StcArgParser *argparser;
-    BruOptions    options                        = { 0 };
-    static int    (*subcommands[])(BruOptions *) = { parse, compile, match };
+    BruOptions    options                     = { 0 };
+    static int (*subcommands[])(BruOptions *) = { parse, compile, match };
 
     argparser = setup_argparser(&options);
     stc_argparser_parse(argparser, argc, argv);

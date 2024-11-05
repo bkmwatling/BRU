@@ -1,9 +1,7 @@
 #ifndef BRU_VM_PROGRAM_H
 #define BRU_VM_PROGRAM_H
 
-#include <stdio.h>
-
-#include "../stc/fatp/vec.h"
+#include <stc/fatp/vec.h>
 
 #include "../re/sre.h"
 #include "../types.h"
@@ -14,6 +12,8 @@
  *
  * @param[in,out] pc       the PC to write the bytecode to
  * @param[in]     bytecode the bytecode to write to PC
+ *
+ * @return the bytecode written to the byte stream
  */
 #define BRU_BCWRITE(pc, bytecode) (*(pc)++ = (bytecode))
 
@@ -22,8 +22,20 @@
  *
  * @param[in] insts    the instruction byte stream
  * @param[in] bytecode the bytecode to push onto the instruction byte stream
+ *
+ * @return the bytecode pushed to the byte stream
  */
 #define BRU_BCPUSH(insts, bytecode) stc_vec_push_back(insts, bytecode)
+
+/**
+ * Read the bytecode from PC, and move PC past the bytecode in the underlying
+ * byte stream.
+ *
+ * @param[in,out] pc the PC to read the bytecode from
+ *
+ * @return the bytecode read from the PC
+ */
+#define BRU_BCREAD(pc) ((BruBytecode) (*(pc)++))
 
 /**
  * Write a value of given type to PC and advance PC past that value.
@@ -83,52 +95,61 @@
 
 /* --- Type definitions ----------------------------------------------------- */
 
-/* Bytecodes */
-#define BRU_NOOP       0
-#define BRU_MATCH      1
-#define BRU_BEGIN      2
-#define BRU_END        3
-#define BRU_MEMO       4
-#define BRU_CHAR       5
-#define BRU_PRED       6
-#define BRU_SAVE       7
-#define BRU_JMP        8
-#define BRU_SPLIT      9
-#define BRU_GSPLIT     10
-#define BRU_LSPLIT     11
-#define BRU_TSWITCH    12
-#define BRU_EPSRESET   13
-#define BRU_EPSSET     14
-#define BRU_EPSCHK     15
-#define BRU_RESET      16
-#define BRU_CMP        17
-#define BRU_INC        18
-#define BRU_ZWA        19
-#define BRU_STATE      20
-#define BRU_NBYTECODES 21
+#define BRU_FOR_LIST_OF_INSTRUCTIONS(DO) \
+    DO(BRU_NOOP)                         \
+    DO(BRU_MATCH)                        \
+    DO(BRU_BEGIN)                        \
+    DO(BRU_END)                          \
+    DO(BRU_MEMOCHK)                      \
+    DO(BRU_MEMOSET)                      \
+    DO(BRU_CHAR)                         \
+    DO(BRU_PRED)                         \
+    DO(BRU_SAVE)                         \
+    DO(BRU_JMP)                          \
+    DO(BRU_SPLIT)                        \
+    DO(BRU_GSPLIT)                       \
+    DO(BRU_LSPLIT)                       \
+    DO(BRU_TSWITCH)                      \
+    DO(BRU_EPSRESET)                     \
+    DO(BRU_EPSSET)                       \
+    DO(BRU_EPSCHK)                       \
+    DO(BRU_RESET)                        \
+    DO(BRU_CMP)                          \
+    DO(BRU_INC)                          \
+    DO(BRU_ZWA)                          \
+    DO(BRU_STATE)                        \
+    DO(BRU_WRITE)                        \
+    DO(BRU_WRITE0)                       \
+    DO(BRU_WRITE1)
 
-/* Order for cmp */
-#define BRU_LT 1
-#define BRU_LE 2
-#define BRU_EQ 3
-#define BRU_NE 4
-#define BRU_GE 5
-#define BRU_GT 6
+#define BRU_DEFINE_ENUM_VALUE(INST) INST,
+
+typedef enum {
+    BRU_FOR_LIST_OF_INSTRUCTIONS(BRU_DEFINE_ENUM_VALUE) BRU_NBYTECODES
+} BruBytecode;
+
+#undef BRU_DEFINE_ENUM_VALUE
+
+/**< Order for comparisons */
+typedef enum { BRU_LT = 1, BRU_LE, BRU_EQ, BRU_NE, BRU_GE, BRU_GT } BruOrd;
 
 typedef struct {
     const char *regex; /**< the original regular expression string            */
 
     // VM execution
-    bru_byte_t *insts; /**< stc_vec of the instruction byte stream            */
-    bru_byte_t *aux;   /**< stc_vec of the auxillary memory for the program   */
+    StcVec(bru_byte_t) insts; /**< the instruction byte stream                */
+    StcVec(bru_byte_t) aux;   /**< the auxillary memory for the program       */
 
     // shared thread memory
     size_t nmemo_insts; /**< the number of memoisation instructions           */
 
     // thread memory
-    bru_cntr_t *counters;  /**< stc_vec of the counter memory default values  */
+    StcVec(bru_cntr_t) counters; /**< the counter memory default values       */
     size_t thread_mem_len; /**< the number of bytes needed for thread memory  */
     size_t ncaptures;      /**< the number of captures in the program/regex   */
+
+    // compile-time collected info
+    int requires_writing; /**< if the program contains WRITE* instructions    */
 } BruProgram;
 
 #if !defined(BRU_VM_PROGRAM_DISABLE_SHORT_NAMES) && \
@@ -138,11 +159,13 @@ typedef struct {
           defined(BRU_ENABLE_SHORT_NAMES)))
 #    define BCWRITE  BRU_BCWRITE
 #    define BCPUSH   BRU_BCPUSH
+#    define BCREAD   BRU_BCREAD
 #    define MEMWRITE BRU_MEMWRITE
 #    define MEMPUSH  BRU_MEMPUSH
 #    define MEMCPY   BRU_MEMCPY
 #    define MEMREAD  BRU_MEMREAD
 
+typedef BruBytecode Bytecode;
 #    define NOOP       BRU_NOOP
 #    define MATCH      BRU_MATCH
 #    define BEGIN      BRU_BEGIN
@@ -166,6 +189,7 @@ typedef struct {
 #    define STATE      BRU_STATE
 #    define NBYTECODES BRU_NBYTECODES
 
+typedef BruOrd Ord;
 #    define LT BRU_LT
 #    define LE BRU_LE
 #    define EQ BRU_EQ

@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../stc/fatp/vec.h"
-#include "../stc/util/utf.h"
+#include <stc/fatp/vec.h>
+#include <stc/util/utf.h>
 
 #include "../types.h"
 #include "../utils.h"
@@ -132,20 +132,25 @@ inst_print_formatted(FILE                  *stream,
 
     if (pc == NULL) return NULL;
 
-    switch (*pc++) {
+    switch (BRU_BCREAD(pc)) {
         case BRU_NOOP: fputs("noop", stream); break;
         case BRU_MATCH: fputs("match", stream); break;
         case BRU_BEGIN: fputs("begin", stream); break;
         case BRU_END: fputs("end", stream); break;
 
-        case BRU_MEMO:
+        case BRU_MEMOCHK:
             BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "memo " BRU_LEN_FMT, n);
+            fprintf(stream, "memchk " BRU_LEN_FMT, n);
+            break;
+
+        case BRU_MEMOSET:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "memset " BRU_LEN_FMT, n);
             break;
 
         case BRU_CHAR:
             BRU_MEMREAD(p, pc, char *);
-            fprintf(stream, "char %.*s", stc_utf8_nbytes(p), p);
+            fprintf(stream, "char '%.*s'", stc_utf8_nbytes(p), p);
             break;
 
         case BRU_PRED:
@@ -221,7 +226,7 @@ inst_print_formatted(FILE                  *stream,
             BRU_MEMREAD(i, pc, bru_len_t);
             BRU_MEMREAD(c, pc, bru_cntr_t);
 
-            switch (*pc++) {
+            switch ((BruOrd) *pc++) {
                 case BRU_LT: fputs("cmplt ", stream); break;
                 case BRU_LE: fputs("cmple ", stream); break;
                 case BRU_EQ: fputs("cmpeq ", stream); break;
@@ -251,7 +256,17 @@ inst_print_formatted(FILE                  *stream,
 
         case BRU_STATE: fputs("state", stream); break;
 
-        default:
+        case BRU_WRITE:
+            fputs("write", stream);
+            fprintf(stream, " 0x%x", *pc);
+            pc++;
+            break;
+
+        case BRU_WRITE0: fputs("write0", stream); break;
+
+        case BRU_WRITE1: fputs("write1", stream); break;
+
+        case BRU_NBYTECODES:
             fprintf(stderr, "bytecode = %d\n", pc[-1]);
             assert(0 && "unreachable");
     }
@@ -283,12 +298,13 @@ static void print_offset_as_absolute_index(FILE             *stream,
 
     pc += x;
     for (idx = 0; insts < pc; idx++) {
-        switch (*insts++) {
+        switch (BRU_BCREAD(insts)) {
             case BRU_NOOP:  /* fallthrough */
             case BRU_MATCH: /* fallthrough */
             case BRU_BEGIN: /* fallthrough */
             case BRU_END: break;
-            case BRU_MEMO: insts += sizeof(bru_len_t); break;
+            case BRU_MEMOCHK: /* fallthrough */
+            case BRU_MEMOSET: insts += sizeof(bru_len_t); break;
             case BRU_CHAR: insts += sizeof(char *); break;
             case BRU_PRED: /* fallthrough */
             case BRU_SAVE: insts += sizeof(bru_len_t); break;
@@ -312,7 +328,10 @@ static void print_offset_as_absolute_index(FILE             *stream,
             case BRU_INC: insts += sizeof(bru_len_t); break;
             case BRU_ZWA: insts += 2 * sizeof(bru_offset_t) + 1; break;
             case BRU_STATE: break;
-            default:
+            case BRU_WRITE: insts += sizeof(bru_byte_t); break;
+            case BRU_WRITE0: break;
+            case BRU_WRITE1: break;
+            case BRU_NBYTECODES:
                 fprintf(stderr, "bytecode = %d\n", insts[-1]);
                 assert(0 && "unreachable");
         }

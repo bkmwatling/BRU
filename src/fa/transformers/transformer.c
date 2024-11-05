@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "../../stc/fatp/vec.h"
+#include <stc/fatp/vec.h>
 
 #include "transformer.h"
 
@@ -77,8 +77,9 @@ BruStateMachine *bru_transform_from_states(BruStateMachine *old_sm,
     return new_sm;
 }
 
-BruStateMachine *bru_transform_from_transitions(BruStateMachine *old_sm,
-                                                bru_trans_id    *transitions)
+BruStateMachine *
+bru_transform_from_transitions(BruStateMachine       *old_sm,
+                               StcSlice(bru_trans_id) transitions)
 {
     BruStateMachine *new_sm;
     bru_state_id    *states;
@@ -90,10 +91,10 @@ BruStateMachine *bru_transform_from_transitions(BruStateMachine *old_sm,
 
     new_sm = bru_smir_default(bru_smir_get_regex(old_sm));
 
-    if (!stc_vec_len_unsafe(transitions)) return new_sm;
+    if (!stc_slice_len_unsafe(transitions)) return new_sm;
 
     states = calloc(bru_smir_get_num_states(old_sm), sizeof(*states));
-    for (i = 0; i < stc_vec_len_unsafe(transitions); i++) {
+    for (i = 0; i < stc_slice_len_unsafe(transitions); i++) {
         old_tid = transitions[i];
 
         // for each transition, compute the new state identifiers
@@ -145,25 +146,26 @@ BruStateMachine *bru_transform_with_states(BruStateMachine       *sm,
     unsigned int *states;
     bru_state_id  sid;
 
-    if (!spf || !sm) return sm;
+    if (!(spf && sm)) return sm;
 
-    states = malloc(sizeof(unsigned int) * bru_smir_get_num_states(sm));
+    states = malloc(sizeof(*states) * bru_smir_get_num_states(sm));
     for (sid = 1; sid <= bru_smir_get_num_states(sm); sid++)
         states[sid - 1] = spf(sm, sid);
-    sm = bru_transform_from_states(sm, states);
 
+    sm = bru_transform_from_states(sm, states);
     free(states);
-    return bru_transform_from_states(sm, states);
+    return sm;
 }
 
 BruStateMachine *bru_transform_with_trans(BruStateMachine       *sm,
                                           bru_trans_predicate_f *tpf)
 {
-    bru_trans_id *transitions, *out_trans;
-    bru_state_id  sid;
-    size_t        n, i;
+    StcVec(bru_trans_id) transitions;
+    bru_trans_id        *out_trans;
+    bru_state_id         sid;
+    size_t               n, i;
 
-    if (!tpf || !sm) return sm;
+    if (!(tpf && sm)) return sm;
 
     stc_vec_default_init(transitions);
 

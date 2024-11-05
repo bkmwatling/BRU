@@ -25,10 +25,14 @@ typedef enum {
     BRU_ACT_CHAR,
     BRU_ACT_PRED,
 
-    BRU_ACT_MEMO,
+    BRU_ACT_MEMOCHK,
+    BRU_ACT_MEMOSET,
     BRU_ACT_SAVE,
     BRU_ACT_EPSCHK,
     BRU_ACT_EPSSET,
+    BRU_ACT_WRITE,
+
+    BRU_ACT_NACTIONS,
 } BruActionType;
 
 typedef BruActionType BruPredicateType;
@@ -106,6 +110,7 @@ typedef bru_compile_f compile_f;
 #    define smir_action_char      bru_smir_action_char
 #    define smir_action_predicate bru_smir_action_predicate
 #    define smir_action_num       bru_smir_action_num
+#    define smir_action_equal     bru_smir_action_equal
 #    define smir_action_clone     bru_smir_action_clone
 #    define smir_action_free      bru_smir_action_free
 #    define smir_action_type      bru_smir_action_type
@@ -257,6 +262,17 @@ bru_trans_id bru_smir_set_final(BruStateMachine *self, bru_state_id sid);
  * @return the unique transition identifer
  */
 bru_trans_id bru_smir_add_transition(BruStateMachine *self, bru_state_id sid);
+
+/**
+ * Remove a transition from the state machine.
+ *
+ * NOTE: This function will invalidate transition identifiers belonging to the
+ * same state.
+ *
+ * @param[in] self the state machine
+ * @param[in] tid  the transition identifier
+ */
+void bru_smir_remove_transition(BruStateMachine *self, bru_trans_id tid);
 
 /**
  * Get the outgoing transitions of a state.
@@ -500,6 +516,16 @@ const BruAction *bru_smir_action_predicate(const BruIntervals *pred);
 const BruAction *bru_smir_action_num(BruActionType type, size_t k);
 
 /**
+ * Check if two actions are equivalent.
+ *
+ * @param[in] a1 the first action
+ * @param[in] a2 the second action
+ *
+ * @return TRUE if the actions are equivalent, else FALSE
+ */
+int bru_smir_action_equal(const BruAction *a1, const BruAction *a2);
+
+/**
  * Clone an action.
  *
  * @param[in] self the action to clone
@@ -637,8 +663,6 @@ void bru_smir_action_list_prepend(BruActionList *self, BruActionList *acts);
  * Create an interator for a list of actions to be able to go over the actions
  * of the list.
  *
- * Note: the iterator must be freed with a single call to free.
- *
  * @param[in] self the list of actions to iterator over
  *
  * @return the interator for the list of actions
@@ -688,6 +712,13 @@ bru_smir_action_list_iterator_prev(BruActionListIterator *self);
  * @param[in] self the action list iterator
  */
 void bru_smir_action_list_iterator_remove(BruActionListIterator *self);
+
+/**
+ * Free the memory of the action list iterator.
+ *
+ * @param[in] self the action list iterator
+ */
+void bru_smir_action_list_iterator_free(BruActionListIterator *self);
 
 /**
  * Print the list of actions.
