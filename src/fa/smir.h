@@ -25,11 +25,15 @@ typedef enum {
     BRU_ACT_CHAR,
     BRU_ACT_PRED,
 
-    BRU_ACT_MEMOCHK,
-    BRU_ACT_MEMOSET,
     BRU_ACT_SAVE,
-    BRU_ACT_EPSCHK,
+    BRU_ACT_INC,
+    BRU_ACT_SET,
+    BRU_ACT_CMP,
+
     BRU_ACT_EPSSET,
+    BRU_ACT_EPSCHK,
+    BRU_ACT_MEMOSET,
+    BRU_ACT_MEMOCHK,
     BRU_ACT_WRITE,
 
     BRU_ACT_NACTIONS,
@@ -58,10 +62,14 @@ typedef BruActionType ActionType;
 #    define ACT_END    BRU_ACT_END
 #    define ACT_CHAR   BRU_ACT_CHAR
 #    define ACT_PRED   BRU_ACT_PRED
-#    define ACT_MEMO   BRU_ACT_MEMO
 #    define ACT_SAVE   BRU_ACT_SAVE
 #    define ACT_EPSCHK BRU_ACT_EPSCHK
 #    define ACT_EPSSET BRU_ACT_EPSSET
+#    define ACT_MEMO   BRU_ACT_MEMO
+#    define ACT_WRITE  BRU_ACT_WRITE
+#    define ACT_INC    BRU_ACT_INC
+#    define ACT_SET    BRU_ACT_SET
+#    define ACT_CMP    BRU_ACT_CMP
 
 typedef BruPredicateType      PredicateType;
 typedef BruAction             Action;
@@ -110,9 +118,11 @@ typedef bru_compile_f compile_f;
 #    define smir_action_char      bru_smir_action_char
 #    define smir_action_predicate bru_smir_action_predicate
 #    define smir_action_num       bru_smir_action_num
-#    define smir_action_equal     bru_smir_action_equal
+#    define smir_action_set       bru_smir_action_set
+#    define smit_action_cmp       bru_smir_action_cmp
 #    define smir_action_clone     bru_smir_action_clone
 #    define smir_action_free      bru_smir_action_free
+#    define smir_action_equal     bru_smir_action_equal
 #    define smir_action_type      bru_smir_action_type
 #    define smir_action_get_num   bru_smir_action_get_num
 #    define smir_action_print     bru_smir_action_print
@@ -494,19 +504,20 @@ const BruAction *bru_smir_action_char(const char *ch);
 /**
  * Create an action for matching against a predicate.
  *
- * @param[in] pred     the predicate
+ * @param[in] pred the predicate
  *
  * @return the action
  */
 const BruAction *bru_smir_action_predicate(const BruIntervals *pred);
 
 /**
- * Create an action which require relative pointers into memory.
+ * Create an action which requires relative pointers into memory.
  *
- * Valid types are ACT_SAVE, ACT_EPSCHK, ACT_EPSSET, ACT_MEMO.
+ * Valid types are BRU_ACT_SAVE, BRU_ACT_INC, BRU_ACT_EPSCHK, BRU_ACT_EPSSET,
+ * BRU_ACT_MEMO, BRU_ACT_WRITE.
  *
- * If it is ACT_SAVE, the identifier is the index into capture memory.
- * Otherwise, it is the unique regex identifier.
+ * If it is BRU_ACT_SAVE/BRU_ACT_INC, the identifier is the index into
+ * capture/counter memory. Otherwise, it is the unique regex identifier.
  *
  * @param[in] type the type of the action
  * @param[in] k    the identifer for this action
@@ -516,14 +527,25 @@ const BruAction *bru_smir_action_predicate(const BruIntervals *pred);
 const BruAction *bru_smir_action_num(BruActionType type, size_t k);
 
 /**
- * Check if two actions are equivalent.
+ * Create an action for setting a counter to a specified value.
  *
- * @param[in] a1 the first action
- * @param[in] a2 the second action
+ * @param[in] k   the counter index for setting
+ * @param[in] val the value to set the counter to
  *
- * @return TRUE if the actions are equivalent, else FALSE
+ * @return the action
  */
-int bru_smir_action_equal(const BruAction *a1, const BruAction *a2);
+const BruAction *bru_smir_action_set(size_t k, bru_cntr_t val);
+
+/**
+ * Create an action for comparing a counter to a specified value.
+ *
+ * @param[in] k   the counter index for setting
+ * @param[in] val the value to set the counter to
+ * @param[in] ord the order of the comparison
+ *
+ * @return the action
+ */
+const BruAction *bru_smir_action_cmp(size_t k, bru_cntr_t val, BruOrd ord);
 
 /**
  * Clone an action.
@@ -540,6 +562,16 @@ const BruAction *bru_smir_action_clone(const BruAction *self);
  * @param[in] self the action to free
  */
 void bru_smir_action_free(const BruAction *self);
+
+/**
+ * Check if two actions are equivalent.
+ *
+ * @param[in] a1 the first action
+ * @param[in] a2 the second action
+ *
+ * @return TRUE if the actions are equivalent, else FALSE
+ */
+int bru_smir_action_equal(const BruAction *a1, const BruAction *a2);
 
 /**
  * Get the type of the action.

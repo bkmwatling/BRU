@@ -48,23 +48,22 @@ BruProgram *bru_program_new(const char *regex,
                             size_t      insts_len,
                             size_t      aux_len,
                             size_t      nmemo_insts,
+                            size_t      ncaptures,
                             size_t      ncounters,
-                            size_t      thread_mem_len,
-                            size_t      ncaptures)
+                            size_t      thread_mem_len)
 {
     BruProgram *prog = calloc(1, sizeof(*prog));
 
     prog->regex = regex;
     stc_vec_init(prog->insts, insts_len);
     stc_vec_init(prog->aux, aux_len);
-    prog->nmemo_insts = nmemo_insts;
-    stc_vec_init(prog->counters, ncounters);
-    prog->thread_mem_len = thread_mem_len;
+    prog->nmemo_insts    = nmemo_insts;
     prog->ncaptures      = ncaptures;
+    prog->ncounters      = ncounters;
+    prog->thread_mem_len = thread_mem_len;
 
     memset(prog->insts, 0, insts_len * sizeof(bru_byte_t));
     memset(prog->aux, 0, aux_len * sizeof(bru_byte_t));
-    memset(prog->counters, 0, ncounters * sizeof(bru_cntr_t));
 
     return prog;
 }
@@ -76,11 +75,9 @@ BruProgram *bru_program_default(const char *regex)
     prog->regex = regex;
     stc_vec_default_init(prog->insts);
     stc_vec_default_init(prog->aux);
-    stc_vec_default_init(prog->counters);
 
     memset(prog->insts, 0, STC_VEC_DEFAULT_CAP * sizeof(bru_byte_t));
     memset(prog->aux, 0, STC_VEC_DEFAULT_CAP * sizeof(bru_byte_t));
-    memset(prog->counters, 0, STC_VEC_DEFAULT_CAP * sizeof(bru_cntr_t));
 
     return prog;
 }
@@ -90,7 +87,6 @@ void bru_program_free(BruProgram *self)
     free((void *) self->regex);
     stc_vec_free(self->insts);
     stc_vec_free(self->aux);
-    stc_vec_free(self->counters);
     free(self);
 }
 
@@ -138,16 +134,6 @@ inst_print_formatted(FILE                  *stream,
         case BRU_BEGIN: fputs("begin", stream); break;
         case BRU_END: fputs("end", stream); break;
 
-        case BRU_MEMOCHK:
-            BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "memchk " BRU_LEN_FMT, n);
-            break;
-
-        case BRU_MEMOSET:
-            BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "memset " BRU_LEN_FMT, n);
-            break;
-
         case BRU_CHAR:
             BRU_MEMREAD(p, pc, char *);
             fprintf(stream, "char '%.*s'", stc_utf8_nbytes(p), p);
@@ -157,11 +143,6 @@ inst_print_formatted(FILE                  *stream,
             BRU_MEMREAD(i, pc, bru_len_t);
             fputs("pred ", stream);
             print_predicate(stream, i, aux);
-            break;
-
-        case BRU_SAVE:
-            BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "save " BRU_LEN_FMT, n);
             break;
 
         case BRU_JMP:
@@ -201,25 +182,20 @@ inst_print_formatted(FILE                  *stream,
             }
             break;
 
-        case BRU_EPSRESET:
+        case BRU_SAVE:
             BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "epsreset " BRU_LEN_FMT, n);
+            fprintf(stream, "save " BRU_LEN_FMT, n);
             break;
 
-        case BRU_EPSSET:
-            BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "epsset " BRU_LEN_FMT, n);
+        case BRU_INC:
+            BRU_MEMREAD(i, pc, bru_len_t);
+            fprintf(stream, "inc " BRU_LEN_FMT, i);
             break;
 
-        case BRU_EPSCHK:
-            BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "epschk " BRU_LEN_FMT, n);
-            break;
-
-        case BRU_RESET:
+        case BRU_SET:
             BRU_MEMREAD(i, pc, bru_len_t);
             BRU_MEMREAD(c, pc, bru_cntr_t);
-            fprintf(stream, "reset " BRU_LEN_FMT ", " BRU_CNTR_FMT, i, c);
+            fprintf(stream, "set " BRU_LEN_FMT ", " BRU_CNTR_FMT, i, c);
             break;
 
         case BRU_CMP:
@@ -238,9 +214,29 @@ inst_print_formatted(FILE                  *stream,
             fprintf(stream, BRU_LEN_FMT ", " BRU_CNTR_FMT, i, c);
             break;
 
-        case BRU_INC:
-            BRU_MEMREAD(i, pc, bru_len_t);
-            fprintf(stream, "inc " BRU_LEN_FMT, i);
+        case BRU_EPSRESET:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "epsreset " BRU_LEN_FMT, n);
+            break;
+
+        case BRU_EPSSET:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "epsset " BRU_LEN_FMT, n);
+            break;
+
+        case BRU_EPSCHK:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "epschk " BRU_LEN_FMT, n);
+            break;
+
+        case BRU_MEMOCHK:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "memochk " BRU_LEN_FMT, n);
+            break;
+
+        case BRU_MEMOSET:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "memoset " BRU_LEN_FMT, n);
             break;
 
         case BRU_ZWA:
@@ -303,11 +299,8 @@ static void print_offset_as_absolute_index(FILE             *stream,
             case BRU_MATCH: /* fallthrough */
             case BRU_BEGIN: /* fallthrough */
             case BRU_END: break;
-            case BRU_MEMOCHK: /* fallthrough */
-            case BRU_MEMOSET: insts += sizeof(bru_len_t); break;
             case BRU_CHAR: insts += sizeof(char *); break;
-            case BRU_PRED: /* fallthrough */
-            case BRU_SAVE: insts += sizeof(bru_len_t); break;
+            case BRU_PRED:   /* fallthrough */
             case BRU_JMP:    /* fallthrough */
             case BRU_GSPLIT: /* fallthrough */
             case BRU_LSPLIT: insts += sizeof(bru_offset_t); break;
@@ -316,16 +309,19 @@ static void print_offset_as_absolute_index(FILE             *stream,
                 BRU_MEMREAD(len, insts, bru_len_t);
                 insts += len * sizeof(bru_offset_t);
                 break;
-            case BRU_EPSRESET: /* fallthrough */
-            case BRU_EPSSET:   /* fallthrough */
-            case BRU_EPSCHK: insts += sizeof(bru_len_t); break;
-            case BRU_RESET:
+            case BRU_SAVE: insts += sizeof(bru_len_t); break;
+            case BRU_INC: insts += sizeof(bru_len_t); break;
+            case BRU_SET:
                 insts += sizeof(bru_len_t) + sizeof(bru_cntr_t);
                 break;
             case BRU_CMP:
                 insts += sizeof(bru_len_t) + sizeof(bru_cntr_t) + 1;
                 break;
-            case BRU_INC: insts += sizeof(bru_len_t); break;
+            case BRU_EPSRESET: /* fallthrough */
+            case BRU_EPSSET:   /* fallthrough */
+            case BRU_EPSCHK: insts += sizeof(bru_len_t); break;
+            case BRU_MEMOCHK: /* fallthrough */
+            case BRU_MEMOSET: insts += sizeof(bru_len_t); break;
             case BRU_ZWA: insts += 2 * sizeof(bru_offset_t) + 1; break;
             case BRU_STATE: break;
             case BRU_WRITE: insts += sizeof(bru_byte_t); break;

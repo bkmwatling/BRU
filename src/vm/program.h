@@ -100,22 +100,22 @@
     DO(BRU_MATCH)                        \
     DO(BRU_BEGIN)                        \
     DO(BRU_END)                          \
-    DO(BRU_MEMOCHK)                      \
-    DO(BRU_MEMOSET)                      \
     DO(BRU_CHAR)                         \
     DO(BRU_PRED)                         \
-    DO(BRU_SAVE)                         \
     DO(BRU_JMP)                          \
     DO(BRU_SPLIT)                        \
     DO(BRU_GSPLIT)                       \
     DO(BRU_LSPLIT)                       \
     DO(BRU_TSWITCH)                      \
+    DO(BRU_SAVE)                         \
+    DO(BRU_INC)                          \
+    DO(BRU_SET)                          \
+    DO(BRU_CMP)                          \
     DO(BRU_EPSRESET)                     \
     DO(BRU_EPSSET)                       \
     DO(BRU_EPSCHK)                       \
-    DO(BRU_RESET)                        \
-    DO(BRU_CMP)                          \
-    DO(BRU_INC)                          \
+    DO(BRU_MEMOSET)                      \
+    DO(BRU_MEMOCHK)                      \
     DO(BRU_ZWA)                          \
     DO(BRU_STATE)                        \
     DO(BRU_WRITE)                        \
@@ -144,9 +144,9 @@ typedef struct {
     size_t nmemo_insts; /**< the number of memoisation instructions           */
 
     // thread memory
-    StcVec(bru_cntr_t) counters; /**< the counter memory default values       */
+    size_t ncaptures;      /**< the number of captures in the program         */
+    size_t ncounters;      /**< the number of counters in the program         */
     size_t thread_mem_len; /**< the number of bytes needed for thread memory  */
-    size_t ncaptures;      /**< the number of captures in the program/regex   */
 
     // compile-time collected info
     int requires_writing; /**< if the program contains WRITE* instructions    */
@@ -170,23 +170,27 @@ typedef BruBytecode Bytecode;
 #    define MATCH      BRU_MATCH
 #    define BEGIN      BRU_BEGIN
 #    define END        BRU_END
-#    define MEMO       BRU_MEMO
 #    define CHAR       BRU_CHAR
 #    define PRED       BRU_PRED
-#    define SAVE       BRU_SAVE
 #    define JMP        BRU_JMP
 #    define SPLIT      BRU_SPLIT
 #    define GSPLIT     BRU_GSPLIT
 #    define LSPLIT     BRU_LSPLIT
 #    define TSWITCH    BRU_TSWITCH
+#    define SAVE       BRU_SAVE
+#    define INC        BRU_INC
+#    define SET        BRU_SET
+#    define CMP        BRU_CMP
 #    define EPSRESET   BRU_EPSRESET
 #    define EPSSET     BRU_EPSSET
 #    define EPSCHK     BRU_EPSCHK
-#    define RESET      BRU_RESET
-#    define CMP        BRU_CMP
-#    define INC        BRU_INC
+#    define MEMOSET    BRU_MEMOSET
+#    define MEMOCHK    BRU_MEMOCHK
 #    define ZWA        BRU_ZWA
 #    define STATE      BRU_STATE
+#    define WRITE      BRU_WRITE
+#    define WRITE0     BRU_WRITE0
+#    define WRITE1     BRU_WRITE1
 #    define NBYTECODES BRU_NBYTECODES
 
 typedef BruOrd Ord;
@@ -219,9 +223,9 @@ typedef BruProgram Program;
  * @param[in] insts_len      number of bytes to allocate for instruction stream
  * @param[in] aux_len        number of bytes to allocate for auxillary memory
  * @param[in] nmemo_insts    number of memory instructions in the program
+ * @param[in] ncaptures      number of captures in the program
  * @param[in] ncounters      number of counters in the program
  * @param[in] thread_mem_len number of bytes to allocate for thread memory
- * @param[in] ncaptures      number of captures in the program
  *
  * @return the constructed program with preallocated memory and lengths
  */
@@ -229,9 +233,9 @@ BruProgram *bru_program_new(const char *regex,
                             size_t      insts_len,
                             size_t      aux_len,
                             size_t      nmemo_insts,
+                            size_t      ncaptures,
                             size_t      ncounters,
-                            size_t      thread_mem_len,
-                            size_t      ncaptures);
+                            size_t      thread_mem_len);
 
 /**
  * Construct a default program without preallocating memory and lengths.

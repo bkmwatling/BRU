@@ -324,10 +324,10 @@ static int match(BruOptions *options)
     if (prog->ncaptures)
         thread_manager = bru_thread_manager_with_captures_new(thread_manager,
                                                               prog->ncaptures);
-    // TODO
-    // if (prog->counters)
-    //     thread_manager = bru_thread_manager_with_counters_new(thread_manager,
-    //                                                           prog->counters);
+
+    if (prog->ncounters)
+        thread_manager = bru_thread_manager_with_counters_new(thread_manager,
+                                                              prog->ncounters);
 
     if (prog->thread_mem_len)
         thread_manager = bru_thread_manager_with_memory_new(

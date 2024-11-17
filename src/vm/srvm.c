@@ -161,23 +161,6 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     }
                     break;
 
-                case BRU_MEMOCHK:
-                    BRU_MEMREAD(k, pc, bru_len_t);
-                    if (!bru_thread_manager_memoise_check(tm, cond, thread,
-                                                          k)) {
-                        bru_thread_manager_set_pc(tm, thread, pc);
-                        bru_thread_manager_schedule_thread(tm, thread);
-                    } else {
-                        bru_thread_manager_kill_thread(tm, thread);
-                    }
-                    break;
-
-                case BRU_MEMOSET:
-                    BRU_MEMREAD(k, pc, bru_len_t);
-                    bru_thread_manager_memoise_set(tm, thread, k);
-                    bru_thread_manager_kill_thread(tm, thread);
-                    break;
-
                 case BRU_CHAR:
                     BRU_MEMREAD(codepoint, pc, const char *);
                     if (*sp && stc_utf8_cmp(codepoint, sp) == 0) {
@@ -199,13 +182,6 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     } else {
                         bru_thread_manager_kill_thread(tm, thread);
                     }
-                    break;
-
-                case BRU_SAVE:
-                    BRU_MEMREAD(k, pc, bru_len_t);
-                    bru_thread_manager_set_pc(tm, thread, pc);
-                    bru_thread_manager_set_capture(tm, thread, k);
-                    bru_thread_manager_schedule_thread(tm, thread);
                     break;
 
                 case BRU_JMP:
@@ -243,34 +219,14 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     bru_thread_manager_schedule_thread_in_order(tm, thread);
                     break;
 
-                case BRU_EPSRESET:
+                case BRU_SAVE:
                     BRU_MEMREAD(k, pc, bru_len_t);
                     bru_thread_manager_set_pc(tm, thread, pc);
-                    bru_thread_manager_set_memory(tm, thread, k, &null,
-                                                  sizeof(null));
+                    bru_thread_manager_set_capture(tm, thread, k);
                     bru_thread_manager_schedule_thread(tm, thread);
                     break;
 
-                case BRU_EPSSET:
-                    BRU_MEMREAD(k, pc, bru_len_t);
-                    bru_thread_manager_set_pc(tm, thread, pc);
-                    bru_thread_manager_set_memory(tm, thread, k, &sp,
-                                                  sizeof(sp));
-                    bru_thread_manager_schedule_thread(tm, thread);
-                    break;
-
-                case BRU_EPSCHK:
-                    BRU_MEMREAD(k, pc, bru_len_t);
-                    if (*bru_thread_manager_memory(tm, epsset_marker, thread,
-                                                   k) < sp) {
-                        bru_thread_manager_set_pc(tm, thread, pc);
-                        bru_thread_manager_schedule_thread(tm, thread);
-                    } else {
-                        bru_thread_manager_kill_thread(tm, thread);
-                    }
-                    break;
-
-                case BRU_RESET:
+                case BRU_SET:
                     BRU_MEMREAD(k, pc, bru_len_t);
                     BRU_MEMREAD(cval, pc, bru_cntr_t);
                     bru_thread_manager_set_pc(tm, thread, pc);
@@ -305,6 +261,50 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     bru_thread_manager_set_pc(tm, thread, pc);
                     bru_thread_manager_inc_counter(tm, thread, k);
                     bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_EPSRESET:
+                    BRU_MEMREAD(k, pc, bru_len_t);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_set_memory(tm, thread, k, &null,
+                                                  sizeof(null));
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_EPSSET:
+                    BRU_MEMREAD(k, pc, bru_len_t);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                    bru_thread_manager_set_memory(tm, thread, k, &sp,
+                                                  sizeof(sp));
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_EPSCHK:
+                    BRU_MEMREAD(k, pc, bru_len_t);
+                    if (*bru_thread_manager_memory(tm, epsset_marker, thread,
+                                                   k) < sp) {
+                        bru_thread_manager_set_pc(tm, thread, pc);
+                        bru_thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        bru_thread_manager_kill_thread(tm, thread);
+                    }
+                    break;
+
+                case BRU_MEMOSET:
+                    BRU_MEMREAD(k, pc, bru_len_t);
+                    bru_thread_manager_memoise_set(tm, thread, k);
+                    bru_thread_manager_kill_thread(tm, thread);
+                    break;
+
+                case BRU_MEMOCHK:
+                    BRU_MEMREAD(k, pc, bru_len_t);
+                    if (!bru_thread_manager_memoise_check(tm, cond, thread,
+                                                          k)) {
+                        bru_thread_manager_set_pc(tm, thread, pc);
+                        bru_thread_manager_schedule_thread(tm, thread);
+                    } else {
+                        bru_thread_manager_kill_thread(tm, thread);
+                    }
                     break;
 
                 case BRU_ZWA:

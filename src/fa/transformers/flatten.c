@@ -206,11 +206,14 @@ static int is_epsilon_state(const BruActionList *actions)
 
             case BRU_ACT_BEGIN:   /* fallthrough */
             case BRU_ACT_END:     /* fallthrough */
-            case BRU_ACT_WRITE:   /* fallthrough */
-            case BRU_ACT_MEMOCHK: /* fallthrough */
             case BRU_ACT_SAVE:    /* fallthrough */
+            case BRU_ACT_INC:     /* fallthrough */
+            case BRU_ACT_SET:     /* fallthrough */
+            case BRU_ACT_CMP:     /* fallthrough */
+            case BRU_ACT_EPSSET:  /* fallthrough */
             case BRU_ACT_EPSCHK:  /* fallthrough */
-            case BRU_ACT_EPSSET: break;
+            case BRU_ACT_MEMOCHK: /* fallthrough */
+            case BRU_ACT_WRITE: break;
 
             case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
         }
@@ -237,18 +240,21 @@ static void remove_unnecessary_actions(const BruActionList *actions)
             continue;
         }
         switch (bru_smir_action_type(act)) {
+            case BRU_ACT_CHAR:    /* fallthrough */
+            case BRU_ACT_PRED:    /* fallthrough */
+            case BRU_ACT_SAVE:    /* fallthrough */
+            case BRU_ACT_INC:     /* fallthrough */
+            case BRU_ACT_SET:     /* fallthrough */
+            case BRU_ACT_CMP:     /* fallthrough */
+            case BRU_ACT_WRITE: break;
+
             // remove EPSSET/EPSCHK actions
-            case BRU_ACT_EPSCHK: /* fallthrough */
-            case BRU_ACT_EPSSET:
+            case BRU_ACT_EPSSET: /* fallthrough */
+            case BRU_ACT_EPSCHK:
                 bru_smir_action_list_iterator_remove(ali);
                 break;
 
             case BRU_ACT_MEMOSET: remove_all = TRUE; break;
-
-            case BRU_ACT_CHAR:  /* fallthrough */
-            case BRU_ACT_PRED:  /* fallthrough */
-            case BRU_ACT_WRITE: /* fallthrough */
-            case BRU_ACT_SAVE: break;
 
             case BRU_ACT_BEGIN: /* fallthrough */
             case BRU_ACT_END:   /* fallthrough */
@@ -294,10 +300,17 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
             case BRU_ACT_END:     /* fallthrough */
             case BRU_ACT_CHAR:    /* fallthrough */
             case BRU_ACT_PRED:    /* fallthrough */
-            case BRU_ACT_WRITE:   /* fallthrough */
+            case BRU_ACT_SAVE:    /* fallthrough */
+            case BRU_ACT_INC:     /* fallthrough */
+            case BRU_ACT_SET:     /* fallthrough */
+            case BRU_ACT_CMP:     /* fallthrough */
             case BRU_ACT_MEMOSET: /* fallthrough */
             case BRU_ACT_MEMOCHK: /* fallthrough */
-            case BRU_ACT_SAVE: break;
+            case BRU_ACT_WRITE: break;
+
+            case BRU_ACT_EPSSET:
+                stc_vec_push_back(epssets, bru_smir_action_get_num(act));
+                break;
 
             case BRU_ACT_EPSCHK:
                 num = bru_smir_action_get_num(act);
@@ -307,10 +320,6 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
                         goto done;
                     }
                 }
-                break;
-
-            case BRU_ACT_EPSSET:
-                stc_vec_push_back(epssets, bru_smir_action_get_num(act));
                 break;
 
             case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;

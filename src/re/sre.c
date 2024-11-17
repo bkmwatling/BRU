@@ -15,7 +15,7 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent);
 
 BruInterval bru_interval(const char *lbound, const char *ubound)
 {
-    return (BruInterval){ lbound, ubound };
+    return (BruInterval) { lbound, ubound };
 }
 
 char *bru_interval_to_str(const BruInterval *self)
@@ -194,16 +194,18 @@ bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy)
 BruRegexNode *bru_regex_counter(BruRegexNode *child,
                                 bru_byte_t    greedy,
                                 bru_cntr_t    min,
-                                bru_cntr_t    max)
+                                bru_cntr_t    max,
+                                bru_len_t     idx)
 {
     BruRegexNode *re = malloc(sizeof(*re));
 
-    re->type     = BRU_COUNTER;
-    re->left     = child;
-    re->greedy   = greedy;
-    re->min      = min;
-    re->max      = max;
-    re->nullable = min == 0 || child->nullable;
+    re->type        = BRU_COUNTER;
+    re->left        = child;
+    re->greedy      = greedy;
+    re->min         = min;
+    re->max         = max;
+    re->counter_idx = idx;
+    re->nullable    = min == 0 || child->nullable;
 
     return re;
 }
@@ -300,7 +302,7 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
 
     fprintf(stream, "%*s", indent, "");
     fprintf(stream, "%06lu: ", re->rid);
-    fputs(re->nullable ? "*" : "", stream);
+    if (re->nullable) fputc('*', stream);
 
     switch (re->type) {
         case BRU_EPSILON: fputs("Epsilon", stream); break;
@@ -334,7 +336,7 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
             break;
 
         case BRU_CAPTURE:
-            fprintf(stream, "Capture(%d)", re->capture_idx);
+            fprintf(stream, "Capture(" BRU_LEN_FMT ")", re->capture_idx);
             goto body;
         case BRU_STAR: fprintf(stream, "Star(%d)", re->greedy); goto body;
         case BRU_PLUS: fprintf(stream, "Plus(%d)", re->greedy); goto body;
@@ -343,9 +345,10 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
             fprintf(stream, "Counter(%d, " BRU_CNTR_FMT ", ", re->greedy,
                     re->min);
             if (re->max < BRU_CNTR_MAX)
-                fprintf(stream, BRU_CNTR_FMT ")", re->max);
+                fprintf(stream, BRU_CNTR_FMT, re->max);
             else
-                fprintf(stream, "inf)");
+                fputs("inf", stream);
+            fprintf(stream, ", " BRU_LEN_FMT ")", re->counter_idx);
             goto body;
         case BRU_LOOKAHEAD:
             fprintf(stream, "Lookahead(%d)", re->positive);
@@ -357,7 +360,7 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
             break;
 
         case BRU_BACKREFERENCE:
-            fprintf(stream, "Backreference(%d)", re->capture_idx);
+            fprintf(stream, "Backreference(" BRU_LEN_FMT ")", re->capture_idx);
             break;
 
         case BRU_NREGEXTYPES: assert(0 && "unreachable");

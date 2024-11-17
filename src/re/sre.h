@@ -65,9 +65,10 @@ struct bru_regex_node {
         BruRegexNode *right;    /**< right child for binary operators         */
     };
 
-    bru_cntr_t min;      /**< minimum value for counter                       */
-    bru_cntr_t max;      /**< maximum value for counter                       */
-    bru_byte_t nullable; /**< whether subtree at this node matches epsilon    */
+    bru_cntr_t min;         /**< minimum value for counter                    */
+    bru_cntr_t max;         /**< maximum value for counter                    */
+    bru_len_t  counter_idx; /**< index for counters                           */
+    bru_byte_t nullable;    /**< whether subtree at this node matches epsilon */
 };
 
 #if !defined(BRU_RE_SRE_DISABLE_SHORT_NAMES) && \
@@ -293,13 +294,15 @@ bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy);
  * @param[in] greedy whether the counter is greedy or lazy
  * @param[in] min    the minimum counter value
  * @param[in] max    the maximum counter value
+ * @param[in] idx    the index of the counter
  *
  * @return the constructed regex counter node
  */
 BruRegexNode *bru_regex_counter(BruRegexNode *child,
                                 bru_byte_t    greedy,
                                 bru_cntr_t    min,
-                                bru_cntr_t    max);
+                                bru_cntr_t    max,
+                                bru_len_t     idx);
 
 /**
  * Construct a regex lookahead node with given child and whether it is a

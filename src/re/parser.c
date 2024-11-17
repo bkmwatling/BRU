@@ -11,12 +11,14 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define PARSER_OPTS_DEFAULT ((BruParserOpts){ 0, 1, 0, 0, 1, 0, stderr })
+#define PARSER_OPTS_DEFAULT ((BruParserOpts) { 0, 1, 0, 0, 1, 0, stderr })
+
+#define SUB_REGEX_DEFAULT ((BruSubRegex) { NULL, 0 })
 
 #define SET_RID(node, ps) \
     if (node) (node)->rid = (ps)->next_rid++
 
-#define PARSE_RES(code, ch) ((BruParseResult){ (code), (ch) })
+#define PARSE_RES(code, ch) ((BruParseResult) { (code), (ch) })
 
 #define SUCCEEDED(code) ((code) < BRU_PARSE_NO_MATCH)
 
@@ -105,28 +107,33 @@ typedef struct {
     bru_regex_id next_rid;
 } BruParseState;
 
+typedef struct {
+    BruRegexNode *re;
+    bru_len_t     ncounters;
+} BruSubRegex;
+
 /* --- Helper function prototypes ------------------------------------------- */
 
 static BruParseResult parse_alt(const BruParser *self,
                                 BruParseState   *ps,
-                                BruRegexNode   **re /**< out parameter */);
+                                BruSubRegex     *subre /**< out parameter */);
 
 static BruParseResult parse_expr(const BruParser *self,
                                  BruParseState   *ps,
-                                 BruRegexNode   **re /**< out parameter */);
+                                 BruSubRegex     *subre /**< out parameter */);
 
 static BruParseResult parse_elem(const BruParser *self,
                                  BruParseState   *ps,
-                                 BruRegexNode   **re /**< out parameter */);
+                                 BruSubRegex     *subre /**< out parameter */);
 
 static BruParseResult parse_atom(const BruParser *self,
                                  BruParseState   *ps,
-                                 BruRegexNode   **re /**< out parameter */);
+                                 BruSubRegex     *subre /**< out parameter */);
 
 static BruParseResult
 parse_quantifier(const BruParser *self,
                  BruParseState   *ps,
-                 BruRegexNode   **re /**< in,out parameter */);
+                 BruSubRegex     *subre /**< in,out parameter */);
 
 static BruParseResult parse_curly(BruParseState *ps,
                                   bru_cntr_t    *min /**< out parameter */,
@@ -134,16 +141,16 @@ static BruParseResult parse_curly(BruParseState *ps,
 
 static BruParseResult parse_paren(const BruParser *self,
                                   BruParseState   *ps,
-                                  BruRegexNode   **re /**< out parameter */);
+                                  BruSubRegex     *subre /**< out parameter */);
 
 static BruParseResult parse_cc(BruParseState *ps,
-                               BruRegexNode **re /**< out parameter */);
+                               BruSubRegex   *subre /**< out parameter */);
 
 static BruParseResult
 parse_cc_atom(BruParseState *ps, BruIntervalList *list /**< out parameter */);
 
 static BruParseResult parse_escape(BruParseState *ps,
-                                   BruRegexNode **re /**< out parameter */);
+                                   BruSubRegex   *subre /**< out parameter */);
 
 static BruParseResult parse_escape_char(BruParseState *ps,
                                         const char **ch /**< out parameter */);
@@ -160,12 +167,13 @@ static void find_matching_closing_parenthesis(BruParseState *ps);
 
 static void print_unsupported_feature(unsigned int feature_idx, FILE *stream);
 
-static BruRegexNode *parser_regex_counter(BruRegexNode  *child,
-                                          bru_byte_t     greedy,
-                                          bru_cntr_t     min,
-                                          bru_cntr_t     max,
-                                          int            expand_counters,
-                                          BruParseState *ps);
+static BruRegexNode *
+parser_regex_counter(BruSubRegex   *subre /**< in,out paramter */,
+                     bru_byte_t     greedy,
+                     bru_cntr_t     min,
+                     bru_cntr_t     max,
+                     int            expand_counters,
+                     BruParseState *ps);
 
 /* --- API function definitions --------------------------------------------- */
 
@@ -191,7 +199,7 @@ BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
     BruUnsupportedFeatureCode unsupported_feats[BRU_NUM_UNSUPPORTED_CODES] = {
         0
     };
-    BruRegexNode  *r         = NULL;
+    BruSubRegex    r         = SUB_REGEX_DEFAULT;
     bru_len_t      ncaptures = self->opts.whole_match_capture ? 1 : 0;
     BruParseState  ps        = { &unsupported_feats,
                                  self->opts.allow_repeated_nullability,
@@ -205,13 +213,13 @@ BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
 
     if (SUCCEEDED(res.code)) {
         if (self->opts.whole_match_capture) {
-            r      = bru_regex_capture(r, 0);
-            r->rid = ps.next_rid++;
+            r.re      = bru_regex_capture(r.re, 0);
+            r.re->rid = ps.next_rid++;
         }
 
-        if (re) *re = (BruRegex){ self->regex, r };
-    } else if (r) {
-        bru_regex_node_free(r);
+        if (re) *re = (BruRegex) { self->regex, r.re };
+    } else if (r.re) {
+        bru_regex_node_free(r.re);
     }
 
     if (self->opts.log_unsupported && res.code == BRU_PARSE_UNSUPPORTED) {
@@ -241,27 +249,28 @@ static BruIntervals *dot(void)
 
 static BruParseResult parse_alt(const BruParser *self,
                                 BruParseState   *ps,
-                                BruRegexNode   **re /**< out parameter */)
+                                BruSubRegex     *subre /**< out parameter */)
 {
-    BruRegexNode  *r;
+    BruSubRegex    r;
     BruParseResult res, prev_res;
 
-    res = parse_expr(self, ps, re);
+    res = parse_expr(self, ps, subre);
     if (FAILED(res.code)) return res;
     while (*ps->ch == '|') {
         ps->ch++;
-        r        = NULL;
+        r        = SUB_REGEX_DEFAULT;
         prev_res = res;
         res      = parse_expr(self, ps, &r);
         // NOTE: prev_res must be SUCCESS-ish, hence, this will never
         // overwrite a failure code in res.
         if (prev_res.code > res.code) res.code = prev_res.code;
         if (FAILED(res.code)) {
-            if (r) bru_regex_node_free(r);
+            if (r.re) bru_regex_node_free(r.re);
             return res;
         }
-        *re = bru_regex_branch(BRU_ALT, *re, r);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_branch(BRU_ALT, subre->re, r.re);
+        SET_RID(subre->re, ps);
+        if (r.ncounters > subre->ncounters) subre->ncounters = r.ncounters;
     }
 
     return res;
@@ -269,38 +278,40 @@ static BruParseResult parse_alt(const BruParser *self,
 
 static BruParseResult parse_expr(const BruParser *self,
                                  BruParseState   *ps,
-                                 BruRegexNode   **re /**< out parameter */)
+                                 BruSubRegex     *subre /**< out parameter */)
 {
-    BruRegexNode  *r;
+    BruSubRegex    r;
     BruParseResult res, prev_res;
 
-    res = parse_elem(self, ps, re);
+    res = parse_elem(self, ps, subre);
     if (NOT_MATCHED(res.code)) {
-        *re = bru_regex_new(BRU_EPSILON);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_new(BRU_EPSILON);
+        SET_RID(subre->re, ps);
         return PARSE_RES(BRU_PARSE_SUCCESS, ps->ch);
     } else if (ERRORED(res.code)) {
         return res;
     }
     while (*ps->ch) {
-        r        = NULL;
+        r        = SUB_REGEX_DEFAULT;
         prev_res = res;
         res      = parse_elem(self, ps, &r);
 
         // NOTE: prev_res must be SUCCESS-ish, hence, this will never
         // overwrite a failure code in res.
         if (NOT_MATCHED(res.code)) {
-            if (r) bru_regex_node_free(r);
+            if (r.re) bru_regex_node_free(r.re);
             res.code = prev_res.code;
             break;
         } else if (ERRORED(res.code)) {
-            if (r) bru_regex_node_free(r);
+            if (r.re) bru_regex_node_free(r.re);
             break;
-        } else if (prev_res.code > res.code)
+        } else if (prev_res.code > res.code) {
             res.code = prev_res.code;
+        }
 
-        *re = bru_regex_branch(BRU_CONCAT, *re, r);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_branch(BRU_CONCAT, subre->re, r.re);
+        SET_RID(subre->re, ps);
+        if (r.ncounters > subre->ncounters) subre->ncounters = r.ncounters;
     }
 
     return res;
@@ -308,15 +319,15 @@ static BruParseResult parse_expr(const BruParser *self,
 
 static BruParseResult parse_elem(const BruParser *self,
                                  BruParseState   *ps,
-                                 BruRegexNode   **re /**< out parameter */)
+                                 BruSubRegex     *subre /**< out parameter */)
 {
     BruParseResult     res;
     BruParseResultCode prev_code;
 
-    res = parse_atom(self, ps, re);
+    res = parse_atom(self, ps, subre);
     if (FAILED(res.code)) return res;
     prev_code = res.code;
-    res       = parse_quantifier(self, ps, re);
+    res       = parse_quantifier(self, ps, subre);
     if (NOT_MATCHED(res.code) || (SUCCEEDED(res.code) && prev_code > res.code))
         res.code = prev_code;
 
@@ -325,7 +336,7 @@ static BruParseResult parse_elem(const BruParser *self,
 
 static BruParseResult parse_atom(const BruParser *self,
                                  BruParseState   *ps,
-                                 BruRegexNode   **re /**< out parameter */)
+                                 BruSubRegex     *subre /**< out parameter */)
 {
     BruParseResult     res;
     BruParseResultCode prev_code;
@@ -334,41 +345,37 @@ static BruParseResult parse_atom(const BruParser *self,
     if (ERRORED(res.code)) return res;
 
     switch (*ps->ch) {
-        case '\\': res = parse_escape(ps, re); break;
-        case '(': res = parse_paren(self, ps, re); break;
-        case '[': res = parse_cc(ps, re); break;
+        case '\\': res = parse_escape(ps, subre); break;
+        case '(': res = parse_paren(self, ps, subre); break;
+        case '[': res = parse_cc(ps, subre); break;
 
         case '|': res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch); break;
 
         case '^':
-            *re = bru_regex_new(BRU_CARET);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_CARET);
+            SET_RID(subre->re, ps);
             res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
 
         case '$':
-            *re = bru_regex_new(BRU_DOLLAR);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_DOLLAR);
+            SET_RID(subre->re, ps);
             res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
 
         // case '#':
-        //     *re = regex_new(BRU_MEMOISE);
-        //     SET_RID(*re, ps);
+        //     subre->re = regex_new(BRU_MEMOISE);
+        //     SET_RID(subre->re, ps);
         //     res = PARSE_RES(PARSE_SUCCESS, ps->ch++);
         //     break;
         //
         case '.':
-            *re = bru_regex_cc(dot());
-            SET_RID(*re, ps);
+            subre->re = bru_regex_cc(dot());
+            SET_RID(subre->re, ps);
             res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
 
-        case '\0':
-            // *re = regex_new(EPSILON);
-            // SET_RID(*re, ps);
-            res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
-            break;
+        case '\0': res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch); break;
 
         case ')':
             if (ps->in_group)
@@ -390,8 +397,8 @@ static BruParseResult parse_atom(const BruParser *self,
             /* fallthrough */
 
         default:
-            *re = bru_regex_literal(ps->ch);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_literal(ps->ch);
+            SET_RID(subre->re, ps);
             res = PARSE_RES(BRU_PARSE_SUCCESS, ps->ch++);
             break;
     }
@@ -408,7 +415,7 @@ static BruParseResult parse_atom(const BruParser *self,
 static BruParseResult
 parse_quantifier(const BruParser *self,
                  BruParseState   *ps,
-                 BruRegexNode   **re /**< in,out parameter */)
+                 BruSubRegex     *subre /**< in,out parameter */)
 {
     BruRegexNode  *tmp;
     BruParseResult res = { BRU_PARSE_SUCCESS, NULL };
@@ -422,16 +429,19 @@ parse_quantifier(const BruParser *self,
             max = BRU_CNTR_MAX;
             ps->ch++;
             break;
+
         case '+':
             min = 1;
             max = BRU_CNTR_MAX;
             ps->ch++;
             break;
+
         case '?':
             min = 0;
             max = 1;
             ps->ch++;
             break;
+
         case '{':
             res = parse_curly(ps, &min, &max);
             if (FAILED(res.code)) return res;
@@ -441,10 +451,10 @@ parse_quantifier(const BruParser *self,
     }
 
     /* check that child is quantifiable */
-    switch ((*re)->type) {
+    switch (subre->re->type) {
         case BRU_EPSILON: /* fallthrough */
         case BRU_CARET:   /* fallthrough */
-        /* case MEMOISE: */
+        /* case BRU_MEMOISE: */
         case BRU_DOLLAR: return PARSE_RES(BRU_PARSE_UNQUANTIFIABLE, ps->ch);
 
         case BRU_LITERAL:   /* fallthrough */
@@ -459,7 +469,7 @@ parse_quantifier(const BruParser *self,
         case BRU_LOOKAHEAD: /* fallthrough */
         case BRU_BACKREFERENCE:
             if (!ps->allow_repeated_nullability && max == BRU_CNTR_MAX &&
-                (*re)->nullable) {
+                subre->re->nullable) {
                 return PARSE_RES(BRU_PARSE_REPEATED_NULLABILITY, ps->ch);
             }
             break;
@@ -490,38 +500,41 @@ parse_quantifier(const BruParser *self,
         return res;
     }
     if (min == 0 && max == 0) {
-        bru_regex_node_free(*re);
-        *re = bru_regex_new(BRU_EPSILON);
-        SET_RID(*re, ps);
-        res.ch = ps->ch;
+        bru_regex_node_free(subre->re);
+        subre->re = bru_regex_new(BRU_EPSILON);
+        SET_RID(subre->re, ps);
+        subre->ncounters = 0;
+        res.ch           = ps->ch;
         return res;
     }
 
     /* apply quantifier */
     if (self->opts.only_counters) {
-        *re = bru_regex_counter(*re, greedy, min, max);
-        SET_RID(*re, ps);
+        subre->re =
+            bru_regex_counter(subre->re, greedy, min, max, subre->ncounters++);
+        SET_RID(subre->re, ps);
     } else if (min == 0 && max == BRU_CNTR_MAX) {
-        *re = bru_regex_repetition(BRU_STAR, *re, greedy);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_repetition(BRU_STAR, subre->re, greedy);
+        SET_RID(subre->re, ps);
     } else if (min == 1 && max == BRU_CNTR_MAX) {
-        *re = bru_regex_repetition(BRU_PLUS, *re, greedy);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_repetition(BRU_PLUS, subre->re, greedy);
+        SET_RID(subre->re, ps);
     } else if (min == 0 && max == 1) {
-        *re = bru_regex_repetition(BRU_QUES, *re, greedy);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_repetition(BRU_QUES, subre->re, greedy);
+        SET_RID(subre->re, ps);
     } else if (self->opts.unbounded_counters || max < BRU_CNTR_MAX) {
-        *re = parser_regex_counter(*re, greedy, min, max,
-                                   self->opts.expand_counters, ps);
+        parser_regex_counter(subre, greedy, min, max,
+                             self->opts.expand_counters, ps);
     } else {
-        tmp = bru_regex_repetition(BRU_STAR, *re, greedy);
-        *re = bru_regex_branch(
+        tmp =
+            bru_regex_repetition(BRU_STAR, bru_regex_clone(subre->re), greedy);
+        subre->re = bru_regex_branch(
             BRU_CONCAT,
-            parser_regex_counter(bru_regex_clone(*re), greedy, min, min,
+            parser_regex_counter(subre, greedy, min, min,
                                  self->opts.expand_counters, ps),
             tmp);
         SET_RID(tmp, ps);
-        SET_RID(*re, ps);
+        SET_RID(subre->re, ps);
     }
 
     res.ch = ps->ch;
@@ -559,6 +572,9 @@ static BruParseResult parse_curly(BruParseState *ps,
             return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
 done:
+    if (m > n)
+        return PARSE_RES(BRU_PARSE_QUANTIFIER_RANGE_OUT_OF_ORDER, ps->ch);
+
     ps->ch = next_ch;
     if (min) *min = m;
     if (max) *max = n;
@@ -567,7 +583,7 @@ done:
 
 static BruParseResult parse_paren(const BruParser *self,
                                   BruParseState   *ps,
-                                  BruRegexNode   **re /**< out parameter */)
+                                  BruSubRegex     *subre /**< out parameter */)
 {
     BruParseResult            res;
     BruParseState             ps_tmp;
@@ -660,14 +676,14 @@ static BruParseResult parse_paren(const BruParser *self,
                     goto unsupported_group;
             }
             ps->ch++;
-            ps_tmp        = (BruParseState){ ps->unsupported_feats,
-                                             ps->allow_repeated_nullability,
-                                             ps->ch,
-                                             TRUE,
-                                             ps->in_lookahead || is_lookahead,
-                                             ps->ncaptures,
-                                             ps->next_rid };
-            res           = parse_alt(self, &ps_tmp, re);
+            ps_tmp        = (BruParseState) { ps->unsupported_feats,
+                                              ps->allow_repeated_nullability,
+                                              ps->ch,
+                                              TRUE,
+                                              ps->in_lookahead || is_lookahead,
+                                              ps->ncaptures,
+                                              ps->next_rid };
+            res           = parse_alt(self, &ps_tmp, subre);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
             ps->next_rid  = ps_tmp.next_rid;
@@ -676,22 +692,22 @@ static BruParseResult parse_paren(const BruParser *self,
                 return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
 
             if (is_lookahead) {
-                *re = bru_regex_lookahead(*re, pos);
-                SET_RID(*re, ps);
+                subre->re = bru_regex_lookahead(subre->re, pos);
+                SET_RID(subre->re, ps);
             }
             break;
 
         /* capture group */
         default:
             if (!ps->in_lookahead) ncaptures = ps->ncaptures++;
-            ps_tmp        = (BruParseState){ ps->unsupported_feats,
-                                             ps->allow_repeated_nullability,
-                                             ps->ch,
-                                             TRUE,
-                                             ps->in_lookahead,
-                                             ps->ncaptures,
-                                             ps->next_rid };
-            res           = parse_alt(self, &ps_tmp, re);
+            ps_tmp        = (BruParseState) { ps->unsupported_feats,
+                                              ps->allow_repeated_nullability,
+                                              ps->ch,
+                                              TRUE,
+                                              ps->in_lookahead,
+                                              ps->ncaptures,
+                                              ps->next_rid };
+            res           = parse_alt(self, &ps_tmp, subre);
             ps->ch        = ps_tmp.ch;
             ps->ncaptures = ps_tmp.ncaptures;
             ps->next_rid  = ps_tmp.next_rid;
@@ -700,8 +716,8 @@ static BruParseResult parse_paren(const BruParser *self,
                 return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
 
             if (!ps->in_lookahead) {
-                *re = bru_regex_capture(*re, ncaptures);
-                SET_RID(*re, ps);
+                subre->re = bru_regex_capture(subre->re, ncaptures);
+                SET_RID(subre->re, ps);
             }
             break;
     }
@@ -715,14 +731,15 @@ unsupported_group:
     find_matching_closing_parenthesis(ps);
     if (*ps->ch != ')')
         return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
-    *re = bru_regex_new(BRU_EPSILON);
-    SET_RID(*re, ps);
-    res = PARSE_RES(BRU_PARSE_UNSUPPORTED, ps->ch);
+    subre->re = bru_regex_new(BRU_EPSILON);
+    SET_RID(subre->re, ps);
+    subre->ncounters = 0;
+    res              = PARSE_RES(BRU_PARSE_UNSUPPORTED, ps->ch);
     goto done;
 }
 
 static BruParseResult parse_cc(BruParseState *ps,
-                               BruRegexNode **re /**< out parameter */)
+                               BruSubRegex   *subre /**< out parameter */)
 {
     BruParseResult       res;
     BruIntervalList      list = { 0 };
@@ -755,8 +772,8 @@ static BruParseResult parse_cc(BruParseState *ps,
         intervals->intervals[i] = item->interval;
     }
 
-    *re = bru_regex_cc(intervals);
-    SET_RID(*re, ps);
+    subre->re = bru_regex_cc(intervals);
+    SET_RID(subre->re, ps);
 
 done:
     BRU_DLL_FREE(list.sentinel, free, item, next);
@@ -874,7 +891,7 @@ static BruParseResult parse_cc_atom(BruParseState   *ps,
 }
 
 static BruParseResult parse_escape(BruParseState *ps,
-                                   BruRegexNode **re /**< out parameter */)
+                                   BruSubRegex   *subre /**< out parameter */)
 {
     BruParseResult       res;
     BruIntervalList      list = { 0 };
@@ -890,8 +907,8 @@ static BruParseResult parse_escape(BruParseState *ps,
     res = parse_escape_char(ps, &ch);
     if (ERRORED(res.code)) return res;
     if (SUCCEEDED(res.code)) {
-        *re = bru_regex_literal(ch);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_literal(ch);
+        SET_RID(subre->re, ps);
         return res;
     }
 
@@ -905,8 +922,8 @@ static BruParseResult parse_escape(BruParseState *ps,
             intervals->intervals[i] = item->interval;
         }
 
-        *re = bru_regex_cc(intervals);
-        SET_RID(*re, ps);
+        subre->re = bru_regex_cc(intervals);
+        SET_RID(subre->re, ps);
         goto done;
     }
 
@@ -916,30 +933,30 @@ static BruParseResult parse_escape(BruParseState *ps,
         case 'B': /* fallthrough */
         case 'b':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_WORD_BOUNDARY, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         case 'A':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_START_BOUNDARY, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         case 'z': /* fallthrough */
         case 'Z':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_END_BOUNDARY, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         case 'G':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_FIRST_MATCH_BOUNDARY, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
@@ -953,8 +970,8 @@ static BruParseResult parse_escape(BruParseState *ps,
                 if (SUCCEEDED(res.code)) ps->ch--;
             }
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_BACKREF, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
@@ -967,14 +984,14 @@ static BruParseResult parse_escape(BruParseState *ps,
             }
             if (FAILED(res.code)) return res;
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_BACKREF, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
         case 'K':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_RESET_MATCH_START, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
@@ -986,8 +1003,8 @@ static BruParseResult parse_escape(BruParseState *ps,
             if (FAILED(res.code)) return res; /* fallthrough */
         case 'E': // NOTE: \E only has special meaning if \Q was already seen
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_QUOTING, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
@@ -999,15 +1016,15 @@ static BruParseResult parse_escape(BruParseState *ps,
                 if (FAILED(res.code)) return res;
             }
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_UNICODE_PROPERTY, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
         case 'R':
             FLAG_UNSUPPORTED(BRU_UNSUPPORTED_NEWLINE_SEQUENCE, ps);
-            *re = bru_regex_new(BRU_EPSILON);
-            SET_RID(*re, ps);
+            subre->re = bru_regex_new(BRU_EPSILON);
+            SET_RID(subre->re, ps);
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
@@ -1022,8 +1039,8 @@ static BruParseResult parse_escape(BruParseState *ps,
                 //     res.code = PARSE_NON_EXISTENT_REF;
                 // }
                 FLAG_UNSUPPORTED(BRU_UNSUPPORTED_BACKREF, ps);
-                *re = bru_regex_new(BRU_EPSILON);
-                SET_RID(*re, ps);
+                subre->re = bru_regex_new(BRU_EPSILON);
+                SET_RID(subre->re, ps);
                 res.code = BRU_PARSE_UNSUPPORTED;
                 break;
             } else {
@@ -1397,45 +1414,49 @@ static void print_unsupported_feature(unsigned int feature_idx, FILE *stream)
     fprintf(stream, "%d: %s\n", feature_idx, feature_strings[feature_idx]);
 }
 
-static BruRegexNode *parser_regex_counter(BruRegexNode  *child,
+static BruRegexNode *parser_regex_counter(BruSubRegex   *subre,
                                           bru_byte_t     greedy,
                                           bru_cntr_t     min,
                                           bru_cntr_t     max,
                                           int            expand_counters,
                                           BruParseState *ps)
 {
-    BruRegexNode *counter, *left, *right, *tmp;
+    BruRegexNode *left, *right, *tmp;
     bru_cntr_t    i;
 
     if (!expand_counters) {
-        counter = bru_regex_counter(child, greedy, min, max);
-        SET_RID(counter, ps);
+        subre->re =
+            bru_regex_counter(subre->re, greedy, min, max, subre->ncounters++);
+        SET_RID(subre->re, ps);
     } else {
-        left = min > 0 ? child : NULL;
+        left = min > 0 ? subre->re : NULL;
         for (i = 1; i < min; i++) {
-            left = bru_regex_branch(BRU_CONCAT, left, bru_regex_clone(child));
+            left =
+                bru_regex_branch(BRU_CONCAT, left, bru_regex_clone(subre->re));
             SET_RID(left, ps);
         }
 
-        right = max > min ? bru_regex_repetition(
-                                BRU_QUES, left ? bru_regex_clone(child) : child,
-                                greedy)
-                          : NULL;
+        right = max > min
+                    ? bru_regex_repetition(
+                          BRU_QUES,
+                          left ? bru_regex_clone(subre->re) : subre->re, greedy)
+                    : NULL;
         SET_RID(right, ps);
         for (i = min + 1; i < max; i++) {
-            tmp = bru_regex_branch(BRU_CONCAT, bru_regex_clone(child), right);
+            tmp =
+                bru_regex_branch(BRU_CONCAT, bru_regex_clone(subre->re), right);
             SET_RID(tmp, ps);
             right = bru_regex_repetition(BRU_QUES, tmp, greedy);
             SET_RID(right, ps);
         }
 
         if (left && right) {
-            counter = bru_regex_branch(BRU_CONCAT, left, right);
-            SET_RID(counter, ps);
+            subre->re = bru_regex_branch(BRU_CONCAT, left, right);
+            SET_RID(subre->re, ps);
         } else {
-            counter = left ? left : right;
+            subre->re = left ? left : right;
         }
     }
 
-    return counter;
+    return subre->re;
 }
