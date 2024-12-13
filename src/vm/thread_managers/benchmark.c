@@ -15,7 +15,7 @@ typedef struct {
 
     // TODO: use pointers to facilitate shared counting when cloning
     BruThread *prev_thread; /**< previous thread returned from next_thread    */
-    size_t     spawn_count; /**< the number of spawned threads                */
+    size_t     thread_alloc_count; /**< the number of spawned threads         */
     size_t     inst_counts[INST_COUNT_LEN]; /**< instruction execution counts */
 } BruBenchmarkThreadManager;
 
@@ -23,6 +23,7 @@ typedef struct {
 
 static void benchmark_thread_manager_free(BruThreadManager *tm);
 
+static BruThread *benchmark_thread_manager_alloc_thread(BruThreadManager *tm);
 static BruThread *benchmark_thread_manager_next_thread(BruThreadManager *tm);
 static void       benchmark_thread_manager_kill_thread(BruThreadManager *tm,
                                                        BruThread        *t);
@@ -35,17 +36,18 @@ BruThreadManager *bru_benchmark_thread_manager_new(BruThreadManager *tm,
     BruBenchmarkThreadManager *btm = malloc(sizeof(*btm));
     BruThreadManagerInterface *tmi, *super;
 
-    btm->logfile     = logfile ? logfile : stderr;
-    btm->spawn_count = 0;
-    btm->prev_thread = NULL;
+    btm->logfile            = logfile ? logfile : stderr;
+    btm->thread_alloc_count = 0;
+    btm->prev_thread        = NULL;
 
     memset(btm->inst_counts, 0, sizeof(btm->inst_counts));
 
     super     = bru_vt_curr(tm);
     tmi       = bru_thread_manager_interface_new(btm, super->_thread_size);
     tmi->free = benchmark_thread_manager_free;
-    tmi->next_thread = benchmark_thread_manager_next_thread;
-    tmi->kill_thread = benchmark_thread_manager_kill_thread;
+    tmi->next_thread  = benchmark_thread_manager_next_thread;
+    tmi->kill_thread  = benchmark_thread_manager_kill_thread;
+    tmi->alloc_thread = benchmark_thread_manager_alloc_thread;
 
     // NOLINTNEXTLINE(bugprone-sizeof-expression)
     bru_vt_extend(tm, tmi);
@@ -65,10 +67,23 @@ static void benchmark_thread_manager_free(BruThreadManager *tm)
             INST_FAIL_COUNT(self, i));
 
     BRU_FOR_LIST_OF_INSTRUCTIONS(LOG_INST);
+    fprintf(self->logfile, "THREAD_ALLOC_COUNT: %zu\n",
+            self->thread_alloc_count);
 
     free(self);
 
     bru_vt_call_super_procedure(tm, tmi, free);
+}
+
+static BruThread *benchmark_thread_manager_alloc_thread(BruThreadManager *tm)
+{
+    BruBenchmarkThreadManager *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
+    BruThread                 *t;
+
+    bru_vt_call_super_function(tm, tmi, t, alloc_thread);
+    if (t) self->thread_alloc_count++;
+    return t;
 }
 
 static BruThread *benchmark_thread_manager_next_thread(BruThreadManager *tm)

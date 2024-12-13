@@ -112,7 +112,7 @@ static void spencer_thread_manager_init(BruThreadManager *tm,
         bru_thread_manager_kill_thread(tm, self->match);
         self->match = NULL;
     }
-    bru_vt_call_function(tm, thread, alloc_thread);
+    bru_vt_call_function(tm, thread, spawn_thread);
     bru_thread_manager_init_thread(tm, thread, start_pc, start_sp);
     bru_thread_manager_schedule_thread(tm, thread);
 }
@@ -230,7 +230,7 @@ static BruThread *spencer_thread_manager_clone_thread(BruThreadManager *tm,
 {
     BruThread *clone;
 
-    bru_vt_call_function(tm, clone, alloc_thread);
+    bru_vt_call_function(tm, clone, spawn_thread);
     bru_thread_manager_copy_thread(tm, t, clone);
 
     return clone;

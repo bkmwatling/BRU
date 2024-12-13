@@ -30,6 +30,7 @@ typedef struct {
     const char     *text;
     size_t          cmd;
     int             benchmark;
+    int             thread_pool;
     int             all_matches;
     FILE           *outfile;
     FILE           *logfile;
@@ -196,6 +197,9 @@ static void add_matching_args(StcArgParser *ap, BruOptions *options)
         ap, "-b", "--benchmark",
         "whether to benchmark SRVM execution, writing to the logfile",
         &options->benchmark, FALSE);
+    stc_argparser_add_bool_option(ap, NULL, "--no-pool",
+                                  "disable thread pool usage (no thread reuse)",
+                                  &options->thread_pool, TRUE);
     // NOTE: deprecated/not useful, see all_matches ThreadManager
     // stc_argparser_add_bool_option(ap, NULL, "--all-matches",
     //                               "whether to report all matches",
@@ -337,8 +341,9 @@ static int match(BruOptions *options)
         thread_manager = bru_thread_manager_with_write_new(thread_manager);
 
     // TODO: add command line flag for thread pool
-    thread_manager =
-        bru_thread_manager_with_pool_new(thread_manager, options->logfile);
+    if (options->thread_pool)
+        thread_manager =
+            bru_thread_manager_with_pool_new(thread_manager, options->logfile);
 
     if (options->compiler_opts.memo_scheme != BRU_MS_NONE)
         thread_manager = bru_memoised_thread_manager_new(thread_manager);

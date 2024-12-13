@@ -59,27 +59,17 @@ static void thread_pool_kill(BruThreadManager *tm)
 {
     BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
-#ifdef BRU_BENCHMARK
-    size_t nthreads = 0;
-#endif /* BRU_BENCHMARK */
-    BruThreadList *p;
+    BruThreadList              *p;
 
     self->enabled = FALSE;
     while ((p = self->pool)) {
         self->pool = self->pool->next;
-#ifdef BRU_BENCHMARK
-        nthreads++;
-#endif /* BRU_BENCHMARK */
         // NOTE: we do not kill the thread via bru_thread_manager_kill_thread,
         // since the thread entered into the pool through a call to kill
         // already, so we just call the super manager's kill.
         bru_vt_call_super_procedure(tm, tmi, kill_thread, p->thread);
         free(p);
     }
-
-#ifdef BRU_BENCHMARK
-    fprintf(self->logfile, "TOTAL THREADS IN POOL: %zu\n", nthreads);
-#endif /* BRU_BENCHMARK */
 
     bru_vt_call_super_procedure(tm, tmi, kill);
 }
