@@ -165,6 +165,69 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   be deferred to the optimisation transform. In any case this issue to be a
   reminder that counters don't work with the flatten transform.
 
+- [ ] Add instruction IR for better code optimisation
+
+  **File:** `fa/smir.c`  
+  **Location:** function `bru_smir_compile` and its derivatives  
+  **Date reported:** 2025-01-23  
+  **Reported by:** [aroodt][aroodt]  
+  **Relevant branch:** `feature/instruction-ir`
+
+  Compilers for programming languages typically implement an intermendiate
+  representation consisting of a sequence of tuples containing the bytecode and
+  arguments, which allows for some optimisations. A clear optimisation worth
+  exploring is identifying points of code duplication, allowing for code reuse.
+  In this case, we could replace possibly large sequences of code with single
+  JMP instructions, greatly reducing the size of the program. Such
+  identification may be possible in the existing SMIR, but it would require
+  more contemplation.
+
+- [ ] Move SMIR compilation algorithm to `/vm/`
+
+  **File:** `fa/smir.c`  
+  **Location:** function `bru_smir_compile` and its derivatives  
+  **Date reported:** 2025-01-23  
+  **Reported by:** [aroodt][aroodt]  
+  **Relevant branch:** `refactor/smir-compilation`
+
+  BRU's codebase structure gives clear separation between machinery used for
+  parsing (the `re` folder), finite automata (the `fa` folder), and the virtual
+  machine (the `vm` folder). However, while `fa` contains machinery for
+  converting a parse tree (the result of using machinery in `re`) into a SMIR
+  instance, the machinery for converting a SMIR instance into a Prog (used by
+  the machinery in `vm`) is also contained within `fa`. For consistency, it
+  would make more sense for this machinery to exist within `vm`.
+
+- [ ] Add serialisation to BRU's VM code representation (Prog)
+
+  **File:** `fa/program.c`  
+  **Location:** function `bru_prog_serialise` (to be created)  
+  **Date reported:** 2025-01-23  
+  **Reported by:** [aroodt][aroodt]  
+  **Relevant branch:** `feature/prog-serialisation`
+
+  The ability to serialise a compiled program to an external file would
+  facilitate faster, safer testing and data collection, allowing regexes to be
+  compiled once and reused for multiple tests. This will also provide save
+  points in the event of code crashing during data collection, meaning
+
+- [ ] Posix character classes not recognised during parsing
+
+  **File:** `re/parser.c`  
+  **Location:** function `parse_posix_cc`  
+  **Date reported:** 2025-01-24  
+  **Reported by:** [aroodt][aroodt]  
+  **Relevant branch:** `fix/posix-cc`
+
+  Posix character classes are not correctly recognised during parsing due to
+  the use of `strcmp`. This causes classes like "[:alnum:]" to be compared with
+  the remainder of the regex being parsed. This will never result in a match
+  since, at minimum, the valid regex could be "[[:alnum:]]", resulting in a
+  call `strcmp("[:alnum:]", "[:alnum:]]")`. While a prefix tree (possibly a
+  radix tree) would be optimal in the general case, I think given how few posix
+  character classes there are, switching to `strncmp` should suffice.
+
+
 <!-- NOTE: links to profile webpages associated with your slug/identifier -->
 [aroodt]: https://www.github.com/aroodt
 [bkmwatling]: https://www.gitlab.com/bkmwatling
