@@ -1,4 +1,4 @@
-#include "infinite_ambiguity_removal.h"
+#include <bru/re/walkers/thompson/infinite_ambiguity_removal.h>
 
 /* --- API function definitions --------------------------------------------- */
 

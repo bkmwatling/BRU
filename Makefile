@@ -33,7 +33,7 @@ else ifeq ($(CC), clang)
 	WARNING    += -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
 endif
 EXTRA          := -std=c11 -fPIC
-INCLUDE         = $(addprefix -I,$(INCLUDEDIR))
+INCLUDE         = $(addprefix -I,$(INCLUDEDIRS))
 STCOPT         := -DSTC_UTF_DISABLE_SV
 CFLAGS          = $(DEBUG) $(ASAN_DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(INCLUDE) $(STCOPT)
 DFLAGS         += #-DBRU_DEBUG -DBRU_BENCHMARK
@@ -43,11 +43,12 @@ LOCALBIN       := $(INSTALL_PREFIX)/bin
 SRCDIR         := src
 LIBDIR         := lib
 BINDIR         := bin
+INCLUDEDIRS    += include
 STCDIR         := $(LIBDIR)/stc
 REDIR          := $(SRCDIR)/re
 FADIR          := $(SRCDIR)/fa
 VMDIR          := $(SRCDIR)/vm
-INCLUDEDIR     := $(STCDIR)/include
+INCLUDEDIRS    += $(STCDIR)/include
 
 # files
 BRU_EXE        := bru

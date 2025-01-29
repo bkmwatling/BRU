@@ -4,8 +4,8 @@
 
 #include <stc/fatp/vec.h>
 
-#include "../utils.h"
-#include "smir.h"
+#include <bru/fa/smir.h>
+#include <bru/utils.h>
 
 /* --- Preprocessor directives ---------------------------------------------- */
 

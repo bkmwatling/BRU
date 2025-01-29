@@ -1,4 +1,4 @@
-#include "vtable.h"
+#include <bru/vm/vtable.h>
 
 typedef void (*_bru_fptr)(void);
 

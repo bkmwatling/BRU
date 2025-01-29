@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "spencer.h"
+#include <bru/vm/thread_managers/schedulers/spencer.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

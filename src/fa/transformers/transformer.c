@@ -2,7 +2,7 @@
 
 #include <stc/fatp/vec.h>
 
-#include "transformer.h"
+#include <bru/fa/transformers/transformer.h>
 
 /* --- API function definitions --------------------------------------------- */
 

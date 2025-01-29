@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../re/sre.h"
-#include "glushkov.h"
+#include <bru/fa/constructions/glushkov.h>
+#include <bru/re/sre.h>
 
 #define IS_EMPTY(ppl) ((ppl)->sentinel->next == (ppl)->sentinel)
 

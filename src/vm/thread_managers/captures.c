@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "captures.h"
+#include <bru/vm/thread_managers/captures.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

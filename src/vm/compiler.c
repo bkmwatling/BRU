@@ -1,13 +1,13 @@
 #include <stdlib.h>
 
-#include "../fa/constructions/glushkov.h"
-#include "../fa/constructions/thompson.h"
-#include "../fa/transformers/flatten.h"
-#include "../fa/transformers/memoisation.h"
-#include "../fa/transformers/path_encoding.h"
-#include "../re/sre.h"
-#include "../utils.h"
-#include "compiler.h"
+#include <bru/fa/constructions/glushkov.h>
+#include <bru/fa/constructions/thompson.h>
+#include <bru/fa/transformers/flatten.h>
+#include <bru/fa/transformers/memoisation.h>
+#include <bru/fa/transformers/path_encoding.h>
+#include <bru/re/sre.h>
+#include <bru/utils.h>
+#include <bru/vm/compiler.h>
 
 #define COMPILER_OPTS_DEFAULT                                                  \
     ((BruCompilerOpts) { BRU_THOMPSON, FALSE, BRU_CS_PCRE, BRU_MS_NONE, FALSE, \

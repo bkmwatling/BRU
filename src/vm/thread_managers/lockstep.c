@@ -2,10 +2,10 @@
 
 #include <stc/fatp/vec.h>
 
-#include "../../utils.h"
-#include "lockstep.h"
-#include "schedulers/lockstep.h"
-#include "thread_manager.h"
+#include <bru/utils.h>
+#include <bru/vm/thread_managers/lockstep.h>
+#include <bru/vm/thread_managers/schedulers/lockstep.h>
+#include <bru/vm/thread_managers/thread_manager.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

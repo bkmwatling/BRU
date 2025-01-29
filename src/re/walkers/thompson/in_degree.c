@@ -1,4 +1,4 @@
-#include "in_degree.h"
+#include <bru/re/walkers/thompson/in_degree.h>
 
 /* --- Walk functions (Thompson) -------------------------------------------- */
 

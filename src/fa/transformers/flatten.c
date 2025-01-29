@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../utils.h"
-#include "flatten.h"
+#include <bru/fa/transformers/flatten.h>
+#include <bru/utils.h>
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
@@ -240,12 +240,12 @@ static void remove_unnecessary_actions(const BruActionList *actions)
             continue;
         }
         switch (bru_smir_action_type(act)) {
-            case BRU_ACT_CHAR:    /* fallthrough */
-            case BRU_ACT_PRED:    /* fallthrough */
-            case BRU_ACT_SAVE:    /* fallthrough */
-            case BRU_ACT_INC:     /* fallthrough */
-            case BRU_ACT_SET:     /* fallthrough */
-            case BRU_ACT_CMP:     /* fallthrough */
+            case BRU_ACT_CHAR: /* fallthrough */
+            case BRU_ACT_PRED: /* fallthrough */
+            case BRU_ACT_SAVE: /* fallthrough */
+            case BRU_ACT_INC:  /* fallthrough */
+            case BRU_ACT_SET:  /* fallthrough */
+            case BRU_ACT_CMP:  /* fallthrough */
             case BRU_ACT_WRITE: break;
 
             // remove EPSSET/EPSCHK actions

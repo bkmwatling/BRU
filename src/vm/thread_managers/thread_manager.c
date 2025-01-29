@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../utils.h"
-#include "thread_manager.h"
+#include <bru/utils.h>
+#include <bru/vm/thread_managers/thread_manager.h>
 
 /* --- Thread manager NO-OP functions --------------------------------------- */
 

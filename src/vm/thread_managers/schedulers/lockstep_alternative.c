@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "lockstep_alternative.h"
+#include <bru/vm/thread_managers/schedulers/lockstep_alternative.h>
 
 /* --- Preprocessor directives --------------------------------------------- */
 

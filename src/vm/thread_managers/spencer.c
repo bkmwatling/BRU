@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
-#include "schedulers/spencer.h"
-#include "spencer.h"
-#include "thread_manager.h"
+#include <bru/vm/thread_managers/schedulers/spencer.h>
+#include <bru/vm/thread_managers/spencer.h>
+#include <bru/vm/thread_managers/thread_manager.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

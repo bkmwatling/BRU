@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "path_encoding.h"
+#include <bru/fa/transformers/path_encoding.h>
 
 /* --- API function definitions --------------------------------------------- */
 

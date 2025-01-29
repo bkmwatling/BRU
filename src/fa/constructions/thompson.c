@@ -1,7 +1,7 @@
 #include <assert.h>
 
-#include "../../re/sre.h"
-#include "thompson.h"
+#include <bru/fa/constructions/thompson.h>
+#include <bru/re/sre.h>
 
 /* --- Preprocessor directives ---------------------------------------------- */
 

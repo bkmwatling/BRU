@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../utils.h"
-#include "sre.h"
+#include <bru/re/sre.h>
+#include <bru/utils.h>
 
 #define BUF              512
 #define INTERVAL_MAX_BUF 26

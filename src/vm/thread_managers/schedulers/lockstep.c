@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "lockstep.h"
+#include <bru/vm/thread_managers/schedulers/lockstep.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "memory.h"
+#include <bru/vm/thread_managers/memory.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

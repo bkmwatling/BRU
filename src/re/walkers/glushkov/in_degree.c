@@ -1,4 +1,4 @@
-#include "in_degree.h"
+#include <bru/re/walkers/glushkov/in_degree.h>
 
 #define NULLABLE 0x1
 #define LAST1    0x2

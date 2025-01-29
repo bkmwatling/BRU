@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "counters.h"
+#include <bru/vm/thread_managers/counters.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

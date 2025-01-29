@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "memoisation.h"
+#include <bru/vm/thread_managers/memoisation.h>
 
 typedef struct {
     bru_byte_t *memoisation_memory; /**< memory used for memoisation          */

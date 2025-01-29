@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "walker.h"
+#include <bru/re/walkers/walker.h>
 
 /* --- Identity walker ------------------------------------------------------ */
 

@@ -6,20 +6,20 @@
 #include <stc/util/argparser.h>
 #include <stc/util/utf.h>
 
-#include "re/parser.h"
-#include "vm/compiler.h"
-#include "vm/srvm.h"
+#include <bru/re/parser.h>
+#include <bru/vm/compiler.h>
+#include <bru/vm/srvm.h>
 // NOTE: deprecated/not useful, see all_matches ThreadManager
 // #include "vm/thread_managers/all_matches.h"
-#include "vm/thread_managers/benchmark.h"
-#include "vm/thread_managers/captures.h"
-#include "vm/thread_managers/counters.h"
-#include "vm/thread_managers/lockstep.h"
-#include "vm/thread_managers/memoisation.h"
-#include "vm/thread_managers/memory.h"
-#include "vm/thread_managers/spencer.h"
-#include "vm/thread_managers/thread_pool.h"
-#include "vm/thread_managers/write.h"
+#include <bru/vm/thread_managers/benchmark.h>
+#include <bru/vm/thread_managers/captures.h>
+#include <bru/vm/thread_managers/counters.h>
+#include <bru/vm/thread_managers/lockstep.h>
+#include <bru/vm/thread_managers/memoisation.h>
+#include <bru/vm/thread_managers/memory.h>
+#include <bru/vm/thread_managers/spencer.h>
+#include <bru/vm/thread_managers/thread_pool.h>
+#include <bru/vm/thread_managers/write.h>
 
 #define ARR_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 

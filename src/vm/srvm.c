@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "program.h"
-#include "srvm.h"
+#include <bru/vm/program.h>
+#include <bru/vm/srvm.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

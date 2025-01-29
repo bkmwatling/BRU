@@ -5,9 +5,9 @@
 #include <stc/fatp/vec.h>
 #include <stc/util/utf.h>
 
-#include "../types.h"
-#include "../utils.h"
-#include "program.h"
+#include <bru/types.h>
+#include <bru/utils.h>
+#include <bru/vm/program.h>
 
 #define BUFSIZE 512
 

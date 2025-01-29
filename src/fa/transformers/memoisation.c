@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../utils.h"
-#include "memoisation.h"
+#include <bru/fa/transformers/memoisation.h>
+#include <bru/utils.h>
 
 /* --- Helper functions ----------------------------------------------------- */
 

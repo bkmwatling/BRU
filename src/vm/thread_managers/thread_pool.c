@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "thread_pool.h"
+#include <bru/vm/thread_managers/thread_pool.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

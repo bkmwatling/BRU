@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "benchmark.h"
+#include <bru/vm/thread_managers/benchmark.h>
 
 #define INST_COUNT_LEN                  (2 * BRU_NBYTECODES)
 #define INST_IDX(inst)                  (2 * (BruBytecode) (inst))

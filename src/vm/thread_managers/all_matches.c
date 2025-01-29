@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "all_matches.h"
+#include <bru/vm/thread_managers/all_matches.h>
 
 typedef struct {
     FILE       *logfile; /**< the file stream for logging captures on match   */
