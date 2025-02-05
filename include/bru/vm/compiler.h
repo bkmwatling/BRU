@@ -1,105 +1,58 @@
 #ifndef BRU_VM_COMPILER_H
 #define BRU_VM_COMPILER_H
 
-#include <bru/re/parser.h>
 #include <bru/vm/program.h>
 
-typedef enum {
-    BRU_THOMPSON,
-    BRU_GLUSHKOV,
-    BRU_FLAT,
-} BruConstruction;
+/* --- Preprocessor macros -------------------------------------------------- */
 
-typedef enum {
-    BRU_CS_PCRE,
-    BRU_CS_RE2,
-} BruCaptureSemantics;
+#define PUSH_INSTRUCTION(instruction_vec_ptr, ...) \
+    stc_vec_push_back(*(instruction_vec_ptr),      \
+                      ((BruInstruction) { __VA_ARGS__ }))
 
-typedef enum {
-    BRU_MS_NONE,
-    BRU_MS_CN,
-    BRU_MS_IN,
-    BRU_MS_IAR,
-} BruMemoScheme;
+/* --- Data structures ------------------------------------------------------ */
 
-typedef struct {
-    BruConstruction     construction;      /**< which construction to use     */
-    int                 only_std_split;    /**< whether to only use `split`   */
-    BruCaptureSemantics capture_semantics; /**< capture semantics to use      */
-    BruMemoScheme       memo_scheme;       /**< memoisation scheme to use     */
-    int mark_states;       /**< whether to compile state instructions         */
-    int encode_priorities; /**< whether to encode priorities on transitions   */
-} BruCompilerOpts;
+typedef struct bru_instruction BruInstruction;
 
-typedef struct {
-    const BruParser *parser; /**< the parser to get the regex tree            */
-    BruCompilerOpts  opts;   /**< the options set for the compiler            */
-} BruCompiler;
+struct bru_instruction {
+    BruBytecode bytecode;
 
-#if !defined(BRU_VM_COMPILER_DISABLE_SHORT_NAMES) && \
-    (defined(BRU_VM_COMPILER_ENABLE_SHORT_NAMES) ||  \
-     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&         \
-         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||      \
-          defined(BRU_ENABLE_SHORT_NAMES)))
-typedef BruConstruction Construction;
-#    define THOMPSON BRU_THOMPSON
-#    define GLUSHKOV BRU_GLUSHKOV
-#    define FLAT     BRU_FLAT
+    union {
+        const char         *ch;   /**< bytecode = BRU_CHAR                    */
+        const BruIntervals *pred; /**< bytecode = BRU_PRED                    */
+        bru_len_t           idx;  /**< bytecode = BRU_SAVE | BRU_INC |
+                                                  BRU_SET |  BRU_CMP |
+                                                  BRU_EPSCHK | BRU_EPSSET |
+                                                  BRU_MEMOSET | BRU_MEMOCHK   */
+        char                c;    /**< bytecode = BRU_WRITE                   */
 
-typedef BruCaptureSemantics CaptureSemantics;
-#    define CS_PCRE BRU_CS_PCRE
-#    define CS_RE2  BRU_CS_RE2
+        BruInstruction          *jmp;        /**< bytecode = BRU_JMP          */
+        BruInstruction          *split_left; /**< bytecode = BRU_SPLIT        */
+        StcVec(BruInstruction *) tswitch;    /**< bytecode = BRU_TSWITCH      */
+    };
 
-typedef BruMemoScheme MemoScheme;
-#    define MS_NONE BRU_MS_NONE
-#    define MS_CN   BRU_MS_CN
-#    define MS_IN   BRU_MS_IN
-#    define MS_IAR  BRU_MS_IAR
+    union {
+        BruInstruction *split_right; /**< bytecode = BRU_SPLIT                */
+        bru_cntr_t      val;         /**< bytecode = BRU_SET | BRU_CMP        */
+    };
 
-typedef BruCompilerOpts CompilerOpts;
-typedef BruCompiler     Compiler;
+    BruOrd ord; /**< bytecode = BRU_CMP                                       */
 
-#    define compiler_new     bru_compiler_new
-#    define compiler_default bru_compiler_default
-#    define compiler_free    bru_compiler_free
-#    define compiler_compile bru_compiler_compile
-#endif /* BRU_VM_COMPILER_ENABLE_SHORT_NAMES */
+    size_t prog_offset; /**< starting byte offset computed during compilation */
+};
+
+typedef enum { BRU_OPTIMISE_NONE, BRU_OPTIMISE_FULL } BruOptimisationLevel;
 
 /**
- * Construct a compiler from a regex parser with specified options.
+ * Compile a sequence of instructions into a VM program.
  *
- * @param[in] parser the regex parser
- * @param[in] opts   the options for the compiler
+ * @param[in] regex        the original regular expression
+ * @param[in] instructions the sequence of instructions to compile
+ * @param[in] op_level     the level of optimisations to apply
  *
- * @return the constructed compiler
+ * @return the compiled SRVM program
  */
-BruCompiler *bru_compiler_new(const BruParser      *parser,
-                              const BruCompilerOpts opts);
-
-/**
- * Construct a compiler from a regex parser with default options.
- *
- * @param[in] parser the regex parser
- *
- * @return the constructed compiler
- */
-BruCompiler *bru_compiler_default(const BruParser *parser);
-
-/**
- * Free the memory allocated for the compiler (frees the memory of the parser,
- * excluding the regex string).
- *
- * @param[in] self the compiler to free
- */
-void bru_compiler_free(BruCompiler *self);
-
-/**
- * Compile the regex tree obtained from the parser into a program.
- *
- * @param[in] self the compiler to compile
- *
- * @return the program compiled from the regex tree obtained from the parser
- */
-const BruProgram *bru_compiler_compile(const BruCompiler *self);
+BruProgram *bru_compiler_compile(const char            *regex,
+                                 StcVec(BruInstruction) instructions,
+                                 BruOptimisationLevel   op_level);
 
 #endif /* BRU_VM_COMPILER_H */

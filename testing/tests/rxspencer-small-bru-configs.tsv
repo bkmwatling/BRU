@@ -1,0 +1,50 @@
+# regular expression test set
+# Lines are four fields, separated by one tab. "" stands
+# for an empty field. First field is an RE.  Second field is flags.  If
+# C flag given, regcomp() is expected to fail, and the third field is the
+# error name (minus the leading REG_).
+#
+# Otherwise it (regcomp()) is expected to succeed, and the third field is the string to
+# try matching it against. The character `N' in REs and strings
+# is newline, `S' is space, `T' is tab, `Z' is NUL.
+#
+# The full list of flags:
+#	-	placeholder, does nothing	""
+#	b	RE is a BRE, not an ERE	""
+#	&	try it as both an ERE and a BRE	""
+#	C	""	regcomp() error expected, third field is error name
+#	i	REG_ICASE	""
+#	m	("mundane") REG_NOSPEC	""
+#	s	REG_NOSUB (not really testable)	""
+#	n	REG_NEWLINE	""
+#	^	REG_NOTBOL	""
+#	$	REG_NOTEOL	""
+#	#	REG_STARTEND (see below)	""
+#	p	REG_PEND	""
+#
+# For REG_STARTEND, the start/end offsets are those of the substring
+# enclosed in ().
+#
+# The first line specifies the field names.
+regex	input	other_bru_args	pcre2_outcome	pcre2_match_info
+# basics
+a	a	--memo-scheme none --scheduler lockstep --construction thompson	MATCH	0:1
+a	a	--memo-scheme none --scheduler lockstep --construction flat	MATCH	0:1
+a	a	--memo-scheme none --scheduler spencer --construction thompson	MATCH	0:1
+a	a	--memo-scheme none --scheduler spencer --construction flat	MATCH	0:1
+a	a	--memo-scheme in --scheduler spencer --construction thompson	MATCH	0:1
+a	a	--memo-scheme in --scheduler spencer --construction flat	MATCH	0:1
+a	a	--memo-scheme cn --scheduler spencer --construction thompson	MATCH	0:1
+a	a	--memo-scheme cn --scheduler spencer --construction flat	MATCH	0:1
+abc	abc	--memo-scheme none --scheduler lockstep --construction thompson	MATCH	0:3
+abc	abc	--memo-scheme none --scheduler lockstep --construction flat	MATCH	0:3
+abc	abc	--memo-scheme none --scheduler spencer --construction thompson	MATCH	0:3
+abc	abc	--memo-scheme none --scheduler spencer --construction flat	MATCH	0:3
+abc	abc	--memo-scheme in --scheduler spencer --construction thompson	MATCH	0:3
+abc	abc	--memo-scheme in --scheduler spencer --construction flat	MATCH	0:3
+abc	abc	--memo-scheme cn --scheduler spencer --construction thompson	MATCH	0:3
+abc	abc	--memo-scheme cn --scheduler spencer --construction flat	MATCH	0:3
+abc|de	abc	--memo-scheme none --scheduler lockstep --construction thompson	MATCH	0:3
+abc|de	abc	--memo-scheme none --scheduler lockstep --construction flat	MATCH	0:3
+abc|de	abc	--memo-scheme none --scheduler spencer --construction thompson	MATCH	0:3
+abc|de	abc	--memo-scheme none --scheduler spencer --construction flat	MATCH	0:3

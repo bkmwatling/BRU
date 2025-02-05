@@ -41,7 +41,22 @@ typedef enum {
 
 typedef BruActionType BruPredicateType;
 
-typedef struct bru_action               BruAction;
+typedef struct bru_action {
+    BruActionType type;
+
+    union {
+        const char         *ch;   /**< type = BRU_ACT_CHAR                    */
+        const BruIntervals *pred; /**< type = BRU_ACT_PRED                    */
+        size_t k; /**< type = BRU_ACT_SAVE | BRU_ACT_INC | BRU_ACT_SET |
+                              BRU_ACT_CMP | BRU_ACT_EPSCHK | BRU_ACT_EPSSET |
+                              BRU_ACT_MEMO                                    */
+        char   c; /**< type = BRU_ACT_WRITE                                   */
+    };
+
+    bru_cntr_t val; /**< value for type = BRU_ACT_SET | BRU_ACT_CMP           */
+    BruOrd     ord; /**< order for comparison for type = BRU_ACT_CMP          */
+} BruAction;
+
 typedef BruAction                       BruPredicate;
 typedef struct bru_action_list          BruActionList;
 typedef struct bru_action_list_iterator BruActionListIterator;
@@ -49,8 +64,6 @@ typedef struct bru_state_machine        BruStateMachine;
 
 typedef uint32_t bru_state_id; // 0 => nonexistent
 typedef uint64_t bru_trans_id; // (src state_id, idx into outgoing transitions)
-
-typedef void bru_compile_f(void *meta, BruProgram *prog);
 
 #if !defined(BRU_FA_SMIR_DISABLE_SHORT_NAMES) && \
     (defined(BRU_FA_SMIR_ENABLE_SHORT_NAMES) ||  \
@@ -183,15 +196,6 @@ BruStateMachine *bru_smir_new(const char *regex, uint32_t nstates);
  * @param[in] self the state machine
  */
 void bru_smir_free(BruStateMachine *self);
-
-/**
- * Compile a state machine.
- *
- * @param[in] self the state machine
- *
- * @return the compiled program
- */
-BruProgram *bru_smir_compile(BruStateMachine *self);
 
 /**
  * Create a new state in the state machine.
@@ -805,19 +809,6 @@ bru_smir_set_post_meta(BruStateMachine *self, bru_state_id sid, void *meta);
  * @return the post-predicate meta data
  */
 void *bru_smir_get_post_meta(BruStateMachine *self, bru_state_id sid);
-
-/**
- * Compile the state machine to VM instructions, including the meta data.
- *
- * @param[in] self      the state machine
- * @param[in] pre_meta  the compiler for pre-predicate meta data at states
- * @param[in] post_meta the compiler for post-predicate meta data at states
- *
- * @return the compiled program
- */
-BruProgram *bru_smir_compile_with_meta(BruStateMachine *self,
-                                       bru_compile_f   *pre_meta,
-                                       bru_compile_f   *post_meta);
 
 /**
  * Reorder the states of the state machine with the given ordering.

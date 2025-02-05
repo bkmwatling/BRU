@@ -272,6 +272,7 @@ static void remove_unnecessary_actions(const BruActionList *actions)
         }
     }
     free(ali);
+    stc_vec_free(unique_elements);
 }
 
 /**

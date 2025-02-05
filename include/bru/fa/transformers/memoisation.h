@@ -2,7 +2,7 @@
 #define BRU_FA_TRANSFORM_MEMOISATION_H
 
 #include <bru/fa/smir.h>
-#include <bru/vm/compiler.h>
+#include <bru/fa/transformers/opts.h>
 
 #if !defined(BRU_FA_TRANSFORM_MEMOISATION_DISABLE_SHORT_NAMES) && \
     (defined(BRU_FA_TRANSFORM_MEMOISATION_ENABLE_SHORT_NAMES) ||  \

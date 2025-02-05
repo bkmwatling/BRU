@@ -1,0 +1,516 @@
+# regular expression test set
+# Lines are five fields, separated by one tab. "" stands
+# for an empty field.
+#
+# The character `N' in REs and strings is newline, `S' is space, `T' is tab, `Z' is NUL.
+#
+# The first line specifies the field names.
+<regex>	<input>	<other_bru_args>	<expected_outcome>	<match_info>
+# basics
+a	a	""	MATCH	0:1
+abc	abc	""	MATCH	0:3
+abc|de	abc	""	MATCH	0:3
+a|b|c	abc	""	MATCH	0:1
+#
+# parentheses and perversions thereof
+a(b)c	abc	""	MATCH	0:3 1:2
+a\(b\)c	abc	""	NO_MATCH	""
+a(	""	""	COMPILATION_FAILURE	""
+a(	a(	""	COMPILATION_FAILURE	""
+a\(	a(	""	MATCH	0:2
+a\(	""	""	NO_MATCH	""
+a\(b	""	""	NO_MATCH	""
+a(b	""	""	COMPILATION_FAILURE	""
+a(b	a(b	""	COMPILATION_FAILURE	""
+# gag me with a right parenthesis -- 1003.2 goofed here (my fault, partly)
+a)	a)	""	COMPILATION_FAILURE	""
+)	)	""	COMPILATION_FAILURE	""
+# end gagging (in a just world, those *should* give EPAREN)
+a)	a)	""	COMPILATION_FAILURE	""
+a\)	""	""	NO_MATCH	""
+\)	""	""	NO_MATCH	""
+a()b	ab	""	MATCH	0:2 1:1
+a\(\)b	ab	""	NO_MATCH	""
+#
+# anchoring and REG_NEWLINE
+^abc$	abc	""	MATCH	0:3
+a^b	a^b	""	NO_MATCH	""
+a^b	a^b	""	NO_MATCH	""
+a$b	a$b	""	NO_MATCH	""
+a$b	a$b	""	NO_MATCH	""
+^	abc	""	MATCH	0:0
+$	abc	""	MATCH	3:3
+^$	""	""	NO_MATCH	""
+$^	""	""	NO_MATCH	""
+\($\)\(^\)	""	""	NO_MATCH	""
+# stop retching, those are legitimate (although disgusting)
+^^	""	""	MATCH	0:0
+$$	""	""	MATCH	2:2
+b$	abNc	""	NO_MATCH	""
+b$	abNc	""	NO_MATCH	""
+^b$	aNbNc	""	NO_MATCH	""
+^b$	aNbNc	""	NO_MATCH	""
+^$	aNNb	""	NO_MATCH	""
+^$	abc	""	NO_MATCH	""
+^$	abcN	""	NO_MATCH	""
+$^	aNNb	""	NO_MATCH	""
+\($\)\(^\)	aNNb	""	NO_MATCH	""
+^^	aNNb	""	MATCH	0:0
+$$	aNNb	""	MATCH	4:4
+^a	a	""	MATCH	0:1
+a$	a	""	MATCH	0:1
+^a	aNb	""	MATCH	0:1
+^b	aNb	""	NO_MATCH	""
+a$	bNa	""	MATCH	2:3
+b$	bNa	""	NO_MATCH	""
+a*(^b$)c*	b	""	MATCH	0:1 0:1
+a*\(^b$\)c*	b	""	NO_MATCH	""
+#
+# certain syntax errors and non-errors
+|	""	""	MATCH	0:0
+|	|	""	MATCH	0:0
+*	""	""	COMPILATION_FAILURE	""
+*	*	""	COMPILATION_FAILURE	""
++	""	""	COMPILATION_FAILURE	""
+?	""	""	COMPILATION_FAILURE	""
+""	""	""	MATCH	0:2
+()	abc	""	MATCH	0:0 0:0
+\(\)	abc	""	NO_MATCH	""
+a||b	""	""	MATCH	0:0
+|ab	""	""	MATCH	0:0
+ab|	""	""	MATCH	0:0
+(|a)b	""	""	NO_MATCH	""
+(a|)b	""	""	NO_MATCH	""
+(*a)	""	""	COMPILATION_FAILURE	""
+(+a)	""	""	COMPILATION_FAILURE	""
+(?a)	""	""	COMPILATION_FAILURE	""
+({1}a)	""	""	COMPILATION_FAILURE	""
+\(\{1\}a\)	""	""	NO_MATCH	""
+(a|*b)	""	""	COMPILATION_FAILURE	""
+(a|+b)	""	""	COMPILATION_FAILURE	""
+(a|?b)	""	""	COMPILATION_FAILURE	""
+(a|{1}b)	""	""	COMPILATION_FAILURE	""
+^*	""	""	COMPILATION_FAILURE	""
+^*	*	""	COMPILATION_FAILURE	""
+^+	""	""	COMPILATION_FAILURE	""
+^?	""	""	COMPILATION_FAILURE	""
+^{1}	""	""	COMPILATION_FAILURE	""
+^\{1\}	""	""	NO_MATCH	""
+#
+# metacharacters, backslashes
+a.c	abc	""	MATCH	0:3
+a[bc]d	abd	""	MATCH	0:3
+a\*c	a*c	""	MATCH	0:3
+a\\b	a\b	""	MATCH	0:3
+a\\\*b	a\*b	""	MATCH	0:4
+# The following test is wrong.  Using \b in an BRE or ERE is undefined.
+# a\bc	&	abc	""
+a\	""	""	COMPILATION_FAILURE	""
+a\\bc	a\bc	""	MATCH	0:4
+\{	""	""	NO_MATCH	""
+a\[b	a[b	""	MATCH	0:3
+a[b	""	""	COMPILATION_FAILURE	""
+# trailing $ is a peculiar special case for the BRE code
+a$	a	""	MATCH	0:1
+a$	a$	""	NO_MATCH	""
+a\$	a	""	NO_MATCH	""
+a\$	a$	""	MATCH	0:2
+a\\$	a	""	NO_MATCH	""
+a\\$	a$	""	NO_MATCH	""
+a\\$	a\$	""	NO_MATCH	""
+a\\$	a\	""	MATCH	0:2
+#
+# back references, ugh
+a\(b\)\2c	""	""	COMPILATION_FAILURE	""
+a\(b\1\)c	""	""	COMPILATION_FAILURE	""
+a\(b*\)c\1d	abbcbbd	""	COMPILATION_FAILURE	""
+a\(b*\)c\1d	abbcbd	""	COMPILATION_FAILURE	""
+a\(b*\)c\1d	abbcbbbd	""	COMPILATION_FAILURE	""
+^\(.\)\1	abc	""	COMPILATION_FAILURE	""
+a\([bc]\)\1d	abcdabbd	""	COMPILATION_FAILURE	""
+a\(\([bc]\)\2\)*d	abbccd	""	COMPILATION_FAILURE	""
+a\(\([bc]\)\2\)*d	abbcbd	""	COMPILATION_FAILURE	""
+# actually, this next one probably ought to fail, but the spec is unclear
+a\(\(b\)*\2\)*d	abbbd	""	COMPILATION_FAILURE	""
+# here is a case that no NFA implementation does right
+\(ab*\)[ab]*\1	ababaaa	""	COMPILATION_FAILURE	""
+# check out normal matching in the presence of back refs
+\(a\)\1bcd	aabcd	""	COMPILATION_FAILURE	""
+\(a\)\1bc*d	aabcd	""	COMPILATION_FAILURE	""
+\(a\)\1bc*d	aabd	""	COMPILATION_FAILURE	""
+\(a\)\1bc*d	aabcccd	""	COMPILATION_FAILURE	""
+\(a\)\1bc*[ce]d	aabcccd	""	COMPILATION_FAILURE	""
+^\(a\)\1b\(c\)*cd$	aabcccd	""	COMPILATION_FAILURE	""
+#
+# ordinary repetitions
+ab*c	abc	""	MATCH	0:3
+ab+c	abc	""	MATCH	0:3
+ab?c	abc	""	MATCH	0:3
+a\(*\)b	a*b	""	NO_MATCH	""
+a\(**\)b	ab	""	COMPILATION_FAILURE	""
+a\(***\)b	""	""	COMPILATION_FAILURE	""
+*a	*a	""	COMPILATION_FAILURE	""
+**a	a	""	COMPILATION_FAILURE	""
+***a	""	""	COMPILATION_FAILURE	""
+#
+# the dreaded bounded repetitions
+# The following two tests are not correct:
+#{	&	{	""
+#{abc	&	{abc	""
+# '{' is always a special char outside bracket expressions.  So test only BRE:
+{	{	""	MATCH	0:1
+{abc	{abc	""	MATCH	0:4
+{1	""	""	NO_MATCH	""
+{1}	""	""	COMPILATION_FAILURE	""
+# Same reason as for the two tests above:
+#a{b	&	a{b	""
+a{b	a{b	""	MATCH	0:3
+a{1}b	ab	""	MATCH	0:2
+a\{1\}b	ab	""	NO_MATCH	""
+a{1,}b	ab	""	MATCH	0:2
+a\{1,\}b	ab	""	NO_MATCH	""
+a{1,2}b	aab	""	MATCH	0:3
+a\{1,2\}b	aab	""	NO_MATCH	""
+a{1	""	""	NO_MATCH	""
+a\{1	""	""	NO_MATCH	""
+a{1a	""	""	NO_MATCH	""
+a\{1a	""	""	NO_MATCH	""
+a{1a}	""	""	NO_MATCH	""
+a\{1a\}	""	""	NO_MATCH	""
+# These four tests checks for undefined behavior.  Our implementation does
+# something different.
+#a{,2}	-	a{,2}	""
+#a\{,2\}	bC	""	BADBR
+#a{,}	-	a{,}	""
+#a\{,\}	bC	""	BADBR
+a{1,x}	""	""	NO_MATCH	""
+a\{1,x\}	""	""	NO_MATCH	""
+a{1,x	""	""	NO_MATCH	""
+a\{1,x	""	""	NO_MATCH	""
+# These two tests probably fails due to an arbitrary limit on the number of
+# repetitions in the other implementation.
+#a{300}	C	""	BADBR
+#a\{300\}	bC	""	BADBR
+a{1,0}	""	""	COMPILATION_FAILURE	""
+a\{1,0\}	""	""	NO_MATCH	""
+ab{0,0}c	abcac	""	MATCH	3:5
+ab\{0,0\}c	abcac	""	NO_MATCH	""
+ab{0,1}c	abcac	""	MATCH	0:3
+ab\{0,1\}c	abcac	""	NO_MATCH	""
+ab{0,3}c	abbcac	""	MATCH	0:4
+ab\{0,3\}c	abbcac	""	NO_MATCH	""
+ab{1,1}c	acabc	""	MATCH	2:5
+ab\{1,1\}c	acabc	""	NO_MATCH	""
+ab{1,3}c	acabc	""	MATCH	2:5
+ab\{1,3\}c	acabc	""	NO_MATCH	""
+ab{2,2}c	abcabbc	""	MATCH	3:7
+ab\{2,2\}c	abcabbc	""	NO_MATCH	""
+ab{2,4}c	abcabbc	""	MATCH	3:7
+ab\{2,4\}c	abcabbc	""	NO_MATCH	""
+((a{1,10}){1,10}){1,10}	a	""	MATCH	0:1 0:1 0:1
+#
+# multiple repetitions
+# Wow, there is serious disconnect here.  The ERE grammar is like this:
+# ERE_expression : one_char_or_coll_elem_ERE
+#                | '^'
+#                | '$'
+#                | '(' extended_reg_exp ')'
+#                | ERE_expression ERE_dupl_symbol
+#                ;
+# where ERE_dupl_symbol is any of the repetition methods.  It is clear from
+# this that consecutive repetition is OK.  On top of this, the one test not
+# marked as failing must fail.  For BREs the situation is different, so we
+# use the four tests.
+#a**	&C	""	BADRPT
+a**	""	""	COMPILATION_FAILURE	""
+#a++	C	""	BADRPT
+#a??	C	""	BADRPT
+#a*+	C	""	BADRPT
+#a*?	C	""	BADRPT
+#a+*	C	""	BADRPT
+#a+?	C	""	BADRPT
+#a?*	C	""	BADRPT
+#a?+	C	""	BADRPT
+#a{1}{1}	C	""	BADRPT
+#a*{1}	C	""	BADRPT
+#a+{1}	C	""	BADRPT
+#a?{1}	C	""	BADRPT
+#a{1}*	C	""	BADRPT
+#a{1}+	C	""	BADRPT
+#a{1}?	C	""	BADRPT
+#a*{b}	-	a{b}	""
+a\{1\}\{1\}	""	""	NO_MATCH	""
+a*\{1\}	""	""	NO_MATCH	""
+a\{1\}*	""	""	NO_MATCH	""
+#
+# brackets, and numerous perversions thereof
+a[b]c	abc	""	MATCH	0:3
+a[ab]c	abc	""	MATCH	0:3
+a[^ab]c	adc	""	MATCH	0:3
+a[]b]c	a]c	""	MATCH	0:3
+a[[b]c	a[c	""	MATCH	0:3
+a[-b]c	a-c	""	MATCH	0:3
+a[^]b]c	adc	""	MATCH	0:3
+a[^-b]c	adc	""	MATCH	0:3
+a[b-]c	a-c	""	MATCH	0:3
+a[b	""	""	COMPILATION_FAILURE	""
+a[]	""	""	COMPILATION_FAILURE	""
+a[1-3]c	a2c	""	MATCH	0:3
+a[3-1]c	""	""	COMPILATION_FAILURE	""
+a[1-3-5]c	""	""	NO_MATCH	""
+a[[.-.]--]c	a-c	""	COMPILATION_FAILURE	""
+# I don't thing the error value should be ERANGE since a[1-] would be
+# valid, too.  Expect EBRACK.
+#a[1-	&C	""	ERANGE
+a[1-	""	""	COMPILATION_FAILURE	""
+a[[.	""	""	COMPILATION_FAILURE	""
+a[[.x	""	""	COMPILATION_FAILURE	""
+a[[.x.	""	""	COMPILATION_FAILURE	""
+a[[.x.]	""	""	COMPILATION_FAILURE	""
+a[[.x.]]	ax	""	COMPILATION_FAILURE	""
+a[[.x,.]]	""	""	COMPILATION_FAILURE	""
+# This test is invalid.  "one" is no collating symbol in any standardized
+# locale.
+# a[[.one.]]b	&	a1b	""
+a[[.notdef.]]b	""	""	COMPILATION_FAILURE	""
+a[[.].]]b	a]b	""	NO_MATCH	""
+a[[:alpha:]]c	abc	""	MATCH	0:3
+a[[:notdef:]]c	""	""	COMPILATION_FAILURE	""
+a[[:	""	""	COMPILATION_FAILURE	""
+a[[:alpha	""	""	COMPILATION_FAILURE	""
+a[[:alpha:]	""	""	COMPILATION_FAILURE	""
+a[[:alpha,:]	""	""	COMPILATION_FAILURE	""
+a[[:]:]]b	""	""	NO_MATCH	""
+a[[:-:]]b	""	""	COMPILATION_FAILURE	""
+a[[:alph:]]	""	""	COMPILATION_FAILURE	""
+a[[:alphabet:]]	""	""	COMPILATION_FAILURE	""
+[[:alnum:]]+	-%@a0X-	""	MATCH	3:6
+[[:alpha:]]+	-%@aX0-	""	MATCH	3:5
+[[:blank:]]+	aSSTb	""	NO_MATCH	""
+[[:cntrl:]]+	aNTb	""	NO_MATCH	""
+[[:digit:]]+	a019b	""	MATCH	1:4
+[[:graph:]]+	Sa%bS	""	MATCH	0:5
+[[:lower:]]+	AabC	""	MATCH	1:3
+[[:print:]]+	NaSbN	""	MATCH	0:5
+[[:punct:]]+	S%-&T	""	MATCH	1:4
+[[:space:]]+	aSNTb	""	NO_MATCH	""
+[[:upper:]]+	aBCd	""	MATCH	1:3
+[[:xdigit:]]+	p0f3Cq	""	MATCH	1:5
+a[[=b=]]c	abc	""	COMPILATION_FAILURE	""
+a[[=	""	""	COMPILATION_FAILURE	""
+a[[=b	""	""	COMPILATION_FAILURE	""
+a[[=b=	""	""	COMPILATION_FAILURE	""
+a[[=b=]	""	""	COMPILATION_FAILURE	""
+a[[=b,=]]	""	""	COMPILATION_FAILURE	""
+# This test is invalid.  "one" is no collating symbol in any standardized
+# locale.
+#a[[=one=]]b	&	a1b	""
+#
+# complexities
+a(((b)))c	abc	""	MATCH	0:3 1:2 1:2 1:2
+a(b|(c))d	abd	""	MATCH	0:3 1:2
+a(b*|c)d	abbd	""	MATCH	0:4 1:3
+# just gotta have one DFA-buster, of course
+a[ab]{20}	aaaaabaaaabaaaabaaaab	""	MATCH	0:21
+# and an inline expansion in case somebody gets tricky
+a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	aaaaabaaaabaaaabaaaab	""	MATCH	0:21
+# and in case somebody just slips in an NFA...
+a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab](wee|week)(knights|night)	aaaaabaaaabaaaabaaaabweeknights	""	MATCH	0:31 21:24 24:31
+# fish for anomalies as the number of states passes 32
+12345678901234567890123456789	a12345678901234567890123456789b	""	MATCH	1:30
+123456789012345678901234567890	a123456789012345678901234567890b	""	MATCH	1:31
+1234567890123456789012345678901	a1234567890123456789012345678901b	""	MATCH	1:32
+12345678901234567890123456789012	a12345678901234567890123456789012b	""	MATCH	1:33
+123456789012345678901234567890123	a123456789012345678901234567890123b	""	MATCH	1:34
+# and one really big one, beyond any plausible word width
+1234567890123456789012345678901234567890123456789012345678901234567890	a1234567890123456789012345678901234567890123456789012345678901234567890b	""	MATCH	1:71
+# fish for problems as brackets go past 8
+[ab][cd][ef][gh][ij][kl][mn]	xacegikmoq	""	MATCH	1:8
+[ab][cd][ef][gh][ij][kl][mn][op]	xacegikmoq	""	MATCH	1:9
+[ab][cd][ef][gh][ij][kl][mn][op][qr]	xacegikmoqy	""	MATCH	1:10
+[ab][cd][ef][gh][ij][kl][mn][op][q]	xacegikmoqy	""	MATCH	1:10
+#
+# subtleties of matching
+abc	xabcy	""	MATCH	1:4
+a\(b\)?c\1d	acd	""	COMPILATION_FAILURE	""
+aBc	Abc	""	NO_MATCH	""
+a[Bc]*d	abBCcd	""	NO_MATCH	""
+0[[:upper:]]1	0a1	""	NO_MATCH	""
+0[[:lower:]]1	0A1	""	NO_MATCH	""
+a[^b]c	abc	""	NO_MATCH	""
+a[^b]c	aBc	""	MATCH	0:3
+a[^b]c	adc	""	MATCH	0:3
+[a]b[c]	abc	""	MATCH	0:3
+[a]b[a]	aba	""	MATCH	0:3
+[abc]b[abc]	abc	""	MATCH	0:3
+[abc]b[abd]	abd	""	MATCH	0:3
+a(b?c)+d	accd	""	MATCH	0:4 2:3
+(wee|week)(knights|night)	weeknights	""	MATCH	0:10 0:3 3:10
+(we|wee|week|frob)(knights|night|day)	weeknights	""	MATCH	0:10 0:3 3:10
+a[bc]d	xyzaaabcaababdacd	""	MATCH	11:14
+a[ab]c	aaabc	""	MATCH	2:5
+abc	abc	""	MATCH	0:3
+()	abc	""	MATCH	0:0 0:0
+a*	b	""	MATCH	0:0
+#
+# Let's have some fun -- try to match a C comment.
+# first the obvious, which looks okay at first glance...
+/\*.*\*/	/*x*/	""	MATCH	0:5
+# but...
+/\*.*\*/	/*x*/y/*z*/	""	MATCH	0:11
+# okay, we must not match */ inside; try to do that...
+/\*([^*]|\*[^/])*\*/	/*x*/	""	MATCH	0:5 2:3
+/\*([^*]|\*[^/])*\*/	/*x*/y/*z*/	""	MATCH	0:5 2:3
+# but...
+/\*([^*]|\*[^/])*\*/	/*x**/y/*z*/	""	MATCH	0:12 8:10
+# and a still fancier version, which does it right (I think)...
+/\*([^*]|\*+[^*/])*\*+/	/*x*/	""	MATCH	0:5 2:3
+/\*([^*]|\*+[^*/])*\*+/	/*x*/y/*z*/	""	MATCH	0:5 2:3
+/\*([^*]|\*+[^*/])*\*+/	/*x**/y/*z*/	""	MATCH	0:6 2:3
+/\*([^*]|\*+[^*/])*\*+/	/*x****/y/*z*/	""	MATCH	0:8 2:3
+/\*([^*]|\*+[^*/])*\*+/	/*x**x*/y/*z*/	""	MATCH	0:8 3:6
+/\*([^*]|\*+[^*/])*\*+/	/*x***x/y/*z*/	""	MATCH	0:14 10:12
+#
+# subexpressions
+.*	abc	""	MATCH	0:3
+a(b)(c)d	abcd	""	MATCH	0:4 1:2 2:3
+a(((b)))c	abc	""	MATCH	0:3 1:2 1:2 1:2
+a(b|(c))d	abd	""	MATCH	0:3 1:2
+a(b*|c|e)d	abbd	""	MATCH	0:4 1:3
+a(b*|c|e)d	acd	""	MATCH	0:3 1:2
+a(b*|c|e)d	ad	""	MATCH	0:2 1:1
+a(b?)c	abc	""	MATCH	0:3 1:2
+a(b?)c	ac	""	MATCH	0:2 1:1
+a(b+)c	abc	""	MATCH	0:3 1:2
+a(b+)c	abbbc	""	MATCH	0:5 1:4
+a(b*)c	ac	""	MATCH	0:2 1:1
+(a|ab)(bc([de]+)f|cde)	abcdef	""	MATCH	0:6 0:1 1:6 3:5
+# the regression tester only asks for 9 subexpressions
+a(b)(c)(d)(e)(f)(g)(h)(i)(j)k	abcdefghijk	""	MATCH	0:11 1:2 2:3 3:4 4:5 5:6 6:7 7:8 8:9 9:10
+a(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)l	abcdefghijkl	""	MATCH	0:12 1:2 2:3 3:4 4:5 5:6 6:7 7:8 8:9 9:10 10:11
+a([bc]?)c	abc	""	MATCH	0:3 1:2
+a([bc]?)c	ac	""	MATCH	0:2 1:1
+a([bc]+)c	abc	""	MATCH	0:3 1:2
+a([bc]+)c	abcc	""	MATCH	0:4 1:3
+a([bc]+)bc	abcbc	""	MATCH	0:5 1:3
+a(bb+|b)b	abb	""	MATCH	0:3 1:2
+a(bbb+|bb+|b)b	abb	""	MATCH	0:3 1:2
+a(bbb+|bb+|b)b	abbb	""	MATCH	0:4 1:3
+a(bbb+|bb+|b)bb	abbb	""	MATCH	0:4 1:2
+(.*).*	abcdef	""	MATCH	0:6 0:6
+(a*)*	bc	""	MATCH	0:0 0:0
+#
+# do we get the right subexpression when it is used more than once?
+a(b|c)*d	ad	""	MATCH	0:2
+a(b|c)*d	abcd	""	MATCH	0:4 2:3
+a(b|c)+d	abd	""	MATCH	0:3 1:2
+a(b|c)+d	abcd	""	MATCH	0:4 2:3
+a(b|c?)+d	ad	""	MATCH	0:2 1:1
+a(b|c?)+d	abcd	""	MATCH	0:4 3:3
+a(b|c){0,0}d	ad	""	MATCH	0:2
+a(b|c){0,1}d	ad	""	MATCH	0:2
+a(b|c){0,1}d	abd	""	MATCH	0:3 1:2
+a(b|c){0,2}d	ad	""	MATCH	0:2
+a(b|c){0,2}d	abcd	""	MATCH	0:4 2:3
+a(b|c){0,}d	ad	""	MATCH	0:2
+a(b|c){0,}d	abcd	""	MATCH	0:4 2:3
+a(b|c){1,1}d	abd	""	MATCH	0:3 1:2
+a(b|c){1,1}d	acd	""	MATCH	0:3 1:2
+a(b|c){1,2}d	abd	""	MATCH	0:3 1:2
+a(b|c){1,2}d	abcd	""	MATCH	0:4 2:3
+a(b|c){1,}d	abd	""	MATCH	0:3 1:2
+a(b|c){1,}d	abcd	""	MATCH	0:4 2:3
+a(b|c){2,2}d	acbd	""	MATCH	0:4 2:3
+a(b|c){2,2}d	abcd	""	MATCH	0:4 2:3
+a(b|c){2,4}d	abcd	""	MATCH	0:4 2:3
+a(b|c){2,4}d	abcbd	""	MATCH	0:5 3:4
+a(b|c){2,4}d	abcbcd	""	MATCH	0:6 4:5
+a(b|c){2,}d	abcd	""	MATCH	0:4 2:3
+a(b|c){2,}d	abcbd	""	MATCH	0:5 3:4
+a(b+|((c)*))+d	abd	""	MATCH	0:3 2:2 2:2
+a(b+|((c)*))+d	abcd	""	MATCH	0:4 3:3 3:3 2:3
+#
+# check out the STARTEND option
+[abc]	a(b)c	""	MATCH	0:1
+[abc]	a(d)c	""	MATCH	0:1
+[abc]	a(bc)d	""	MATCH	0:1
+[abc]	a(dc)d	""	MATCH	0:1
+.	a()c	""	MATCH	0:1
+b.*c	b(bc)c	""	MATCH	0:6
+b.*	b(bc)c	""	MATCH	0:6
+.*c	b(bc)c	""	MATCH	0:6
+#
+# plain strings, with the NOSPEC flag
+abc	abc	""	MATCH	0:3
+abc	xabcy	""	MATCH	1:4
+abc	xyz	""	NO_MATCH	""
+a*b	aba*b	""	MATCH	0:2
+a*b	ab	""	MATCH	0:2
+""	""	""	MATCH	0:2
+#
+# cases involving NULs
+aZb	a	""	NO_MATCH	""
+aZb	a	""	NO_MATCH	""
+aZb	(aZb)	""	MATCH	1:4
+aZ*b	(ab)	""	MATCH	1:3
+a.b	(aZb)	""	MATCH	1:4
+a.*	(aZb)c	""	MATCH	1:6
+#
+# word boundaries (ick)
+[[:<:]]a	a	""	MATCH	0:1
+[[:<:]]a	ba	""	NO_MATCH	""
+[[:<:]]a	-a	""	MATCH	1:2
+a[[:>:]]	a	""	MATCH	0:1
+a[[:>:]]	ab	""	NO_MATCH	""
+a[[:>:]]	a-	""	MATCH	0:1
+[[:<:]]a.c[[:>:]]	axcd-dayc-dazce-abc	""	MATCH	16:19
+[[:<:]]a.c[[:>:]]	axcd-dayc-dazce-abc-q	""	MATCH	16:19
+[[:<:]]a.c[[:>:]]	axc-dayc-dazce-abc	""	MATCH	0:3
+[[:<:]]b.c[[:>:]]	a_bxc-byc_d-bzc-q	""	MATCH	12:15
+[[:<:]].x..[[:>:]]	y_xa_-_xb_y-_xc_-axdc	""	MATCH	12:16
+[[:<:]]a_b[[:>:]]	x_a_b	""	NO_MATCH	""
+#
+# past problems, and suspected problems
+(A[1])|(A[2])|(A[3])|(A[4])|(A[5])|(A[6])|(A[7])|(A[8])|(A[9])|(A[A])	A1	""	MATCH	0:2 0:2
+abcdefghijklmnop	abcdefghijklmnop	""	MATCH	0:16
+abcdefghijklmnopqrstuv	abcdefghijklmnopqrstuv	""	MATCH	0:22
+(ALAK)|(ALT[AB])|(CC[123]1)|(CM[123]1)|(GAMC)|(LC[23][EO ])|(SEM[1234])|(SL[ES][12])|(SLWW)|(SLF )|(SLDT)|(VWH[12])|(WH[34][EW])|(WP1[ESN])	CC11	""	MATCH	0:4 -1:-1 -1:-1 0:4
+CC[13]1|a{21}[23][EO][123][Es][12]a{15}aa[34][EW]aaaaaaa[X]a	CC11	""	MATCH	0:4
+Char \([a-z0-9_]*\)\[.*	Char xyz[k	""	NO_MATCH	""
+a?b	ab	""	MATCH	0:2
+-\{0,1\}[0-9]*$	-5	""	NO_MATCH	""
+a*a*a*a*a*a*a*	aaaaaa	""	MATCH	0:6
+(\b){0}	x	""	MATCH	0:0
+\(\b\)\{0,0\}	abc	""	NO_MATCH	""
+a(\b){0}c	ac	""	MATCH	0:2
+a(.*)b(\1){0}c	abc	""	MATCH	0:3 1:1
+a(.*)b(\1){0}c	axbc	""	MATCH	0:4 1:2
+#
+a\(\(b*\)\)c\1d	abbcbbd	""	COMPILATION_FAILURE	""
+a\(\([bc]\)\)\2d	abcdabbd	""	COMPILATION_FAILURE	""
+a\(\(\(\([bc]\)\)\3\)\)*d	abbccd	""	COMPILATION_FAILURE	""
+a(b)(c)d	abcd	""	MATCH	0:4 1:2 2:3
+a(((b)))c	abc	""	MATCH	0:3 1:2 1:2 1:2
+a(((b|(((c))))))d	abd	""	MATCH	0:3 1:2 1:2 1:2
+a(((b*|c|e)))d	abbd	""	MATCH	0:4 1:3 1:3 1:3
+a((b|c)){0,0}d	ad	""	MATCH	0:2
+a((b|c)){0,1}d	abd	""	MATCH	0:3 1:2 1:2
+a((b|c)){0,2}d	abcd	""	MATCH	0:4 2:3 2:3
+a((b+|((c)*)))+d	abd	""	MATCH	0:3 2:2 2:2 2:2
+a((b+|((c)*)))+d	abcd	""	MATCH	0:4 3:3 3:3 3:3 2:3
+(((\b))){0}	x	""	MATCH	0:0
+a(((.*)))b((\2)){0}c	abc	""	MATCH	0:3 1:1 1:1 1:1
+a(((.*)))b((\1)){0}c	axbc	""	MATCH	0:4 1:2 1:2 1:2
+#
+\b	SaT	""	MATCH	0:0
+\b	aT	""	MATCH	0:0
+a.*\b	abT	""	MATCH	0:3
+\b	STSS	""	MATCH	0:0
+\B	abc	""	MATCH	1:1
+\B	aSbTc	""	MATCH	1:1
+\B	SaT	""	MATCH	1:1
+\B	aSTSb	""	MATCH	1:1
+#
+o$($|.)	oN	""	NO_MATCH	""
+o$($|.)	op	""	NO_MATCH	""
+o$($|.)	o	""	MATCH	0:1 1:1
