@@ -16,9 +16,9 @@ COMPILE         = $(CC) $(CFLAGS) $(DFLAGS)
 INSTALL        := install --preserve-timestamps
 
 # compiler flags
-ifeq ($(DEBUG_SYMBOLS), 1)
+# ifeq ($(DEBUG_SYMBOLS), 1)
 DEBUG          := -ggdb -gdwarf-4
-endif
+# endif
 
 ifeq ($(ASAN), 1)
 # Note: run `source set_asan_env_vars.sh` if you want to use Address Sanitizer
@@ -41,6 +41,7 @@ DFLAGS         += #-DBRU_DEBUG -DBRU_BENCHMARK
 # directories
 LOCALBIN       := $(INSTALL_PREFIX)/bin
 SRCDIR         := src
+TEST_SRCDIR	   := testing/src
 LIBDIR         := lib
 BINDIR         := bin
 INCLUDEDIRS    += include
@@ -52,10 +53,12 @@ INCLUDEDIRS    += $(STCDIR)/include
 
 # files
 BRU_EXE        := bru
-EXE            := $(BRU_EXE)
+TEST_EXE	   := test_bru
+EXE            := $(BRU_EXE) $(TEST_EXE)
 
 BRU_SRC        := $(SRCDIR)/$(BRU_EXE).c
-EXE_SRC        := $(BRU_SRC)
+TEST_BRU_SRC   := $(TEST_SRCDIR)/$(TEST_EXE).c
+EXE_SRC        := $(BRU_SRC) $(TEST_BRU_SRC)
 
 FATP_SRC       := slice.c string_view.c vec.c
 UTIL_SRC       := argparser.c utf.c
@@ -68,11 +71,14 @@ FA_SRC         := $(wildcard $(FADIR)/*.c) \
 				  $(wildcard $(FADIR)/transformers/*.c)
 VM_SRC         := $(wildcard $(VMDIR)/*.c) \
 				  $(wildcard $(VMDIR)/thread_managers/*.c) \
-				  $(wildcard $(VMDIR)/thread_managers/schedulers/*.c)
+				  $(wildcard $(VMDIR)/thread_managers/schedulers/*.c) \
+				  $(wildcard $(VMDIR)/compilers/*.c)
 
 SRC            := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \
 				  $(STC_SRC) $(RE_SRC) $(FA_SRC) $(VM_SRC)
+TEST_SRC   	   := $(filter-out $(EXE_SRC), $(wildcard $(TEST_SRCDIR)/*.c))
 OBJ            := $(SRC:.c=.o)
+TEST_OBJ   	   := $(TEST_SRC:.c=.o)
 
 ### RULES ######################################################################
 
@@ -80,6 +86,9 @@ OBJ            := $(SRC:.c=.o)
 
 $(BRU_EXE): $(BRU_SRC) $(OBJ) | $(BINDIR)
 	$(COMPILE) -o $(BINDIR)/$@ $^
+
+$(TEST_EXE): $(TEST_BRU_SRC) $(OBJ) $(TEST_OBJ) | $(BINDIR)
+	$(COMPILE) -o $(BINDIR)/$@ $^ 
 
 # units
 
@@ -100,6 +109,9 @@ $(LOCALBIN):
 
 all: $(EXE)
 
+test: $(TEST_EXE)
+	$(BINDIR)/$(TEST_EXE) testing/tests/rxspencer-all-bru-configs.tsv
+
 # Install all BRU-related binaries in the local bin.
 install: all | $(LOCALBIN)
 	$(INSTALL) $(addprefix $(BINDIR)/, $(EXE)) $(LOCALBIN)
@@ -111,7 +123,7 @@ uninstall:
 clean: cleanobj cleanbin
 
 cleanobj:
-	$(RM) $(OBJ)
+	$(RM) $(OBJ) $(TEST_OBJ)
 
 cleanbin:
 	$(RM) $(addprefix $(BINDIR)/, $(EXE))

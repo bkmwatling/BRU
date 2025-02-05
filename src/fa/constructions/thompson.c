@@ -26,12 +26,11 @@ typedef struct {
 /* --- Helper function prototypes ------------------------------------------- */
 
 static BruStateMachineFragment
-emit(BruStateMachine *sm, const BruRegexNode *re, const BruCompilerOpts *opts);
+emit(BruStateMachine *sm, const BruRegexNode *re, BruConstructionOpts opts);
 
 /* --- API function definitions --------------------------------------------- */
 
-BruStateMachine *bru_thompson_construct(BruRegex               re,
-                                        const BruCompilerOpts *opts)
+BruStateMachine *bru_thompson_construct(BruRegex re, BruConstructionOpts opts)
 {
     BruStateMachine        *sm;
     BruStateMachineFragment frag;
@@ -47,7 +46,7 @@ BruStateMachine *bru_thompson_construct(BruRegex               re,
 /* --- Helper functions ----------------------------------------------------- */
 
 static BruStateMachineFragment
-emit(BruStateMachine *sm, const BruRegexNode *re, const BruCompilerOpts *opts)
+emit(BruStateMachine *sm, const BruRegexNode *re, BruConstructionOpts opts)
 {
     BruStateMachineFragment frag, child_frag;
     bru_trans_id            out, enter, leave;
@@ -136,7 +135,7 @@ emit(BruStateMachine *sm, const BruRegexNode *re, const BruCompilerOpts *opts)
             break;
 
         case BRU_STAR:
-            switch (opts->capture_semantics) {
+            switch (opts.capture_semantics) {
                 case BRU_CS_PCRE:
                     frag.initial = bru_smir_add_state(sm);
                     start        = bru_smir_add_state(sm);
@@ -187,7 +186,7 @@ emit(BruStateMachine *sm, const BruRegexNode *re, const BruCompilerOpts *opts)
             break;
 
         case BRU_PLUS:
-            switch (opts->capture_semantics) {
+            switch (opts.capture_semantics) {
                 case BRU_CS_PCRE:
                     frag.initial = bru_smir_add_state(sm);
                     child_frag   = emit(sm, re->left, opts);
@@ -240,7 +239,7 @@ emit(BruStateMachine *sm, const BruRegexNode *re, const BruCompilerOpts *opts)
             break;
 
         case BRU_COUNTER:
-            switch (opts->capture_semantics) {
+            switch (opts.capture_semantics) {
                 case BRU_CS_PCRE:
                     frag.initial = bru_smir_add_state(sm);
                     start =

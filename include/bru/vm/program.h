@@ -3,6 +3,8 @@
 
 #include <stc/fatp/vec.h>
 
+#include <string.h>
+
 #include <bru/re/sre.h>
 #include <bru/types.h>
 
