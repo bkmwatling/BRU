@@ -37,13 +37,15 @@ ifneq ($(findstring asan, $(ENABLE)),)
 endif
 
 OPTIMISE       := -O0
-WARNING        := -Wall -Wextra -Wswitch-enum
+WARNING        := -Wall -Wextra -Wswitch-enum -Wpedantic
 ifeq ($(CC), gcc) # GCC gives warnings for empty variadic macros with -Wpedantic
     WARNING    += -Wno-unused-value
+    EXTRA      += -std=gnu11
 else ifeq ($(CC), clang)
-    WARNING    += -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
+    WARNING    += -Wno-gnu-zero-variadic-macro-arguments
+    EXTRA      += -std=c11
 endif
-EXTRA          := -std=c11 -fPIC
+EXTRA          += -fPIC
 INCLUDE         = $(addprefix -I, $(INCLUDEDIRS))
 STCOPT         := -DSTC_UTF_DISABLE_SV
 CFLAGS          = $(DEBUG) $(OPTIMISE) $(WARNING) $(EXTRA) $(INCLUDE) $(STCOPT)
