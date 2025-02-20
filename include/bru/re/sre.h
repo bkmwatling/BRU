@@ -267,11 +267,11 @@ BruRegexNode *bru_regex_capture(BruRegexNode *child, bru_len_t idx);
 /**
  * Construct a regex backreference node with capture index it matches against.
  *
- * @param[in] idx the capture index the backreference refers to
+ * @param[in] capture the capture node referenced
  *
  * @return the constructed regex backreference node
  */
-BruRegexNode *bru_regex_backreference(bru_len_t idx);
+BruRegexNode *bru_regex_backreference(BruRegexNode *capture);
 
 /**
  * Construct a regex non-counter repetition node with given type and regex tree

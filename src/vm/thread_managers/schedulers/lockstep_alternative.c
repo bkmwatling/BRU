@@ -255,12 +255,30 @@ static int lockstep_is_locking_thread(BruLockstepAltScheduler *self,
                                       BruThread               *thread)
 {
     const bru_byte_t *_pc;
+    bru_len_t         k;
+    const char       *capture_start, *capture_end;
 
     if (!thread) return FALSE;
 
     switch ((BruBytecode) *bru_thread_manager_pc(self->tm, _pc, thread)) {
         case BRU_CHAR:
         case BRU_PRED: return TRUE;
+
+        case BRU_BACKREF:
+            bru_thread_manager_backref_index(self->tm, k, thread);
+            bru_thread_manager_capture_val(self->tm, capture_start, thread,
+                                           2 * k);
+            bru_thread_manager_capture_val(self->tm, capture_end, thread,
+                                           2 * k + 1);
+
+            // capture not used
+            if (!capture_start || !capture_end) return FALSE;
+            assert(capture_start <= capture_end);
+
+            // empty capture; nothing to backref
+            if (capture_end - capture_start == 0) return FALSE;
+
+            return TRUE;
 
         case BRU_NOOP:
         case BRU_MATCH:

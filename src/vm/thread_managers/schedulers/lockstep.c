@@ -90,10 +90,31 @@ static void lockstep_scheduler_init(void *impl)
     self->curr_idx    = 0;
 }
 
+static void lockstep_schedule_char_match_instr(BruLockstepScheduler *self,
+                                               BruThread            *thread)
+{
+
+    if (stc_vec_is_empty(self->next))
+        // NOLINTNEXTLINE(bugprone-sizeof-expression)
+        stc_vec_push_back(self->sync, thread);
+    else
+        // NOLINTNEXTLINE(bugprone-sizeof-expression)
+        stc_vec_push_back(self->next, thread);
+}
+
+static void lockstep_schedule_non_char_match_instr(BruLockstepScheduler *self,
+                                                   BruThread            *thread)
+{
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
+    stc_vec_push_back(self->next, thread);
+}
+
 static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
 {
     BruLockstepScheduler *self = impl;
     const bru_byte_t     *_pc;
+    bru_len_t             k;
+    const char           *capture_start, *capture_end;
 
     if (lockstep_threads_contain(self->tm, self->next, thread) ||
         lockstep_threads_contain(self->tm, self->sync, thread))
@@ -101,19 +122,28 @@ static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
 
     switch (*bru_thread_manager_pc(self->tm, _pc, thread)) {
         case BRU_CHAR: /* fallthrough */
-        case BRU_PRED:
-            if (stc_vec_is_empty(self->next))
-                // NOLINTNEXTLINE(bugprone-sizeof-expression)
-                stc_vec_push_back(self->sync, thread);
-            else
-                // NOLINTNEXTLINE(bugprone-sizeof-expression)
-                stc_vec_push_back(self->next, thread);
+        case BRU_PRED: lockstep_schedule_char_match_instr(self, thread); break;
+
+        case BRU_BACKREF:
+            bru_thread_manager_backref_index(self->tm, k, thread);
+            bru_thread_manager_capture_val(self->tm, capture_start, thread,
+                                           2 * k);
+            bru_thread_manager_capture_val(self->tm, capture_end, thread,
+                                           2 * k + 1);
+
+            if (!capture_start || !capture_end ||
+                capture_end - capture_start == 0) {
+                // either the capture was not used, or it matched the empty
+                // string
+                lockstep_schedule_non_char_match_instr(self, thread);
+            } else {
+                // otherwise, backref will try match a character in the
+                // non-empty capture
+                lockstep_schedule_char_match_instr(self, thread);
+            }
             break;
 
-        default:
-            // NOLINTNEXTLINE(bugprone-sizeof-expression)
-            stc_vec_push_back(self->next, thread);
-            break;
+        default: lockstep_schedule_non_char_match_instr(self, thread); break;
     }
     return TRUE;
 }

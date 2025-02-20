@@ -150,3 +150,31 @@ void bru_thread_manager_set_capture_noop(BruThreadManager *self,
     BRU_UNUSED(thread);
     BRU_UNUSED(idx);
 }
+
+const char *bru_thread_manager_capture_val_noop(BruThreadManager *self,
+                                                const BruThread  *thread,
+                                                bru_len_t         idx)
+{
+    BRU_UNUSED(self);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(idx);
+
+    return NULL;
+}
+
+bru_len_t bru_thread_manager_backref_index_noop(BruThreadManager *self,
+                                                const BruThread  *thread)
+{
+    BRU_UNUSED(self);
+    BRU_UNUSED(thread);
+    return 0;
+}
+
+void bru_thread_manager_set_backref_index_noop(BruThreadManager *self,
+                                               BruThread        *thread,
+                                               bru_len_t         val)
+{
+    BRU_UNUSED(self);
+    BRU_UNUSED(thread);
+    BRU_UNUSED(val);
+}

@@ -165,13 +165,13 @@ BruRegexNode *bru_regex_capture(BruRegexNode *child, bru_len_t idx)
     return re;
 }
 
-BruRegexNode *bru_regex_backreference(bru_len_t idx)
+BruRegexNode *bru_regex_backreference(BruRegexNode *capture)
 {
     BruRegexNode *re = malloc(sizeof(*re));
 
     re->type        = BRU_BACKREFERENCE;
-    re->capture_idx = idx;
-    assert(FALSE && "TODO: Are backreferences nullable?");
+    re->capture_idx = capture->capture_idx;
+    re->nullable    = capture->nullable;
 
     return re;
 }

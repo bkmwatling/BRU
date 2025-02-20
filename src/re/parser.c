@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stc/fatp/vec.h>
+
 #include <bru/re/parser.h>
 #include <bru/re/sre.h>
 #include <bru/types.h>
@@ -100,11 +102,28 @@ typedef struct {
 typedef struct {
     BruUnsupportedFeatureCode (*unsupported_feats)[BRU_NUM_UNSUPPORTED_CODES];
     bru_byte_t allow_repeated_nullability; /*<< allow expressions like (a?)*  */
-    const char  *ch;
-    int          in_group;
-    int          in_lookahead;
-    bru_len_t    ncaptures;
-    bru_regex_id next_rid;
+    const char *ch;
+    int         in_subexpr;
+    int         in_lookahead;
+
+    /**
+     * The below variable is the array of parsed capture groups.
+     *
+     * To facilitate backreference validation, the array may contain NULL, such
+     * as for the expression `(a(b)\2c(d)\1)e`. In this case, \2 is valid and
+     * refers to `(b)`, but \1 would be invalid as it has not finished parsing.
+     *
+     * When a new capture group is encountered, and before attempting to parse,
+     * NULL is appended to this array to reserve space for the capture. Its
+     * index is thus the length of the array (before appending), and the
+     * backexpression should use this index exactly. This allows supporting \0
+     * if the flag for capturing the entire match is set to false (otherwise, \0
+     * is invalid because the capature group has not finished parsing -- which
+     * requires parsing the full expression, so \0 is never valid).
+     */
+    StcVec(BruRegexNode *) captures;
+
+    bru_regex_id next_rid; /*<< unique identifier of regex nodes    */
 } BruParseState;
 
 typedef struct {
@@ -199,16 +218,23 @@ BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
     BruUnsupportedFeatureCode unsupported_feats[BRU_NUM_UNSUPPORTED_CODES] = {
         0
     };
-    BruSubRegex    r         = SUB_REGEX_DEFAULT;
-    bru_len_t      ncaptures = self->opts.whole_match_capture ? 1 : 0;
-    BruParseState  ps        = { &unsupported_feats,
-                                 self->opts.allow_repeated_nullability,
-                                 self->regex,
-                                 0,
-                                 0,
-                                 ncaptures,
-                                 0 };
-    BruParseResult res       = parse_alt(self, &ps, &r);
+    BruSubRegex   r  = SUB_REGEX_DEFAULT;
+    BruParseState ps = { .unsupported_feats = &unsupported_feats,
+                         .allow_repeated_nullability =
+                             self->opts.allow_repeated_nullability,
+                         .ch           = self->regex,
+                         .in_subexpr   = FALSE,
+                         .in_lookahead = FALSE,
+                         .captures     = NULL,
+                         .next_rid     = 0 };
+    stc_vec_default_init(ps.captures);
+    if (self->opts.whole_match_capture) {
+        // reserve space for whole capture at index 0
+        // mainly used to correctly calculate valid values for `k` in \k
+        // (backrefs)
+        stc_vec_push_back(ps.captures, NULL);
+    }
+    BruParseResult res = parse_alt(self, &ps, &r);
     unsigned int   i;
 
     if (SUCCEEDED(res.code)) {
@@ -231,6 +257,8 @@ BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
         fprintf(self->opts.logfile,
                 "------------ UNSUPPORTED FEATURE CODES ------------\n");
     }
+
+    stc_vec_free(ps.captures);
 
     return res;
 }
@@ -378,7 +406,7 @@ static BruParseResult parse_atom(const BruParser *self,
         case '\0': res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch); break;
 
         case ')':
-            if (ps->in_group)
+            if (ps->in_subexpr)
                 res = PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
             else
                 res = PARSE_RES(BRU_PARSE_UNMATCHED_PAREN, ps->ch);
@@ -499,6 +527,7 @@ parse_quantifier(const BruParser *self,
         res.ch = ps->ch;
         return res;
     }
+
     if (min == 0 && max == 0) {
         bru_regex_node_free(subre->re);
         subre->re = bru_regex_new(BRU_EPSILON);
@@ -589,7 +618,7 @@ static BruParseResult parse_paren(const BruParser *self,
     BruParseState             ps_tmp;
     BruUnsupportedFeatureCode unsupported_code;
     const char               *ch;
-    bru_len_t                 ncaptures;
+    bru_len_t                 capture_idx;
     int                       is_lookahead = FALSE, pos = FALSE;
 
     if (*(ch = ps->ch) != '(') return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
@@ -676,17 +705,19 @@ static BruParseResult parse_paren(const BruParser *self,
                     goto unsupported_group;
             }
             ps->ch++;
-            ps_tmp        = (BruParseState) { ps->unsupported_feats,
-                                              ps->allow_repeated_nullability,
-                                              ps->ch,
-                                              TRUE,
-                                              ps->in_lookahead || is_lookahead,
-                                              ps->ncaptures,
-                                              ps->next_rid };
-            res           = parse_alt(self, &ps_tmp, subre);
-            ps->ch        = ps_tmp.ch;
-            ps->ncaptures = ps_tmp.ncaptures;
-            ps->next_rid  = ps_tmp.next_rid;
+            ps_tmp = (BruParseState) {
+                .unsupported_feats          = ps->unsupported_feats,
+                .allow_repeated_nullability = ps->allow_repeated_nullability,
+                .ch                         = ps->ch,
+                .in_subexpr                 = TRUE,
+                .in_lookahead               = ps->in_lookahead || is_lookahead,
+                .captures                   = ps->captures,
+                .next_rid                   = ps->next_rid
+            };
+            res          = parse_alt(self, &ps_tmp, subre);
+            ps->ch       = ps_tmp.ch;
+            ps->next_rid = ps_tmp.next_rid;
+            ps->captures = ps_tmp.captures;
             if (FAILED(res.code)) return res;
             if (*ps->ch != ')')
                 return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
@@ -699,25 +730,35 @@ static BruParseResult parse_paren(const BruParser *self,
 
         /* capture group */
         default:
-            if (!ps->in_lookahead) ncaptures = ps->ncaptures++;
-            ps_tmp        = (BruParseState) { ps->unsupported_feats,
-                                              ps->allow_repeated_nullability,
-                                              ps->ch,
-                                              TRUE,
-                                              ps->in_lookahead,
-                                              ps->ncaptures,
-                                              ps->next_rid };
-            res           = parse_alt(self, &ps_tmp, subre);
-            ps->ch        = ps_tmp.ch;
-            ps->ncaptures = ps_tmp.ncaptures;
-            ps->next_rid  = ps_tmp.next_rid;
+            // TODO: Index needs to change if whole match capture is disabled
+            if (!ps->in_lookahead) capture_idx = stc_vec_len(ps->captures);
+
+            // reserve space for capture
+            stc_vec_push_back(ps->captures, NULL);
+
+            ps_tmp =
+                (BruParseState) { .unsupported_feats = ps->unsupported_feats,
+                                  .allow_repeated_nullability =
+                                      ps->allow_repeated_nullability,
+                                  .ch           = ps->ch,
+                                  .in_subexpr   = TRUE,
+                                  .in_lookahead = ps->in_lookahead,
+                                  .captures     = ps->captures,
+                                  .next_rid     = ps->next_rid };
+            res          = parse_alt(self, &ps_tmp, subre);
+            ps->ch       = ps_tmp.ch;
+            ps->next_rid = ps_tmp.next_rid;
+            ps->captures = ps_tmp.captures;
             if (FAILED(res.code)) return res;
             if (*ps->ch != ')')
                 return PARSE_RES(BRU_PARSE_INCOMPLETE_GROUP_STRUCTURE, ch);
 
             if (!ps->in_lookahead) {
-                subre->re = bru_regex_capture(subre->re, ncaptures);
+                subre->re = bru_regex_capture(subre->re, capture_idx);
                 SET_RID(subre->re, ps);
+
+                // save capture
+                ps->captures[capture_idx] = subre->re;
             }
             break;
     }
@@ -899,8 +940,7 @@ static BruParseResult parse_escape(BruParseState *ps,
     BruIntervals        *intervals;
     const char          *ch;
     size_t               i;
-    // TODO: use for backreferences
-    // len_t             k;
+    bru_len_t            k;
 
     if (*ps->ch != '\\') return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
@@ -1030,18 +1070,14 @@ static BruParseResult parse_escape(BruParseState *ps,
 
         default:
             if (isdigit(*ps->ch)) {
-                // TODO: support backreferences
-                // k = *ps->ch - '0';
-                // if (k < ps->ncaptures) {
-                //     *re = regex_backreference(k);
-                //     SET_RID(*re, ps);
-                // } else {
-                //     res.code = PARSE_NON_EXISTENT_REF;
-                // }
-                FLAG_UNSUPPORTED(BRU_UNSUPPORTED_BACKREF, ps);
-                subre->re = bru_regex_new(BRU_EPSILON);
-                SET_RID(subre->re, ps);
-                res.code = BRU_PARSE_UNSUPPORTED;
+                k = *ps->ch - '0';
+                if (k >= 0 && k < stc_vec_len(ps->captures) &&
+                    ps->captures[k]) {
+                    subre->re = bru_regex_backreference(ps->captures[k]);
+                    SET_RID(subre->re, ps);
+                } else {
+                    res.code = BRU_PARSE_NON_EXISTENT_REF;
+                }
                 break;
             } else {
                 res.code = BRU_PARSE_INVALID_ESCAPE;

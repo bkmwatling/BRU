@@ -26,6 +26,7 @@ typedef enum {
     BRU_ACT_PRED,
 
     BRU_ACT_SAVE,
+    BRU_ACT_BACKREF,
     BRU_ACT_INC,
     BRU_ACT_SET,
     BRU_ACT_CMP,

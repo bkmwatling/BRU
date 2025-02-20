@@ -125,6 +125,13 @@
                          ncaptures_in)
 #define bru_thread_manager_set_capture(manager, thread_in, idx_in) \
     bru_vt_call_procedure(manager, set_capture, thread_in, idx_in)
+#define bru_thread_manager_capture_val(manager, char_ptr_out, thread_in, \
+                                       idx_in)                           \
+    bru_vt_call_function(manager, char_ptr_out, capture_val, thread_in, idx_in)
+#define bru_thread_manager_backref_index(manager, len_out, thread_in) \
+    bru_vt_call_function(manager, len_out, backref_index, thread_in)
+#define bru_thread_manager_set_backref_index(manager, thread_in, len_in) \
+    bru_vt_call_procedure(manager, set_backref_index, thread_in, len_in)
 
 #define BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(manager_interface, prefix)    \
     do {                                                                    \
@@ -186,6 +193,10 @@
         (manager_interface)->captures   = bru_thread_manager_captures_noop;   \
         (manager_interface)->set_capture =                                    \
             bru_thread_manager_set_capture_noop;                              \
+        (manager_interface)->backref_index =                                  \
+            bru_thread_manager_backref_index_noop;                            \
+        (manager_interface)->set_backref_index =                              \
+            bru_thread_manager_set_backref_index_noop;                        \
     } while (0)
 
 /* --- Type definitions ----------------------------------------------------- */
@@ -294,8 +305,17 @@ typedef struct bru_thread_manager_interface {
     void (*set_capture)(BruThreadManager *self,
                         BruThread        *thread,
                         bru_len_t         idx);
+    const char *(*capture_val)(BruThreadManager *self,
+                               const BruThread  *thread,
+                               bru_len_t         idx);
 
-    size_t _thread_size; /**< size of the thread used by this manager         */
+    // backrefs
+    bru_len_t (*backref_index)(BruThreadManager *self, const BruThread *thread);
+    void (*set_backref_index)(BruThreadManager *self,
+                              BruThread        *thread,
+                              bru_len_t         len);
+
+    size_t _thread_size; /**< size of the thread used by this manager */
     BRU_VTABLE_FIELDS;
 } BruThreadManagerInterface;
 
@@ -445,5 +465,12 @@ const char *const *bru_thread_manager_captures_noop(BruThreadManager *tm,
 void bru_thread_manager_set_capture_noop(BruThreadManager *tm,
                                          BruThread        *thread,
                                          bru_len_t         idx);
+
+bru_len_t bru_thread_manager_backref_index_noop(BruThreadManager *tm,
+                                                const BruThread  *thread);
+
+void bru_thread_manager_set_backref_index_noop(BruThreadManager *tm,
+                                               BruThread        *thread,
+                                               bru_len_t         val);
 
 #endif /* BRU_VM_THREAD_MANAGER_H */

@@ -523,6 +523,7 @@ const BruAction *bru_smir_action_clone(const BruAction *self)
             break;
 
         case BRU_ACT_SAVE:    /* fallthrough */
+        case BRU_ACT_BACKREF: /* fallthrough */
         case BRU_ACT_INC:     /* fallthrough */
         case BRU_ACT_EPSSET:  /* fallthrough */
         case BRU_ACT_EPSCHK:  /* fallthrough */
@@ -568,6 +569,7 @@ int bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
             break;
 
         case BRU_ACT_SAVE:    /* fallthrough */
+        case BRU_ACT_BACKREF: /* fallthrough */
         case BRU_ACT_INC:     /* fallthrough */
         case BRU_ACT_MEMOSET: /* fallthrough */
         case BRU_ACT_MEMOCHK: /* fallthrough */
@@ -611,6 +613,7 @@ void bru_smir_action_print(const BruAction *self, FILE *stream)
             break;
 
         case BRU_ACT_SAVE: fprintf(stream, "save %zu", self->k); break;
+        case BRU_ACT_BACKREF: fprintf(stream, "backref %zu", self->k); break;
         case BRU_ACT_INC: fprintf(stream, "inc %zu", self->k); break;
         case BRU_ACT_SET:
             fprintf(stream, "set %zu, " BRU_CNTR_FMT, self->k, self->val);

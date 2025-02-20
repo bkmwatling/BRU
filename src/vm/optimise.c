@@ -88,6 +88,7 @@ void bru_optimise_remove_dead_code(StcVec(BruInstruction) instructions)
             case BRU_CHAR:
             case BRU_PRED:
             case BRU_SAVE:
+            case BRU_BACKREF:
             case BRU_INC:
             case BRU_SET:
             case BRU_CMP:
@@ -190,6 +191,7 @@ void bru_optimise_compress_control_flow_chain(
             case BRU_CHAR:
             case BRU_PRED:
             case BRU_SAVE:
+            case BRU_BACKREF:
             case BRU_INC:
             case BRU_SET:
             case BRU_CMP:

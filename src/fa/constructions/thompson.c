@@ -1,3 +1,4 @@
+#include "bru/fa/smir.h"
 #include <assert.h>
 
 #include <bru/fa/constructions/thompson.h>
@@ -376,9 +377,15 @@ emit(BruStateMachine *sm, const BruRegexNode *re, BruConstructionOpts opts)
             }
             break;
 
+        case BRU_BACKREFERENCE:
+            frag.initial = frag.final = bru_smir_add_state(sm);
+            bru_smir_state_append_action(
+                sm, frag.final,
+                bru_smir_action_num(BRU_ACT_BACKREF, re->capture_idx));
+            break;
+
         /* TODO: */
         case BRU_LOOKAHEAD: /* fallthrough */
-        case BRU_BACKREFERENCE: assert(0 && "TODO"); break;
         case BRU_NREGEXTYPES: assert(0 && "unreachable"); break;
     }
 

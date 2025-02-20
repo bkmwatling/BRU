@@ -110,6 +110,7 @@
     DO(BRU_LSPLIT)                       \
     DO(BRU_TSWITCH)                      \
     DO(BRU_SAVE)                         \
+    DO(BRU_BACKREF)                      \
     DO(BRU_INC)                          \
     DO(BRU_SET)                          \
     DO(BRU_CMP)                          \
@@ -152,6 +153,7 @@ typedef struct {
 
     // compile-time collected info
     int requires_writing; /**< if the program contains WRITE* instructions    */
+    int requires_backref; /**< if the program contains BACKREF instructions   */
 } BruProgram;
 
 #if !defined(BRU_VM_PROGRAM_DISABLE_SHORT_NAMES) && \

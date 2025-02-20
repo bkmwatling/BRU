@@ -112,8 +112,9 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
     BruThread        *thread, *t;
     const bru_byte_t *pc;
     const char       *sp, *codepoint, *matched_sp;
+    const char       *capture_start, *capture_end;
     char            **epsset_marker;
-    bru_len_t         k;
+    bru_len_t         k, l;
     bru_offset_t      x, y;
     bru_cntr_t        cval, n;
     bru_byte_t        byte;
@@ -224,6 +225,51 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     bru_thread_manager_set_pc(tm, thread, pc);
                     bru_thread_manager_set_capture(tm, thread, k);
                     bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+
+                case BRU_BACKREF:
+                    // `k` is the capture group number
+                    BRU_MEMREAD(k, pc, bru_len_t);
+                    bru_thread_manager_capture_val(tm, capture_start, thread,
+                                                   2 * k);
+                    bru_thread_manager_capture_val(tm, capture_end, thread,
+                                                   2 * k + 1);
+
+                    // capture not used
+                    if (!capture_start || !capture_end) goto backref_fail;
+
+                    assert(capture_start <= capture_end);
+                    // `l` is the capture length in bytes
+                    l = capture_end - capture_start;
+
+                    // empty capture; nothing to backref
+                    if (l == 0) goto backref_finished;
+
+                    // k is the number of bytes matched in this backref
+                    bru_thread_manager_backref_index(tm, k, thread);
+                    assert(l > k);
+
+                    // backref still needs to match something
+                    codepoint = capture_start + k;
+                    if (*sp && stc_utf8_cmp(codepoint, sp) == 0) {
+                        bru_thread_manager_inc_sp(tm, thread);
+                        k += stc_utf8_nbytes(sp);
+                        if (k == l) goto backref_finished;
+                        bru_thread_manager_set_backref_index(tm, thread, k);
+                        goto backref_done;
+                    } else {
+                        // `sp` did not match capture group
+                        goto backref_fail;
+                    }
+
+                backref_finished:
+                    bru_thread_manager_set_backref_index(tm, thread, 0);
+                    bru_thread_manager_set_pc(tm, thread, pc);
+                backref_done:
+                    bru_thread_manager_schedule_thread(tm, thread);
+                    break;
+                backref_fail:
+                    bru_thread_manager_kill_thread(tm, thread);
                     break;
 
                 case BRU_SET:

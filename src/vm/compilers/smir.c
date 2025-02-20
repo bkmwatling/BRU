@@ -104,6 +104,10 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
                                  .idx = act->k);
                 break;
 
+            case BRU_ACT_BACKREF:
+                PUSH_INSTRUCTION(instructions, .bytecode = BRU_BACKREF,
+                                 .idx = act->k);
+
             case BRU_ACT_INC:
                 GET_IDX(mmaps->thread_cmap, mmaps->next_thread_cidx, 1, act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_INC, .idx = idx);
@@ -296,6 +300,7 @@ static void resolve_backpatches(StcVec(BruInstruction) instructions,
             case BRU_GSPLIT:
             case BRU_LSPLIT:
             case BRU_SAVE:
+            case BRU_BACKREF:
             case BRU_INC:
             case BRU_SET:
             case BRU_CMP:

@@ -187,6 +187,11 @@ inst_print_formatted(FILE                  *stream,
             fprintf(stream, "save " BRU_LEN_FMT, n);
             break;
 
+        case BRU_BACKREF:
+            BRU_MEMREAD(n, pc, bru_len_t);
+            fprintf(stream, "backref " BRU_LEN_FMT, n);
+            break;
+
         case BRU_INC:
             BRU_MEMREAD(i, pc, bru_len_t);
             fprintf(stream, "inc " BRU_LEN_FMT, i);
@@ -310,6 +315,7 @@ static void print_offset_as_absolute_index(FILE             *stream,
                 insts += len * sizeof(bru_offset_t);
                 break;
             case BRU_SAVE: insts += sizeof(bru_len_t); break;
+            case BRU_BACKREF: insts += sizeof(bru_len_t); break;
             case BRU_INC: insts += sizeof(bru_len_t); break;
             case BRU_SET:
                 insts += sizeof(bru_len_t) + sizeof(bru_cntr_t);

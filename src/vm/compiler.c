@@ -33,6 +33,7 @@ static size_t instruction_size(BruInstruction instruction)
             break;
 
         case BRU_SAVE: size += sizeof(instruction.idx); break;
+        case BRU_BACKREF: size += sizeof(instruction.idx); break;
 
         case BRU_INC: size += sizeof(instruction.idx); break;
         case BRU_SET:
@@ -88,6 +89,8 @@ static void populate_memory_requirements(StcVec(BruInstruction) instructions,
                 if (2 * prog->ncaptures <= instr->idx)
                     prog->ncaptures = (instr->idx / 2) + 1;
                 break;
+
+            case BRU_BACKREF: prog->requires_backref = TRUE; break;
 
             case BRU_INC: /* fallthrough */
             case BRU_SET: /* fallthrough */
@@ -215,6 +218,8 @@ static bru_byte_t *compile_instruction(bru_byte_t    *pc,
             if ((instruction.idx / 2) + 1 > prog->ncaptures)
                 prog->ncaptures = (instruction.idx / 2) + 1;
             break;
+
+        case BRU_BACKREF: BRU_MEMWRITE(pc, bru_len_t, instruction.idx); break;
 
         case BRU_INC: BRU_MEMWRITE(pc, bru_len_t, instruction.idx); break;
         case BRU_SET:

@@ -27,6 +27,10 @@ static const char *const *thread_get_captures(BruThreadManager *tm,
 static void
 thread_set_capture(BruThreadManager *tm, BruThread *thread, bru_len_t idx);
 
+static const char *thread_capture_val(BruThreadManager *tm,
+                                      const BruThread  *thread,
+                                      bru_len_t         idx);
+
 /* --- API function definitions --------------------------------------------- */
 
 BruThreadManager *bru_thread_manager_with_captures_new(BruThreadManager *tm,
@@ -49,6 +53,7 @@ BruThreadManager *bru_thread_manager_with_captures_new(BruThreadManager *tm,
     tmi->copy_thread = thread_copy_with_captures;
     tmi->captures    = thread_get_captures;
     tmi->set_capture = thread_set_capture;
+    tmi->capture_val = thread_capture_val;
 
     // register extension
     // NOLINTNEXTLINE(bugprone-sizeof-expression)
@@ -121,4 +126,14 @@ thread_set_capture(BruThreadManager *tm, BruThread *thread, bru_len_t idx)
         (const char **) BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     bru_thread_manager_sp(tm, captures[idx], thread);
+}
+
+static const char *
+thread_capture_val(BruThreadManager *tm, const BruThread *thread, bru_len_t idx)
+{
+    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
+    const char               **captures =
+        (const char **) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+
+    return captures[idx];
 }

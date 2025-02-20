@@ -202,6 +202,7 @@ static int is_epsilon_state(const BruActionList *actions)
         switch (bru_smir_action_type(act)) {
             case BRU_ACT_MEMOSET: /* fallthrough */
             case BRU_ACT_CHAR:    /* fallthrough */
+            case BRU_ACT_BACKREF: /* fallthrough */
             case BRU_ACT_PRED: is_epsilon = FALSE; goto done;
 
             case BRU_ACT_BEGIN:   /* fallthrough */
@@ -240,12 +241,13 @@ static void remove_unnecessary_actions(const BruActionList *actions)
             continue;
         }
         switch (bru_smir_action_type(act)) {
-            case BRU_ACT_CHAR: /* fallthrough */
-            case BRU_ACT_PRED: /* fallthrough */
-            case BRU_ACT_SAVE: /* fallthrough */
-            case BRU_ACT_INC:  /* fallthrough */
-            case BRU_ACT_SET:  /* fallthrough */
-            case BRU_ACT_CMP:  /* fallthrough */
+            case BRU_ACT_CHAR:    /* fallthrough */
+            case BRU_ACT_PRED:    /* fallthrough */
+            case BRU_ACT_SAVE:    /* fallthrough */
+            case BRU_ACT_BACKREF: /* fallthrough */
+            case BRU_ACT_INC:     /* fallthrough */
+            case BRU_ACT_SET:     /* fallthrough */
+            case BRU_ACT_CMP:     /* fallthrough */
             case BRU_ACT_WRITE: break;
 
             // remove EPSSET/EPSCHK actions
@@ -302,6 +304,7 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
             case BRU_ACT_CHAR:    /* fallthrough */
             case BRU_ACT_PRED:    /* fallthrough */
             case BRU_ACT_SAVE:    /* fallthrough */
+            case BRU_ACT_BACKREF: /* fallthrough */
             case BRU_ACT_INC:     /* fallthrough */
             case BRU_ACT_SET:     /* fallthrough */
             case BRU_ACT_CMP:     /* fallthrough */
