@@ -281,29 +281,30 @@ static int lockstep_is_locking_thread(BruLockstepAltScheduler *self,
 
             return TRUE;
 
-        case BRU_NOOP:
-        case BRU_MATCH:
-        case BRU_BEGIN:
-        case BRU_END:
-        case BRU_JMP:
-        case BRU_SPLIT:
-        case BRU_GSPLIT:
-        case BRU_LSPLIT:
-        case BRU_TSWITCH:
-        case BRU_SAVE:
-        case BRU_INC:
-        case BRU_SET:
-        case BRU_CMP:
-        case BRU_EPSRESET:
-        case BRU_EPSSET:
-        case BRU_EPSCHK:
-        case BRU_MEMOSET:
-        case BRU_MEMOCHK:
-        case BRU_ZWA:
-        case BRU_STATE:
-        case BRU_WRITE:
-        case BRU_WRITE0:
-        case BRU_WRITE1:
-        case BRU_NBYTECODES: return FALSE;
+        case BRU_NOOP:       /* fallthrough */
+        case BRU_MATCH:      /* fallthrough */
+        case BRU_BEGIN:      /* fallthrough */
+        case BRU_END:        /* fallthrough */
+        case BRU_JMP:        /* fallthrough */
+        case BRU_SPLIT:      /* fallthrough */
+        case BRU_GSPLIT:     /* fallthrough */
+        case BRU_LSPLIT:     /* fallthrough */
+        case BRU_TSWITCH:    /* fallthrough */
+        case BRU_SAVE:       /* fallthrough */
+        case BRU_INC:        /* fallthrough */
+        case BRU_SET:        /* fallthrough */
+        case BRU_CMP:        /* fallthrough */
+        case BRU_EPSRESET:   /* fallthrough */
+        case BRU_EPSSET:     /* fallthrough */
+        case BRU_EPSCHK:     /* fallthrough */
+        case BRU_MEMOSET:    /* fallthrough */
+        case BRU_MEMOCHK:    /* fallthrough */
+        case BRU_ZWA:        /* fallthrough */
+        case BRU_STATE:      /* fallthrough */
+        case BRU_WRITE:      /* fallthrough */
+        case BRU_WRITE0:     /* fallthrough */
+        case BRU_WRITE1:     /* fallthrough */
+        case BRU_NBYTECODES: /* fallthrough */
+        default: return FALSE;
     }
 }

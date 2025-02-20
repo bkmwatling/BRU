@@ -583,7 +583,8 @@ int bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
 
         case BRU_ACT_WRITE: return a1->c == a2->c;
 
-        case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
+        case BRU_ACT_NACTIONS: /* fallthrough */
+        default: assert(FALSE && "unreachable"); break;
     }
 }
 

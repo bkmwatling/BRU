@@ -1071,8 +1071,7 @@ static BruParseResult parse_escape(BruParseState *ps,
         default:
             if (isdigit(*ps->ch)) {
                 k = *ps->ch - '0';
-                if (k >= 0 && k < stc_vec_len(ps->captures) &&
-                    ps->captures[k]) {
+                if (k < stc_vec_len(ps->captures) && ps->captures[k]) {
                     subre->re = bru_regex_backreference(ps->captures[k]);
                     SET_RID(subre->re, ps);
                 } else {

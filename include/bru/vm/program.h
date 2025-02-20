@@ -144,12 +144,12 @@ typedef struct {
     StcVec(bru_byte_t) aux;   /**< the auxillary memory for the program       */
 
     // shared thread memory
-    size_t nmemo_insts; /**< the number of memoisation instructions           */
+    bru_len_t nmemo_insts; /**< the number of memoisation instructions        */
 
     // thread memory
-    size_t ncaptures;      /**< the number of captures in the program         */
-    size_t ncounters;      /**< the number of counters in the program         */
-    size_t thread_mem_len; /**< the number of bytes needed for thread memory  */
+    bru_len_t ncaptures;      /**< number of captures in the program          */
+    bru_len_t ncounters;      /**< number of counters in the program          */
+    bru_len_t thread_mem_len; /**< number of bytes needed for thread memory   */
 
     // compile-time collected info
     int requires_writing; /**< if the program contains WRITE* instructions    */

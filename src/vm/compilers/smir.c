@@ -107,6 +107,7 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
             case BRU_ACT_BACKREF:
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_BACKREF,
                                  .idx = act->k);
+                break;
 
             case BRU_ACT_INC:
                 GET_IDX(&mmaps->thread_cmap, mmaps->next_thread_cidx, 1,
