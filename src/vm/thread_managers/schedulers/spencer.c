@@ -26,7 +26,7 @@ BruScheduler *bru_spencer_scheduler_new(void)
 
     ss->in_order_idx = 0;
     ss->active       = NULL;
-    stc_vec_default_init(ss->stack); // NOLINT(bugprone-sizeof-expression)
+    stc_vec_default_init(&ss->stack); // NOLINT(bugprone-sizeof-expression)
 
     s->impl              = ss;
     s->init              = spencer_scheduler_init;
@@ -52,10 +52,10 @@ static void spencer_scheduler_init(void *impl)
 static int spencer_scheduler_schedule(void *impl, BruThread *thread)
 {
     BruSpencerScheduler *self = impl;
-    self->in_order_idx        = stc_vec_len_unsafe(self->stack) + 1;
+    self->in_order_idx        = stc_vec_len(self->stack) + 1;
     if (self->active)
         // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_push_back(self->stack, thread);
+        stc_vec_push_back(&self->stack, thread);
     else
         self->active = thread;
     return TRUE;
@@ -64,17 +64,17 @@ static int spencer_scheduler_schedule(void *impl, BruThread *thread)
 static int spencer_scheduler_schedule_in_order(void *impl, BruThread *thread)
 {
     BruSpencerScheduler *self = impl;
-    size_t               len  = stc_vec_len_unsafe(self->stack);
+    size_t               len  = stc_vec_len(self->stack);
 
     if (self->in_order_idx > len) {
         spencer_scheduler_schedule(self, thread);
         self->in_order_idx = len;
     } else if (self->in_order_idx == len) {
         // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_push_back(self->stack, thread);
+        stc_vec_push_back(&self->stack, thread);
     } else {
         // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_insert(self->stack, self->in_order_idx, thread);
+        stc_vec_insert(&self->stack, self->in_order_idx, thread);
     }
 
     return TRUE;
@@ -92,10 +92,10 @@ static BruThread *spencer_scheduler_next(void *impl)
     BruSpencerScheduler *self   = impl;
     BruThread           *thread = self->active;
 
-    self->in_order_idx = stc_vec_len_unsafe(self->stack) + 1;
+    self->in_order_idx = stc_vec_len(self->stack) + 1;
     self->active       = NULL;
     if (thread == NULL && !stc_vec_is_empty(self->stack))
-        thread = stc_vec_pop(self->stack);
+        thread = stc_vec_pop_back(&self->stack);
 
     return thread;
 }

@@ -150,7 +150,7 @@ int main(int argc, char **argv)
         if (expected_res == MATCH) {
             expected_match            = malloc(sizeof(BruSRVMMatch));
             expected_match->ncaptures = n_groups;
-            expected_match->captures  = calloc(n_groups, sizeof(StcStringView));
+            expected_match->captures  = calloc(n_groups, sizeof(StcStrView));
         }
 
         BruOptions    options   = { 0 };

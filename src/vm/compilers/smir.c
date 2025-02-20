@@ -59,17 +59,17 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
                             // int                   *continue_compilation,
                             BruMemoryMaps          *mmaps)
 {
-#define GET_IDX(mmap, next_idx, idx_inc, id)                          \
-    do {                                                              \
-        for (idx = 0, len = stc_vec_len_unsafe(mmap);                 \
-             idx < len && (mmap)[idx].uid != (id); idx++);            \
-        if (idx == len) {                                             \
-            idx         = (next_idx);                                 \
-            (next_idx) += (idx_inc);                                  \
-            stc_vec_push_back(mmap, ((BruUidToIdx) { (id), (idx) })); \
-        } else {                                                      \
-            idx = (mmap)[idx].idx;                                    \
-        }                                                             \
+#define GET_IDX(mmap_ptr, next_idx, idx_inc, id)                          \
+    do {                                                                  \
+        for (idx = 0, len = stc_vec_len(*(mmap_ptr));                     \
+             idx < len && (*(mmap_ptr))[idx].uid != (id); idx++);         \
+        if (idx == len) {                                                 \
+            idx         = (next_idx);                                     \
+            (next_idx) += (idx_inc);                                      \
+            stc_vec_push_back(mmap_ptr, ((BruUidToIdx) { (id), (idx) })); \
+        } else {                                                          \
+            idx = (*(mmap_ptr))[idx].idx;                                 \
+        }                                                                 \
     } while (0)
 
     BruActionListIterator *iter;
@@ -109,38 +109,41 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
                                  .idx = act->k);
 
             case BRU_ACT_INC:
-                GET_IDX(mmaps->thread_cmap, mmaps->next_thread_cidx, 1, act->k);
+                GET_IDX(&mmaps->thread_cmap, mmaps->next_thread_cidx, 1,
+                        act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_INC, .idx = idx);
                 break;
 
             case BRU_ACT_SET:
-                GET_IDX(mmaps->thread_cmap, mmaps->next_thread_cidx, 1, act->k);
+                GET_IDX(&mmaps->thread_cmap, mmaps->next_thread_cidx, 1,
+                        act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_SET, .idx = idx,
                                  .val = act->val);
                 break;
 
             case BRU_ACT_CMP:
-                GET_IDX(mmaps->thread_cmap, mmaps->next_thread_cidx, 1, act->k);
+                GET_IDX(&mmaps->thread_cmap, mmaps->next_thread_cidx, 1,
+                        act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_CMP, .idx = idx,
                                  .val = act->val, .ord = act->ord);
                 break;
 
             case BRU_ACT_EPSSET:
-                GET_IDX(mmaps->thread_mmap, mmaps->next_thread_midx,
+                GET_IDX(&mmaps->thread_mmap, mmaps->next_thread_midx,
                         sizeof(const char *), act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_EPSSET,
                                  .idx = idx);
                 break;
 
             case BRU_ACT_EPSCHK:
-                GET_IDX(mmaps->thread_mmap, mmaps->next_thread_midx,
+                GET_IDX(&mmaps->thread_mmap, mmaps->next_thread_midx,
                         sizeof(const char *), act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_EPSCHK,
                                  .idx = idx);
                 break;
 
             case BRU_ACT_MEMOSET:
-                GET_IDX(mmaps->memo_map, mmaps->next_memo_idx, 1, act->k);
+                GET_IDX(&mmaps->memo_map, mmaps->next_memo_idx, 1, act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_MEMOSET,
                                  .idx = idx);
                 // NOTE: MEMOSET is a sink instruction that will kill any thread
@@ -151,7 +154,7 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
                 break;
 
             case BRU_ACT_MEMOCHK:
-                GET_IDX(mmaps->memo_map, mmaps->next_memo_idx, 1, act->k);
+                GET_IDX(&mmaps->memo_map, mmaps->next_memo_idx, 1, act->k);
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_MEMOCHK,
                                  .idx = idx);
                 break;
@@ -235,7 +238,10 @@ static void compile_state(BruStateMachine        *sm,
         case 0: goto done;
         case 1: PUSH_INSTRUCTION(instructions, .bytecode = BRU_JMP); break;
         case 2: PUSH_INSTRUCTION(instructions, .bytecode = BRU_SPLIT); break;
-        default: PUSH_INSTRUCTION(instructions, .bytecode = BRU_TSWITCH); break;
+        default:
+            PUSH_INSTRUCTION(instructions, .bytecode = BRU_TSWITCH,
+                             .tswitch = stc_vec_default(BruInstruction *));
+            break;
     }
 
     // create list of transition backpatches and insert into front of list
@@ -289,7 +295,7 @@ static void resolve_backpatches(StcVec(BruInstruction) instructions,
                 else
                     instr->split_left = dst;
                 break;
-            case BRU_TSWITCH: stc_vec_push_back(instr->tswitch, dst); break;
+            case BRU_TSWITCH: stc_vec_push_back(&instr->tswitch, dst); break;
 
             case BRU_NOOP:
             case BRU_MATCH:
@@ -340,10 +346,10 @@ StcVec(BruInstruction) bru_smir_compile_with_meta(BruStateMachine *sm,
     BruBackpatch          *tmp;
     size_t                 n, sid;
 
-    stc_vec_default_init(instructions);
-    stc_vec_default_init(mmaps.memo_map);
-    stc_vec_default_init(mmaps.thread_cmap);
-    stc_vec_default_init(mmaps.thread_mmap);
+    stc_vec_default_init(&instructions);
+    stc_vec_default_init(&mmaps.memo_map);
+    stc_vec_default_init(&mmaps.thread_cmap);
+    stc_vec_default_init(&mmaps.thread_mmap);
 
     n                = bru_smir_get_num_states(sm);
     state_start_idxs = malloc((n + 2) * sizeof(*state_start_idxs));

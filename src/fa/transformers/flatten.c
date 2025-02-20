@@ -43,11 +43,11 @@ _transition_sublist(const BruActionList *actions, ...)
         action_set |= (1 << t);
     va_end(args);
 
-    stc_vec_default_init(sublist);
+    stc_vec_default_init(&sublist);
     ali = bru_smir_action_list_iter(actions);
     while ((a = bru_smir_action_list_iterator_next(ali)))
         if (action_set & (1 << bru_smir_action_type(a)))
-            stc_vec_push_back(sublist, a);
+            stc_vec_push_back(&sublist, a);
 
     return sublist;
 }
@@ -234,7 +234,7 @@ static void remove_unnecessary_actions(const BruActionList *actions)
     size_t                    i;
     int                       remove_all = FALSE;
 
-    stc_vec_default_init(unique_elements);
+    stc_vec_default_init(&unique_elements);
     while ((act = bru_smir_action_list_iterator_next(ali))) {
         if (remove_all) {
             bru_smir_action_list_iterator_remove(ali);
@@ -266,7 +266,7 @@ static void remove_unnecessary_actions(const BruActionList *actions)
                         bru_smir_action_list_iterator_remove(ali);
                         goto no_push;
                     }
-                stc_vec_push_back(unique_elements, act);
+                stc_vec_push_back(&unique_elements, act);
             no_push:
                 break;
 
@@ -294,7 +294,7 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
     size_t                 idx, num, satisfiable = TRUE;
 
     // TODO: use Set instead of Vec
-    stc_vec_default_init(epssets);
+    stc_vec_default_init(&epssets);
     ali = bru_smir_action_list_iter(actions);
 
     while ((act = bru_smir_action_list_iterator_next(ali))) {
@@ -313,7 +313,7 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
             case BRU_ACT_WRITE: break;
 
             case BRU_ACT_EPSSET:
-                stc_vec_push_back(epssets, bru_smir_action_get_num(act));
+                stc_vec_push_back(&epssets, bru_smir_action_get_num(act));
                 break;
 
             case BRU_ACT_EPSCHK:
@@ -389,7 +389,7 @@ static UsefulResult transition_is_useful(const BruActionList *new_actions,
     int                  useful = KEEP_BOTH;
     const BruActionList *existing_actions;
 
-    stc_vec_default_init(deleted_transitions);
+    stc_vec_default_init(&deleted_transitions);
     out_trans = bru_smir_get_out_transitions(sm, src, &nout);
     last_idx  = nout - 1;
 
@@ -408,7 +408,7 @@ static UsefulResult transition_is_useful(const BruActionList *new_actions,
                 case KEEP_NEW_ONLY:
                     // TODO: delete transition and carry on
                     last_idx--;
-                    stc_vec_push_back(deleted_transitions, out_trans[i]);
+                    stc_vec_push_back(&deleted_transitions, out_trans[i]);
                     assert(FALSE && "TODO");
 
                 case KEEP_BOTH | KEEP_NEW_ONLY: useful = KEEP_BOTH; break;
@@ -420,7 +420,7 @@ static UsefulResult transition_is_useful(const BruActionList *new_actions,
     }
 
     while (!stc_vec_is_empty(deleted_transitions))
-        bru_smir_remove_transition(sm, stc_vec_pop(deleted_transitions));
+        bru_smir_remove_transition(sm, stc_vec_pop_back(&deleted_transitions));
 
     stc_vec_free(deleted_transitions);
     free(out_trans);
@@ -515,7 +515,7 @@ static void flatten_dfs(bru_state_id       original_src,
                 bru_smir_state_set_actions(
                     globals->new_sm, new_dst,
                     bru_smir_action_list_clone(original_dst_actions));
-                stc_vec_push_back(globals->state_queue, original_dst);
+                stc_vec_push_back(&globals->state_queue, original_dst);
             } else {
                 new_dst = globals->state_map[original_dst];
             }
@@ -576,18 +576,17 @@ flatten(BruStateMachine *original, BruStateMachine *new, FILE *logfile)
     globals->new_sm    = new;
     globals->created   = calloc(nstates, sizeof(*(globals->created)));
     globals->state_map = calloc(nstates, sizeof(*(globals->state_map)));
-    stc_vec_default_init(globals->state_queue);
+    stc_vec_default_init(&globals->state_queue);
     globals->eliminated_path_count = 0;
 
     globals->created[BRU_INITIAL_STATE_ID]   = TRUE;
     globals->state_map[BRU_INITIAL_STATE_ID] = BRU_INITIAL_STATE_ID;
     globals->created[BRU_FINAL_STATE_ID]     = TRUE;
     globals->state_map[BRU_FINAL_STATE_ID]   = BRU_FINAL_STATE_ID;
-    stc_vec_push_front(globals->state_queue, BRU_INITIAL_STATE_ID);
+    stc_vec_push_back(&globals->state_queue, BRU_INITIAL_STATE_ID);
 
     while (!stc_vec_is_empty(globals->state_queue)) {
-        src = globals->state_queue[0];
-        stc_vec_remove(globals->state_queue, 0);
+        src = stc_vec_pop_front(&globals->state_queue);
         flatten_dfs(src, src, path_actions, globals);
     }
 

@@ -98,7 +98,7 @@ BruStateMachine *bru_smir_default(const char *regex)
 
     sm->regex  = regex;
     sm->ninits = 0;
-    stc_vec_default_init(sm->states);
+    stc_vec_default_init(&sm->states);
     BRU_DLL_INIT(sm->initial_functions_sentinel);
 
     return sm;
@@ -110,7 +110,7 @@ BruStateMachine *bru_smir_new(const char *regex, uint32_t nstates)
 
     sm->regex  = regex;
     sm->ninits = 0;
-    stc_vec_init(sm->states, nstates);
+    stc_vec_init(&sm->states, nstates);
     while (nstates--) bru_smir_add_state(sm);
     BRU_DLL_INIT(sm->initial_functions_sentinel);
 
@@ -125,7 +125,7 @@ void bru_smir_free(BruStateMachine *self)
     if (!self) return;
 
     if (self->states) {
-        nstates = stc_vec_len_unsafe(self->states);
+        nstates = stc_vec_len(self->states);
         while (nstates) state_free(&self->states[--nstates]);
         stc_vec_free(self->states);
     }
@@ -142,9 +142,9 @@ bru_state_id bru_smir_add_state(BruStateMachine *self)
 
     BRU_DLL_INIT(state.actions_sentinel);
     BRU_DLL_INIT(state.out_transitions_sentinel);
-    stc_vec_push_back(self->states, state);
+    stc_vec_push_back(&self->states, state);
 
-    return stc_vec_len_unsafe(self->states);
+    return stc_vec_len(self->states);
 }
 
 size_t bru_smir_get_num_states(BruStateMachine *self)
@@ -881,8 +881,8 @@ void bru_smir_reorder_states(BruStateMachine *self, bru_state_id *sid_ordering)
     }
 
     // reorder the states in the states array
-    stc_vec_init(states, nstates);
-    if (nstates) stc_vec_len_unsafe(states) = nstates;
+    stc_vec_init(&states, nstates);
+    if (nstates) stc_vec_len(states) = nstates;
     for (sid = 1; sid <= nstates; sid++)
         states[sid_ordering[sid - 1] - 1] = self->states[sid - 1];
 

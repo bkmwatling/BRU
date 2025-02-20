@@ -38,9 +38,9 @@ BruScheduler *bru_lockstep_scheduler_new(BruThreadManager *tm)
     ts->tm          = tm;
     ts->in_lockstep = FALSE;
     ts->curr_idx    = 0;
-    stc_vec_default_init(ts->curr); // NOLINT(bugprone-sizeof-expression)
-    stc_vec_default_init(ts->next); // NOLINT(bugprone-sizeof-expression)
-    stc_vec_default_init(ts->sync); // NOLINT(bugprone-sizeof-expression)
+    stc_vec_default_init(&ts->curr); // NOLINT(bugprone-sizeof-expression)
+    stc_vec_default_init(&ts->next); // NOLINT(bugprone-sizeof-expression)
+    stc_vec_default_init(&ts->sync); // NOLINT(bugprone-sizeof-expression)
 
     s->impl              = ts;
     s->init              = lockstep_scheduler_init;
@@ -63,12 +63,11 @@ bru_lockstep_scheduler_remove_low_priority_threads(BruScheduler *self)
 
     if (ncurr) {
         // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_init(threads, ncurr);
+        stc_vec_init(&threads, ncurr);
 
-        for (i = 0; i < ncurr; i++) {
+        for (i = 0; i < ncurr; i++)
             // NOLINTNEXTLINE(bugprone-sizeof-expression)
-            stc_vec_push_back(threads, stc_vec_pop(ls->curr));
-        }
+            stc_vec_push_back(&threads, stc_vec_pop_back(&ls->curr));
     }
 
     return threads;
@@ -96,17 +95,17 @@ static void lockstep_schedule_char_match_instr(BruLockstepScheduler *self,
 
     if (stc_vec_is_empty(self->next))
         // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_push_back(self->sync, thread);
+        stc_vec_push_back(&self->sync, thread);
     else
         // NOLINTNEXTLINE(bugprone-sizeof-expression)
-        stc_vec_push_back(self->next, thread);
+        stc_vec_push_back(&self->next, thread);
 }
 
 static void lockstep_schedule_non_char_match_instr(BruLockstepScheduler *self,
                                                    BruThread            *thread)
 {
     // NOLINTNEXTLINE(bugprone-sizeof-expression)
-    stc_vec_push_back(self->next, thread);
+    stc_vec_push_back(&self->next, thread);
 }
 
 static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
@@ -165,7 +164,7 @@ static BruThread *lockstep_scheduler_next(void *impl)
 lockstep_scheduler_next_start:
     if (self->curr_idx >= stc_vec_len(self->curr)) {
         self->curr_idx = 0;
-        stc_vec_clear(self->curr);
+        stc_vec_clear(&self->curr);
         if (stc_vec_is_empty(self->next)) {
             self->in_lockstep = TRUE;
             tmp               = self->curr;

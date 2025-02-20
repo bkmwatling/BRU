@@ -55,8 +55,8 @@ BruProgram *bru_program_new(const char *regex,
     BruProgram *prog = calloc(1, sizeof(*prog));
 
     prog->regex = regex;
-    stc_vec_init(prog->insts, insts_len);
-    stc_vec_init(prog->aux, aux_len);
+    stc_vec_init(&prog->insts, insts_len);
+    stc_vec_init(&prog->aux, aux_len);
     prog->nmemo_insts    = nmemo_insts;
     prog->ncaptures      = ncaptures;
     prog->ncounters      = ncounters;
@@ -73,8 +73,8 @@ BruProgram *bru_program_default(const char *regex)
     BruProgram *prog = calloc(1, sizeof(*prog));
 
     prog->regex = regex;
-    stc_vec_default_init(prog->insts);
-    stc_vec_default_init(prog->aux);
+    stc_vec_default_init(&prog->insts);
+    stc_vec_default_init(&prog->aux);
 
     memset(prog->insts, 0, STC_VEC_DEFAULT_CAP * sizeof(bru_byte_t));
     memset(prog->aux, 0, STC_VEC_DEFAULT_CAP * sizeof(bru_byte_t));
@@ -94,7 +94,7 @@ void bru_program_print(const BruProgram *self, FILE *stream)
 {
     bru_len_t         i         = 0;
     const bru_byte_t *pc        = self->insts,
-                     *insts_end = pc + stc_vec_len_unsafe(self->insts);
+                     *insts_end = pc + stc_vec_len(self->insts);
 
     while (pc < insts_end) {
         fprintf(stream, "%4d: ", i++);

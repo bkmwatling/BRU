@@ -72,7 +72,7 @@ BRU_SRC        := $(SRCDIR)/$(BRU_EXE).c
 TEST_BRU_SRC   := $(TEST_SRCDIR)/$(TEST_EXE).c
 EXE_SRC        := $(BRU_SRC) $(TEST_BRU_SRC)
 
-FATP_SRC       := slice.c string_view.c vec.c
+FATP_SRC       := str_view.c vec.c
 UTIL_SRC       := argparser.c utf.c
 STC_SRC        := $(addprefix $(STCDIR)/src/fatp/, $(FATP_SRC)) \
                   $(addprefix $(STCDIR)/src/util/, $(UTIL_SRC))

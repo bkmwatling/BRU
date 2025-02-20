@@ -22,12 +22,12 @@
 /**
  * Push a bytecode to the end of an instruction byte stream.
  *
- * @param[in] insts    the instruction byte stream
- * @param[in] bytecode the bytecode to push onto the instruction byte stream
+ * @param[in] insts_ptr a pointer to the instruction byte stream
+ * @param[in] bytecode  the bytecode to push onto the instruction byte stream
  *
  * @return the bytecode pushed to the byte stream
  */
-#define BRU_BCPUSH(insts, bytecode) stc_vec_push_back(insts, bytecode)
+#define BRU_BCPUSH(insts_ptr, bytecode) stc_vec_push_back(insts_ptr, bytecode)
 
 /**
  * Read the bytecode from PC, and move PC past the bytecode in the underlying
@@ -55,30 +55,30 @@
 /**
  * Push a value of a given type to end of a byte stream.
  *
- * @param[in] bytes the byte stream
- * @param[in] type  the type of the value to push onto the byte stream
- * @param[in] val   the value to push onto the byte stream
+ * @param[in] bytes_ptr a pointer to the byte stream
+ * @param[in] type      the type of the value to push onto the byte stream
+ * @param[in] val       the value to push onto the byte stream
  */
-#define BRU_MEMPUSH(bytes, type, val)                                      \
-    do {                                                                   \
-        stc_vec_reserve(bytes, sizeof(type));                              \
-        *((type *) ((bytes) + stc_vec_len_unsafe(bytes)))  = (val);        \
-        stc_vec_len_unsafe(bytes)                         += sizeof(type); \
+#define BRU_MEMPUSH(bytes_ptr, type, val)                                       \
+    do {                                                                        \
+        stc_vec_reserve(bytes_ptr, sizeof(type));                               \
+        *((type *) (*(bytes_ptr) + stc_vec_len(*(bytes_ptr))))  = (val);        \
+        stc_vec_len(*(bytes_ptr))                              += sizeof(type); \
     } while (0)
 
 /**
  * Copy a given number of bytes of memory from a given memory address to the end
  * of a byte stream.
  *
- * @param[in] bytes the byte stream
- * @param[in] src   the memory address to copy from
- * @param[in] size  the number of bytes to copy
+ * @param[in] bytes_ptr a pointer to the byte stream
+ * @param[in] src       the memory address to copy from
+ * @param[in] size      the number of bytes to copy
  */
-#define BRU_MEMCPY(bytes, src, size)                                \
-    do {                                                            \
-        stc_vec_reserve(bytes, size);                               \
-        memcpy((bytes) + stc_vec_len_unsafe(bytes), (src), (size)); \
-        stc_vec_len_unsafe(bytes) += (size);                        \
+#define BRU_MEMCPY(bytes_ptr, src, size)                                 \
+    do {                                                                 \
+        stc_vec_reserve(bytes_ptr, size);                                \
+        memcpy(*(bytes_ptr) + stc_vec_len(*(bytes_ptr)), (src), (size)); \
+        stc_vec_len(*(bytes_ptr)) += (size);                             \
     } while (0)
 
 /**

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <stc/fatp/string_view.h>
+#include <stc/fatp/str_view.h>
 #include <stc/util/utf.h>
 
 #include <bru/cli.h>
@@ -70,7 +70,7 @@ static int match(BruOptions *options)
     BruProgram       *prog;
     BruThreadManager *thread_manager = NULL;
     BruSRVM          *srvm;
-    StcStringView     capture;
+    StcStrView        capture;
     bru_len_t         i;
     size_t            ncodepoints;
     BruSRVMMatch     *match;

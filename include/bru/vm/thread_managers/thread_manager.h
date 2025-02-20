@@ -44,11 +44,12 @@
  * Use the bru_thread_manager_kill macro defined above to kill a thread manager
  * and deallocate all of its memory.
  */
-#define _bru_thread_manager_free(manager)                                     \
-    do {                                                                      \
-        bru_vt_call_procedure(manager, free);                                 \
-        while (!stc_vec_is_empty((manager)->table))                           \
-            bru_thread_manager_interface_free(stc_vec_pop((manager)->table)); \
+#define _bru_thread_manager_free(manager)             \
+    do {                                              \
+        bru_vt_call_procedure(manager, free);         \
+        while (!stc_vec_is_empty((manager)->table))   \
+            bru_thread_manager_interface_free(        \
+                stc_vec_pop_back(&(manager)->table)); \
     } while (0)
 
 /**

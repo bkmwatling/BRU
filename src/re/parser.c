@@ -227,12 +227,12 @@ BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
                          .in_lookahead = FALSE,
                          .captures     = NULL,
                          .next_rid     = 0 };
-    stc_vec_default_init(ps.captures);
+    stc_vec_default_init(&ps.captures);
     if (self->opts.whole_match_capture) {
         // reserve space for whole capture at index 0
         // mainly used to correctly calculate valid values for `k` in \k
         // (backrefs)
-        stc_vec_push_back(ps.captures, NULL);
+        stc_vec_push_back(&ps.captures, NULL);
     }
     BruParseResult res = parse_alt(self, &ps, &r);
     unsigned int   i;
@@ -734,7 +734,7 @@ static BruParseResult parse_paren(const BruParser *self,
             if (!ps->in_lookahead) capture_idx = stc_vec_len(ps->captures);
 
             // reserve space for capture
-            stc_vec_push_back(ps->captures, NULL);
+            stc_vec_push_back(&ps->captures, NULL);
 
             ps_tmp =
                 (BruParseState) { .unsupported_feats = ps->unsupported_feats,

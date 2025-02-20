@@ -6,8 +6,7 @@
 /* --- Preprocessor macros -------------------------------------------------- */
 
 #define PUSH_INSTRUCTION(instruction_vec_ptr, ...) \
-    stc_vec_push_back(*(instruction_vec_ptr),      \
-                      ((BruInstruction) { __VA_ARGS__ }))
+    stc_vec_push_back(instruction_vec_ptr, ((BruInstruction) { __VA_ARGS__ }))
 
 /* --- Data structures ------------------------------------------------------ */
 

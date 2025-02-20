@@ -1,7 +1,7 @@
 #ifndef BRU_VM_SRVM_H
 #define BRU_VM_SRVM_H
 
-#include <stc/fatp/string_view.h>
+#include <stc/fatp/str_view.h>
 
 #include <bru/vm/thread_managers/thread_manager.h>
 
@@ -10,11 +10,11 @@
 typedef struct bru_srvm BruSRVM;
 
 typedef struct {
-    StcStringView *captures; /**< the recorded match's captures               */
-    bru_byte_t    *bytes;    /**< the recorded match's output bytes           */
+    StcStrView *captures; /**< the recorded match's captures                  */
+    bru_byte_t *bytes;    /**< the recorded match's output bytes              */
 
     bru_len_t ncaptures; /**< the number of captures                          */
-    size_t    nbytes; /**< the number of bytes                                */
+    size_t    nbytes;    /**< the number of bytes                             */
 } BruSRVMMatch;
 
 #if !defined(BRU_VM_SRVM_DISABLE_SHORT_NAMES) && \

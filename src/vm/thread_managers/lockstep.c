@@ -239,10 +239,12 @@ static void lockstep_thread_manager_notify_thread_match(BruThreadManager *tm,
 
     low_priority_threads =
         bru_lockstep_scheduler_remove_low_priority_threads(ts);
-    nthreads = stc_vec_len(low_priority_threads);
-    for (i = 0; i < nthreads; i++)
-        bru_thread_manager_kill_thread(tm, low_priority_threads[i]);
-    stc_vec_free(low_priority_threads);
+    if ((nthreads =
+             low_priority_threads ? stc_vec_len(low_priority_threads) : 0)) {
+        for (i = 0; i < nthreads; i++)
+            bru_thread_manager_kill_thread(tm, low_priority_threads[i]);
+        stc_vec_free(low_priority_threads);
+    }
 }
 
 static BruThread *lockstep_thread_manager_clone_thread(BruThreadManager *tm,

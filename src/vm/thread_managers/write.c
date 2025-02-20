@@ -5,9 +5,10 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define WRITABLE_THREAD_SIZE (sizeof(StcVecHeader) + sizeof(bru_byte_t *))
+#define WRITABLE_THREAD_SIZE \
+    (sizeof(struct stc_vec_header) + sizeof(bru_byte_t *))
 #define WRITABLE_THREAD_FROM_INSTANCE(instance, thread) \
-    (BRU_THREAD_FROM_INSTANCE(instance, thread) + sizeof(StcVecHeader))
+    (BRU_THREAD_FROM_INSTANCE(instance, thread) + sizeof(struct stc_vec_header))
 
 /* --- Function prototypes -------------------------------------------------- */
 
@@ -56,7 +57,7 @@ static BruThread *thread_alloc_with_write(BruThreadManager *tm)
     StcVec(bru_byte_t) *twb =
         (StcVec(bru_byte_t) *) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
 
-    stc_vec_default_init(*twb);
+    stc_vec_default_init(twb);
 
     return thread;
 }
@@ -72,8 +73,8 @@ static void thread_copy_with_write(BruThreadManager *tm,
         (StcVec(bru_byte_t) *) WRITABLE_THREAD_FROM_INSTANCE(tmi, dst);
     size_t i, len_src = stc_vec_len(*twb_src);
 
-    stc_vec_clear(*twb_dst);
-    for (i = 0; i < len_src; i++) stc_vec_push_back(*twb_dst, (*twb_src)[i]);
+    stc_vec_clear(twb_dst);
+    for (i = 0; i < len_src; i++) stc_vec_push_back(twb_dst, (*twb_src)[i]);
     bru_vt_call_super_procedure(tm, tmi, copy_thread, src, dst);
 }
 
@@ -94,7 +95,7 @@ thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte)
     StcVec(bru_byte_t)        *twb =
         (StcVec(bru_byte_t) *) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
 
-    stc_vec_push_back(*twb, byte);
+    stc_vec_push_back(twb, byte);
 }
 
 static bru_byte_t *

@@ -91,10 +91,10 @@ bru_transform_from_transitions(BruStateMachine       *old_sm,
 
     new_sm = bru_smir_default(bru_smir_get_regex(old_sm));
 
-    if (!stc_slice_len_unsafe(transitions)) return new_sm;
+    if (!stc_slice_len(transitions)) return new_sm;
 
     states = calloc(bru_smir_get_num_states(old_sm), sizeof(*states));
-    for (i = 0; i < stc_slice_len_unsafe(transitions); i++) {
+    for (i = 0; i < stc_slice_len(transitions); i++) {
         old_tid = transitions[i];
 
         // for each transition, compute the new state identifiers
@@ -167,13 +167,13 @@ BruStateMachine *bru_transform_with_trans(BruStateMachine       *sm,
 
     if (!(tpf && sm)) return sm;
 
-    stc_vec_default_init(transitions);
+    stc_vec_default_init(&transitions);
 
     for (sid = 1; sid <= bru_smir_get_num_states(sm); sid++) {
         out_trans = bru_smir_get_out_transitions(sm, sid, &n);
         for (i = 0; i < n; i++)
             if (tpf(sm, out_trans[i]))
-                stc_vec_push_back(transitions, out_trans[i]);
+                stc_vec_push_back(&transitions, out_trans[i]);
         if (out_trans) free(out_trans);
     }
 

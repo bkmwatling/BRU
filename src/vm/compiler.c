@@ -136,8 +136,8 @@ static void populate_memory_requirements(StcVec(BruInstruction) instructions,
         }
     }
 
-    stc_vec_reserve(prog->insts, program_size);
-    stc_vec_len_unsafe(prog->insts) = program_size * sizeof(*prog->insts);
+    stc_vec_reserve(&prog->insts, program_size);
+    stc_vec_len(prog->insts) = program_size * sizeof(*prog->insts);
 }
 
 static bru_offset_t compute_offset(size_t jmp_start, size_t jmp_end)
@@ -166,7 +166,7 @@ static bru_byte_t *compile_instruction(bru_byte_t    *pc,
         case BRU_CHAR: BRU_MEMWRITE(pc, const char *, instruction.ch); break;
         case BRU_PRED:
             BRU_MEMWRITE(pc, bru_len_t, stc_vec_len(prog->aux));
-            BRU_MEMCPY(prog->aux, instruction.pred,
+            BRU_MEMCPY(&prog->aux, instruction.pred,
                        sizeof(*instruction.pred) +
                            instruction.pred->len *
                                sizeof(*instruction.pred->intervals));

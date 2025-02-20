@@ -48,33 +48,34 @@
         StcVec(interface_type *) table;      /**< StcVec of interfaces      */ \
     }
 
-#define bru_vt_save_curr_idx(vt)    (stc_vec_push_back((vt)->call_stack, (vt)->i))
-#define bru_vt_restore_curr_idx(vt) ((vt)->i = stc_vec_pop((vt)->call_stack))
-#define bru_vt_curr(vt)             ((vt)->table[(vt)->i])
-#define bru_vt_curr_idx(vt)         (bru_vt_curr(vt)->__vt_idx)
-#define bru_vt_curr_impl(vt)        (bru_vt_curr(vt)->__vt_impl)
-#define bru_vt_super_idx(instance)  ((instance)->__vt_idx - 1)
-#define bru_vt_super(vt, instance)  ((vt)->table[bru_vt_super_idx(instance)])
-#define bru_vt_leaf_idx(vt)         (stc_vec_len((vt)->table) - 1)
+#define bru_vt_save_curr_idx(vt) (stc_vec_push_back(&(vt)->call_stack, (vt)->i))
+#define bru_vt_restore_curr_idx(vt) \
+    ((vt)->i = stc_vec_pop_back(&(vt)->call_stack))
+#define bru_vt_curr(vt)            ((vt)->table[(vt)->i])
+#define bru_vt_curr_idx(vt)        (bru_vt_curr(vt)->__vt_idx)
+#define bru_vt_curr_impl(vt)       (bru_vt_curr(vt)->__vt_impl)
+#define bru_vt_super_idx(instance) ((instance)->__vt_idx - 1)
+#define bru_vt_super(vt, instance) ((vt)->table[bru_vt_super_idx(instance)])
+#define bru_vt_leaf_idx(vt)        (stc_vec_len((vt)->table) - 1)
 
 #define bru_vt_extend(vt, instance)                      \
     do {                                                 \
         (instance)->__vt_idx = stc_vec_len((vt)->table); \
-        stc_vec_push_back((vt)->table, instance);        \
+        stc_vec_push_back(&(vt)->table, instance);       \
         (vt)->i = bru_vt_leaf_idx(vt);                   \
     } while (0)
-#define bru_vt_shrink(vt)              \
-    do {                               \
-        stc_vec_pop((vt)->table);      \
-        (vt)->i = bru_vt_leaf_idx(vt); \
+#define bru_vt_shrink(vt)               \
+    do {                                \
+        stc_vec_pop_back(&(vt)->table); \
+        (vt)->i = bru_vt_leaf_idx(vt);  \
     } while (0)
 
-#define bru_vt_init(vt, base)                   \
-    do {                                        \
-        (vt)->i = 0;                            \
-        stc_vec_default_init((vt)->call_stack); \
-        stc_vec_default_init((vt)->table);      \
-        bru_vt_extend(vt, base);                \
+#define bru_vt_init(vt, base)                    \
+    do {                                         \
+        (vt)->i = 0;                             \
+        stc_vec_default_init(&(vt)->call_stack); \
+        stc_vec_default_init(&(vt)->table);      \
+        bru_vt_extend(vt, base);                 \
     } while (0)
 #define bru_vt_release(vt)              \
     do {                                \

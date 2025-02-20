@@ -50,12 +50,12 @@ void bru_optimise_remove_dead_code(StcVec(BruInstruction) instructions)
     StcVec(BruInstruction *) dfs_stack;
     BruInstruction          *curr;
 
-    stc_vec_default_init(dfs_stack);
+    stc_vec_default_init(&dfs_stack);
 
-    stc_vec_push_back(dfs_stack, instructions);
+    stc_vec_push_back(&dfs_stack, instructions);
 
     while (!stc_vec_is_empty(dfs_stack)) {
-        curr                           = stc_vec_pop(dfs_stack);
+        curr                           = stc_vec_pop_back(&dfs_stack);
         reachable[curr - instructions] = TRUE;
 
         switch (curr->bytecode) {
@@ -63,20 +63,20 @@ void bru_optimise_remove_dead_code(StcVec(BruInstruction) instructions)
             case BRU_GSPLIT:
             case BRU_LSPLIT:
                 if (UNEXPLORED(curr->jmp))
-                    stc_vec_push_back(dfs_stack, curr->jmp);
+                    stc_vec_push_back(&dfs_stack, curr->jmp);
                 break;
 
             case BRU_SPLIT:
                 if (UNEXPLORED(curr->split_left))
-                    stc_vec_push_back(dfs_stack, curr->split_left);
+                    stc_vec_push_back(&dfs_stack, curr->split_left);
                 if (UNEXPLORED(curr->split_right))
-                    stc_vec_push_back(dfs_stack, curr->split_right);
+                    stc_vec_push_back(&dfs_stack, curr->split_right);
                 break;
 
             case BRU_TSWITCH:
                 for (i = 0, m = stc_vec_len(curr->tswitch); i < m; i++)
                     if (UNEXPLORED(curr->tswitch[i]))
-                        stc_vec_push_back(dfs_stack, curr->tswitch[i]);
+                        stc_vec_push_back(&dfs_stack, curr->tswitch[i]);
                 break;
 
             case BRU_MATCH:
@@ -102,7 +102,7 @@ void bru_optimise_remove_dead_code(StcVec(BruInstruction) instructions)
             case BRU_WRITE0:
             case BRU_WRITE1:
                 if (UNEXPLORED(curr + 1))
-                    stc_vec_push_back(dfs_stack, curr + 1);
+                    stc_vec_push_back(&dfs_stack, curr + 1);
                 break;
 
             case BRU_NBYTECODES: assert(FALSE && "UNREACHABLE"); break;
