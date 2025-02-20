@@ -1250,66 +1250,55 @@ parse_posix_cc(BruParseState *ps, BruIntervalList *list /**< out parameter */)
     BruIntervalListItem *item;
     BruParseResult       res = { BRU_PARSE_SUCCESS, NULL };
 
-    if (strcmp(ps->ch, "[:alnum:]") == 0) {
+#define MATCH_EXACT(s) \
+    (strncmp(ps->ch, s, sizeof(s) - 1) == 0 && (ps->ch += sizeof(s) - 1))
+
+    if (MATCH_EXACT("[:alnum:]")) {
         PUSH_INTERVAL("A", "Z");
         PUSH_INTERVAL("a", "z");
         PUSH_INTERVAL("0", "9");
-        ps->ch += sizeof("[:alnum:]") - 1;
-    } else if (strcmp(ps->ch, "[:alpha:]") == 0) {
+    } else if (MATCH_EXACT("[:alpha:]")) {
         PUSH_INTERVAL("A", "Z");
         PUSH_INTERVAL("a", "z");
-        ps->ch += sizeof("[:alpha:]") - 1;
-    } else if (strcmp(ps->ch, "[:ascii:]") == 0) {
+    } else if (MATCH_EXACT("[:ascii:]")) {
         PUSH_INTERVAL("\x00", "\x7f");
-        ps->ch += sizeof("[:ascii:]") - 1;
-    } else if (strcmp(ps->ch, "[:blank:]") == 0) {
+    } else if (MATCH_EXACT("[:blank:]")) {
         PUSH_CHAR(" ");
         PUSH_CHAR("\t");
-        ps->ch += sizeof("[:blank:]") - 1;
-    } else if (strcmp(ps->ch, "[:cntrl:]") == 0) {
+    } else if (MATCH_EXACT("[:cntrl:]")) {
         PUSH_INTERVAL("\x00", "\x1f");
         PUSH_CHAR("\x7f");
-        ps->ch += sizeof("[:cntrl:]") - 1;
-    } else if (strcmp(ps->ch, "[:digit:]") == 0) {
+    } else if (MATCH_EXACT("[:digit:]")) {
         PUSH_INTERVAL("0", "9");
-        ps->ch += sizeof("[:digit:]") - 1;
-    } else if (strcmp(ps->ch, "[:graph:]") == 0) {
+    } else if (MATCH_EXACT("[:graph:]")) {
         PUSH_INTERVAL("\x21", "\x7e");
-        ps->ch += sizeof("[:graph:]") - 1;
-    } else if (strcmp(ps->ch, "[:lower:]") == 0) {
+    } else if (MATCH_EXACT("[:lower:]")) {
         PUSH_INTERVAL("a", "z");
-        ps->ch += sizeof("[:lower:]") - 1;
-    } else if (strcmp(ps->ch, "[:print:]") == 0) {
+    } else if (MATCH_EXACT("[:print:]")) {
         PUSH_INTERVAL("\x20", "\x7e");
-        ps->ch += sizeof("[:print:]") - 1;
-    } else if (strcmp(ps->ch, "[:punct:]") == 0) {
+    } else if (MATCH_EXACT("[:punct:]")) {
         PUSH_INTERVAL("!", "/");
         PUSH_INTERVAL(":", "@");
         PUSH_INTERVAL("[", "`");
         PUSH_INTERVAL("{", "~");
-        ps->ch += sizeof("[:punct:]") - 1;
-    } else if (strcmp(ps->ch, "[:space:]") == 0) {
+    } else if (MATCH_EXACT("[:space:]")) {
         PUSH_CHAR(" ");
         PUSH_CHAR("\t");
         PUSH_CHAR("\f");
         PUSH_CHAR("\n");
         PUSH_CHAR("\r");
         PUSH_CHAR("\v");
-        ps->ch += sizeof("[:space:]") - 1;
-    } else if (strcmp(ps->ch, "[:upper:]") == 0) {
+    } else if (MATCH_EXACT("[:upper:]")) {
         PUSH_INTERVAL("A", "Z");
-        ps->ch += sizeof("[:upper:]") - 1;
-    } else if (strcmp(ps->ch, "[:word:]") == 0) {
+    } else if (MATCH_EXACT("[:word:]")) {
         PUSH_INTERVAL("A", "Z");
         PUSH_INTERVAL("a", "z");
         PUSH_INTERVAL("0", "9");
         PUSH_CHAR("_");
-        ps->ch += sizeof("[:word:]") - 1;
-    } else if (strcmp(ps->ch, "[:xdigit:]") == 0) {
+    } else if (MATCH_EXACT("[:xdigit:]")) {
         PUSH_INTERVAL("0", "9");
         PUSH_INTERVAL("A", "F");
         PUSH_INTERVAL("a", "f");
-        ps->ch += sizeof("[:xdigit:]") - 1;
     } else {
         res.code = BRU_PARSE_NO_MATCH;
     }
