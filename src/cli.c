@@ -9,15 +9,15 @@
 #include <bru/utils.h>
 #include <bru/vm/compilers/smir.h>
 #include <bru/vm/srvm.h>
-#include <bru/vm/thread_managers/benchmark.h>
-#include <bru/vm/thread_managers/captures.h>
-#include <bru/vm/thread_managers/counters.h>
-#include <bru/vm/thread_managers/lockstep.h>
-#include <bru/vm/thread_managers/memoisation.h>
-#include <bru/vm/thread_managers/memory.h>
-#include <bru/vm/thread_managers/spencer.h>
-#include <bru/vm/thread_managers/thread_pool.h>
-#include <bru/vm/thread_managers/write.h>
+#include <bru/vm/thread/managers/benchmark.h>
+#include <bru/vm/thread/managers/captures.h>
+#include <bru/vm/thread/managers/counters.h>
+#include <bru/vm/thread/managers/lockstep.h>
+#include <bru/vm/thread/managers/memoisation.h>
+#include <bru/vm/thread/managers/memory.h>
+#include <bru/vm/thread/managers/pool.h>
+#include <bru/vm/thread/managers/spencer.h>
+#include <bru/vm/thread/managers/write.h>
 
 /* --- Command-line argument functions -------------------------------------- */
 

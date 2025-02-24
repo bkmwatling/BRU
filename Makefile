@@ -82,8 +82,8 @@ FA_SRC         := $(wildcard $(FADIR)/*.c) \
                   $(wildcard $(FADIR)/constructions/*.c) \
                   $(wildcard $(FADIR)/transformers/*.c)
 VM_SRC         := $(wildcard $(VMDIR)/*.c) \
-                  $(wildcard $(VMDIR)/thread_managers/*.c) \
-                  $(wildcard $(VMDIR)/thread_managers/schedulers/*.c) \
+                  $(wildcard $(VMDIR)/thread/managers/*.c) \
+                  $(wildcard $(VMDIR)/thread/schedulers/*.c) \
                   $(wildcard $(VMDIR)/compilers/*.c)
 
 SRC            := $(filter-out $(EXE_SRC), $(wildcard $(SRCDIR)/*.c)) \

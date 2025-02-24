@@ -3,7 +3,7 @@
 
 #include <stc/fatp/str_view.h>
 
-#include <bru/vm/thread_managers/thread_manager.h>
+#include <bru/vm/thread/managers/manager.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 
