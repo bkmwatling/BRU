@@ -13,7 +13,7 @@
 
 typedef enum { BRU_THOMPSON, BRU_GLUSHKOV, BRU_FLAT } BruConstruction;
 
-typedef enum { SCH_SPENCER, SCH_LOCKSTEP } SchedulerType;
+typedef enum { SCH_BACKTRACK, SCH_LOCKSTEP } SchedulerType;
 
 typedef struct {
     BruConstruction      construction;

@@ -50,7 +50,7 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   is more portable and is better practice to use. As such, the project should be
   ported to use `stdbool` where necessary.
 
-- [ ] Change Spencer thread manager and scheduler to backtrack
+- [x] Change Spencer thread manager and scheduler to backtrack
 
   **Files:** `vm/thread_managers/spencer.[ch]` and
     `vm/thread_mangers/schedulers/spencer.[ch]`  
@@ -58,6 +58,8 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   **Date reported:** 2024-10-18  
   **Reported by:** [bkmwatling][bkmwatling]  
   **Relevant branch:** `refactor/spencer-to-backtrack`
+  **Date fixed:** 2025-02-24  
+  **Fixed by:**  [bkmwatling][bkmwatling]
 
   For symmetry, the _Spencer_ thread manager and scheduler should be changed to
   _backtrack_ similar to how the _Thompson_ thread manager and scheduler have
@@ -165,13 +167,15 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   be deferred to the optimisation transform. In any case this issue to be a
   reminder that counters don't work with the flatten transform.
 
-- [ ] Add instruction IR for better code optimisation
+- [x] Add instruction IR for better code optimisation
 
   **File:** `fa/smir.c`  
   **Location:** function `bru_smir_compile` and its derivatives  
   **Date reported:** 2025-01-23  
   **Reported by:** [aroodt][aroodt]  
-  **Relevant branch:** `feature/instruction-ir`
+  **Relevant branch:** `feature/instruction-ir`  
+  **Date fixed:** 2025-02-05  
+  **Fixed by:**  [aroodt][arroodt]
 
   Compilers for programming languages typically implement an intermendiate
   representation consisting of a sequence of tuples containing the bytecode and
@@ -182,13 +186,15 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   identification may be possible in the existing SMIR, but it would require
   more contemplation.
 
-- [ ] Move SMIR compilation algorithm to `/vm/`
+- [x] Move SMIR compilation algorithm to `/vm/`
 
   **File:** `fa/smir.c`  
   **Location:** function `bru_smir_compile` and its derivatives  
   **Date reported:** 2025-01-23  
   **Reported by:** [aroodt][aroodt]  
   **Relevant branch:** `refactor/smir-compilation`
+  **Date fixed:** 2025-02-05  
+  **Fixed by:**  [aroodt][arroodt]
 
   BRU's codebase structure gives clear separation between machinery used for
   parsing (the `re` folder), finite automata (the `fa` folder), and the virtual
@@ -211,13 +217,15 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   compiled once and reused for multiple tests. This will also provide save
   points in the event of code crashing during data collection, meaning
 
-- [ ] Posix character classes not recognised during parsing
+- [x] Posix character classes not recognised during parsing
 
   **File:** `re/parser.c`  
   **Location:** function `parse_posix_cc`  
   **Date reported:** 2025-01-24  
   **Reported by:** [aroodt][aroodt]  
   **Relevant branch:** `fix/posix-cc`
+  **Date fixed:** 2025-02-20  
+  **Fixed by:**  [aroodt][arroodt]
 
   Posix character classes are not correctly recognised during parsing due to
   the use of `strcmp`. This causes classes like "[:alnum:]" to be compared with

@@ -9,6 +9,7 @@
 #include <bru/utils.h>
 #include <bru/vm/compilers/smir.h>
 #include <bru/vm/srvm.h>
+#include <bru/vm/thread/managers/backtrack.h>
 #include <bru/vm/thread/managers/benchmark.h>
 #include <bru/vm/thread/managers/captures.h>
 #include <bru/vm/thread/managers/counters.h>
@@ -16,7 +17,6 @@
 #include <bru/vm/thread/managers/memoisation.h>
 #include <bru/vm/thread/managers/memory.h>
 #include <bru/vm/thread/managers/pool.h>
-#include <bru/vm/thread/managers/spencer.h>
 #include <bru/vm/thread/managers/write.h>
 
 /* --- Command-line argument functions -------------------------------------- */
@@ -101,8 +101,8 @@ static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
 {
     SchedulerType *type = out;
 
-    if (strcmp(arg, "spencer") == 0)
-        *type = SCH_SPENCER;
+    if (strcmp(arg, "backtrack") == 0 || strcmp(arg, "spencer") == 0)
+        *type = SCH_BACKTRACK;
     else if (strcmp(arg, "lockstep") == 0 || strcmp(arg, "thompson") == 0)
         *type = SCH_LOCKSTEP;
     else
@@ -183,9 +183,9 @@ static void add_compilation_args(StcArgParser *ap, BruOptions *options)
 static void add_matching_args(StcArgParser *ap, BruOptions *options)
 {
     stc_argparser_add_custom_option(
-        ap, "-s", "--scheduler", "spencer | lockstep | thompson",
+        ap, "-s", "--scheduler", "backtrack | spencer | lockstep | thompson",
         "which scheduler to use for execution", &options->match.scheduler_type,
-        "spencer", convert_scheduler_type);
+        "backtrack", convert_scheduler_type);
     stc_argparser_add_bool_option(
         ap, "-b", "--benchmark",
         "whether to benchmark SRVM execution, writing to the logfile",
@@ -334,8 +334,8 @@ BruThreadManager *bru_cli_make_thread_manager(BruOptions       *options,
 {
     BruThreadManager *thread_manager;
 
-    if (options->match.scheduler_type == SCH_SPENCER)
-        thread_manager = bru_spencer_thread_manager_new();
+    if (options->match.scheduler_type == SCH_BACKTRACK)
+        thread_manager = bru_backtrack_thread_manager_new();
     else if (options->match.scheduler_type == SCH_LOCKSTEP)
         thread_manager = bru_lockstep_thread_manager_new();
 
