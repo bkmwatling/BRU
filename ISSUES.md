@@ -57,7 +57,7 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   **Location:** Whole files  
   **Date reported:** 2024-10-18  
   **Reported by:** [bkmwatling][bkmwatling]  
-  **Relevant branch:** `refactor/spencer-to-backtrack`
+  **Relevant branch:** `refactor/spencer-to-backtrack`  
   **Date fixed:** 2025-02-24  
   **Fixed by:**  [bkmwatling][bkmwatling]
 
@@ -192,7 +192,7 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   **Location:** function `bru_smir_compile` and its derivatives  
   **Date reported:** 2025-01-23  
   **Reported by:** [aroodt][aroodt]  
-  **Relevant branch:** `refactor/smir-compilation`
+  **Relevant branch:** `refactor/smir-compilation`  
   **Date fixed:** 2025-02-05  
   **Fixed by:**  [aroodt][arroodt]
 
@@ -223,17 +223,18 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   **Location:** function `parse_posix_cc`  
   **Date reported:** 2025-01-24  
   **Reported by:** [aroodt][aroodt]  
-  **Relevant branch:** `fix/posix-cc`
+  **Relevant branch:** `fix/posix-cc`  
   **Date fixed:** 2025-02-20  
   **Fixed by:**  [aroodt][arroodt]
 
   Posix character classes are not correctly recognised during parsing due to
-  the use of `strcmp`. This causes classes like "[:alnum:]" to be compared with
-  the remainder of the regex being parsed. This will never result in a match
-  since, at minimum, the valid regex could be "[[:alnum:]]", resulting in a
-  call `strcmp("[:alnum:]", "[:alnum:]]")`. While a prefix tree (possibly a
-  radix tree) would be optimal in the general case, I think given how few posix
-  character classes there are, switching to `strncmp` should suffice.
+  the use of `strcmp`. This causes classes like `"[:alnum:]"` to be compared
+  with the remainder of the regex being parsed. This will never result in a
+  match since, at minimum, the valid regex could be `"[[:alnum:]]"`,
+  resulting in a call `strcmp("[:alnum:]", "[:alnum:]]")`. While a prefix
+  tree (possibly a radix tree) would be optimal in the general case, I think
+  given how few posix character classes there are, switching to `strncmp`
+  should suffice.
 
 
 <!-- NOTE: links to profile webpages associated with your slug/identifier -->
