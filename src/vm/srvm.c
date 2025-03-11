@@ -38,13 +38,6 @@ void bru_srvm_free(BruSRVM *self)
     free(self);
 }
 
-void bru_srvm_match_free(BruSRVMMatch *self)
-{
-    free(self->captures);
-    free(self->bytes);
-    free(self);
-}
-
 BruSRVMMatch *bru_srvm_match(BruSRVM *self, const char *text)
 {
     if (text == NULL) return NULL;
@@ -55,9 +48,16 @@ BruSRVMMatch *bru_srvm_match(BruSRVM *self, const char *text)
     return srvm_run(self, text);
 }
 
+void bru_srvm_match_free(BruSRVMMatch *self)
+{
+    free(self->captures);
+    free(self->bytes);
+    free(self);
+}
+
 BruSRVMMatch *bru_srvm_find(BruSRVM *self, const char *text)
 {
-    if (text == NULL) return 0;
+    if (text == NULL) return NULL;
 
     if (self->curr_sp == NULL) {
         self->curr_sp           = text;
@@ -92,9 +92,9 @@ static BruSRVMMatch *srvm_match_from_thread(BruThreadManager *tm,
 
     if (thread == NULL) return NULL;
 
-    match = calloc(1, sizeof(*match));
-    bru_thread_manager_bytes(tm, match->bytes, thread, &match->nbytes);
-    bru_thread_manager_captures(tm, captures, thread, &match->ncaptures);
+    match        = calloc(1, sizeof(*match));
+    match->bytes = bru_thread_manager_bytes(tm, thread, &match->nbytes);
+    captures     = bru_thread_manager_captures(tm, thread, &match->ncaptures);
     match->captures = malloc(sizeof(*match->captures) * match->ncaptures);
     for (k = 0; k < match->ncaptures; k++)
         match->captures[k] =
@@ -113,7 +113,6 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
     const bru_byte_t *pc;
     const char       *sp, *codepoint, *matched_sp;
     const char       *capture_start, *capture_end;
-    char            **epsset_marker;
     bru_len_t         k, l;
     bru_offset_t      x, y;
     bru_cntr_t        cval, n;
@@ -126,14 +125,14 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                                         self->program->nmemo_insts, text);
     do {
         bru_thread_manager_init(tm, self->program->insts, self->curr_sp);
-        while (bru_thread_manager_next_thread(tm, thread)) {
-            if (bru_thread_manager_sp(tm, sp, thread) > text &&
+        while ((thread = bru_thread_manager_next_thread(tm))) {
+            if ((sp = bru_thread_manager_sp(tm, thread)) > text &&
                 sp[-1] == '\0') {
                 bru_thread_manager_kill_thread(tm, thread);
                 continue;
             }
 
-            bru_thread_manager_pc(tm, pc, thread);
+            pc = bru_thread_manager_pc(tm, thread);
             switch (BRU_BCREAD(pc)) {
                 case BRU_NOOP:
                     bru_thread_manager_set_pc(tm, thread, pc);
@@ -192,7 +191,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     break;
 
                 case BRU_SPLIT:
-                    bru_thread_manager_clone_thread(tm, t, thread);
+                    t = bru_thread_manager_clone_thread(tm, thread);
                     BRU_MEMREAD(x, pc, bru_offset_t);
                     bru_thread_manager_set_pc(tm, thread, pc + x);
                     BRU_MEMREAD(y, pc, bru_offset_t);
@@ -210,7 +209,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     // k > 1 to reuse current thread for last offset
                     for (; k > 1; k--) {
                         BRU_MEMREAD(x, pc, bru_offset_t);
-                        bru_thread_manager_clone_thread(tm, t, thread);
+                        t = bru_thread_manager_clone_thread(tm, thread);
                         bru_thread_manager_set_pc(tm, t, pc + x);
                         bru_thread_manager_schedule_thread_in_order(tm, t);
                     }
@@ -230,10 +229,10 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                 case BRU_BACKREF:
                     // `k` is the capture group number
                     BRU_MEMREAD(k, pc, bru_len_t);
-                    bru_thread_manager_capture_val(tm, capture_start, thread,
-                                                   2 * k);
-                    bru_thread_manager_capture_val(tm, capture_end, thread,
-                                                   2 * k + 1);
+                    capture_start =
+                        bru_thread_manager_capture_val(tm, thread, 2 * k);
+                    capture_end =
+                        bru_thread_manager_capture_val(tm, thread, 2 * k + 1);
 
                     // capture not used
                     if (!capture_start || !capture_end) goto backref_fail;
@@ -246,7 +245,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     if (l == 0) goto backref_finished;
 
                     // k is the number of bytes matched in this backref
-                    bru_thread_manager_backref_index(tm, k, thread);
+                    k = bru_thread_manager_backref_index(tm, thread);
                     assert(l > k);
 
                     // backref still needs to match something
@@ -283,7 +282,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                 case BRU_CMP:
                     BRU_MEMREAD(k, pc, bru_len_t);
                     BRU_MEMREAD(n, pc, bru_cntr_t);
-                    bru_thread_manager_counter(tm, cval, thread, k);
+                    cval = bru_thread_manager_counter(tm, thread, k);
                     switch ((BruOrd) *pc++) {
                         case BRU_LT: cond = (cval < n); break;
                         case BRU_LE: cond = (cval <= n); break;
@@ -327,8 +326,8 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
 
                 case BRU_EPSCHK:
                     BRU_MEMREAD(k, pc, bru_len_t);
-                    if (*bru_thread_manager_memory(tm, epsset_marker, thread,
-                                                   k) < sp) {
+                    if (*(const char **) bru_thread_manager_memory(tm, thread,
+                                                                   k) < sp) {
                         bru_thread_manager_set_pc(tm, thread, pc);
                         bru_thread_manager_schedule_thread(tm, thread);
                     } else {
@@ -344,8 +343,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
 
                 case BRU_MEMOCHK:
                     BRU_MEMREAD(k, pc, bru_len_t);
-                    if (!bru_thread_manager_memoise_check(tm, cond, thread,
-                                                          k)) {
+                    if (!bru_thread_manager_memoise_check(tm, thread, k)) {
                         bru_thread_manager_set_pc(tm, thread, pc);
                         bru_thread_manager_schedule_thread(tm, thread);
                     } else {
@@ -354,7 +352,7 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
                     break;
 
                 case BRU_ZWA:
-                    bru_thread_manager_clone_thread(tm, t, thread);
+                    t = bru_thread_manager_clone_thread(tm, thread);
                     BRU_MEMREAD(x, pc, bru_offset_t);
                     bru_thread_manager_set_pc(tm, t, pc + x);
                     BRU_MEMREAD(y, pc, bru_offset_t);
@@ -400,12 +398,12 @@ static BruSRVMMatch *srvm_run(BruSRVM *self, const char *text)
             }
         }
 
-        bru_thread_manager_get_match(tm, thread);
-        if (bru_thread_manager_done_exec(tm, cond)) {
+        thread = bru_thread_manager_get_match(tm);
+        if (bru_thread_manager_done_exec(tm)) {
             self->matching_finished = TRUE;
             break;
         }
-        if (thread) bru_thread_manager_sp(tm, matched_sp, thread);
+        if (thread) matched_sp = bru_thread_manager_sp(tm, thread);
         self->curr_sp = thread && matched_sp > self->curr_sp
                             ? matched_sp
                             : stc_utf8_str_next(self->curr_sp);

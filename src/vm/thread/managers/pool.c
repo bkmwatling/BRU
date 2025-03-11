@@ -108,7 +108,7 @@ static BruThread *thread_pool_spawn_thread(BruThreadManager *tm)
     BruThread                  *thread;
 
     if (!(thread = bru_thread_pool_get_thread(self)))
-        bru_vt_call_super_function(tm, tmi, thread, spawn_thread);
+        thread = bru_vt_call_super_function(tm, tmi, spawn_thread);
 
     return thread;
 }
@@ -123,7 +123,7 @@ static BruThread *thread_pool_clone_thread(BruThreadManager *tm,
     if ((clone = bru_thread_pool_get_thread(self)))
         bru_thread_manager_copy_thread(tm, t, clone);
     else
-        bru_vt_call_super_function(tm, tmi, clone, clone_thread, t);
+        clone = bru_vt_call_super_function(tm, tmi, clone_thread, t);
 
     return clone;
 }

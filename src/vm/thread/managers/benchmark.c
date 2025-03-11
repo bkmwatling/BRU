@@ -79,22 +79,19 @@ static BruThread *benchmark_thread_manager_alloc_thread(BruThreadManager *tm)
 {
     BruBenchmarkThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
-    BruThread                 *t;
+    BruThread *thread = bru_vt_call_super_function(tm, tmi, alloc_thread);
 
-    bru_vt_call_super_function(tm, tmi, t, alloc_thread);
-    if (t) self->thread_alloc_count++;
-    return t;
+    if (thread) self->thread_alloc_count++;
+    return thread;
 }
 
 static BruThread *benchmark_thread_manager_next_thread(BruThreadManager *tm)
 {
     BruBenchmarkThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
-    const bru_byte_t          *_pc;
 
-    if (bru_vt_call_super_function(tm, tmi, self->prev_thread, next_thread))
-        INC_INST_COUNT(self,
-                       *bru_thread_manager_pc(tm, _pc, self->prev_thread));
+    if ((self->prev_thread = bru_vt_call_super_function(tm, tmi, next_thread)))
+        INC_INST_COUNT(self, *bru_thread_manager_pc(tm, self->prev_thread));
 
     return self->prev_thread;
 }
@@ -104,10 +101,9 @@ static void benchmark_thread_manager_kill_thread(BruThreadManager *tm,
 {
     BruBenchmarkThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
-    const bru_byte_t          *_pc;
 
     if (t == self->prev_thread)
-        INC_INST_FAIL_COUNT(self, *bru_thread_manager_pc(tm, _pc, t));
+        INC_INST_FAIL_COUNT(self, *bru_thread_manager_pc(tm, t));
     bru_vt_call_super_procedure(tm, tmi, kill_thread, t);
 }
 

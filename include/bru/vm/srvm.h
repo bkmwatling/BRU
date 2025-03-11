@@ -25,13 +25,12 @@ typedef struct {
 typedef BruSRVM      SRVM;
 typedef BruSRVMMatch SRVMMatch;
 
-#    define srvm_new      bru_srvm_new
-#    define srvm_free     bru_srvm_free
-#    define srvm_match    bru_srvm_match
-#    define srvm_find     bru_srvm_find
-#    define srvm_capture  bru_srvm_capture
-#    define srvm_captures bru_srvm_captures
-#    define srvm_matches  bru_srvm_matches
+#    define srvm_new        bru_srvm_new
+#    define srvm_free       bru_srvm_free
+#    define srvm_match      bru_srvm_match
+#    define srvm_match_free bru_srvm_match_free
+#    define srvm_find       bru_srvm_find
+#    define srvm_matches    bru_srvm_matches
 #endif /* BRU_VM_SRVM_ENABLE_SHORT_NAMES */
 
 /* --- SRVM function prototypes --------------------------------------------- */
@@ -60,7 +59,7 @@ void bru_srvm_free(BruSRVM *self);
  * @param[in] self the SRVM to execute
  * @param[in] text the input string to match against
  *
- * @return truthy value if the SRVM matched against the input string; else 0
+ * @return a pointer to a SRVM Match if the SRVM found a match; else NULL
  */
 BruSRVMMatch *bru_srvm_match(BruSRVM *self, const char *text);
 
@@ -78,7 +77,7 @@ void bru_srvm_match_free(BruSRVMMatch *self);
  * @param[in] self the SRVM to execute
  * @param[in] text the input string to find next match in
  *
- * @return truthy value if the SRVM found a match in the input string; else 0
+ * @return a pointer to a SRVM Match if the SRVM found a match; else NULL
  */
 BruSRVMMatch *bru_srvm_find(BruSRVM *self, const char *text);
 

@@ -25,18 +25,18 @@
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
-#define bru_thread_manager_init(manager, start_pc_in, start_sp_in) \
-    bru_vt_call_procedure(manager, init, start_pc_in, start_sp_in)
+#define bru_thread_manager_init(manager, start_pc, start_sp) \
+    bru_vt_call_procedure(manager, init, start_pc, start_sp)
 #define bru_thread_manager_reset(manager) bru_vt_call_procedure(manager, reset)
 #define bru_thread_manager_kill(manager)      \
     do {                                      \
         bru_vt_call_procedure(manager, kill); \
         bru_vt_release(manager);              \
     } while (0)
-#define bru_thread_manager_done_exec(manager, is_done_out) \
-    bru_vt_call_function(manager, is_done_out, done_exec)
-#define bru_thread_manager_get_match(manager, thread_out) \
-    bru_vt_call_function(manager, thread_out, get_match)
+#define bru_thread_manager_done_exec(manager) \
+    bru_vt_call_function(manager, done_exec)
+#define bru_thread_manager_get_match(manager) \
+    bru_vt_call_function(manager, get_match)
 
 /**
  * NOTE:
@@ -66,73 +66,64 @@
 #define _bru_thread_manager_free_thread(manager, thread) \
     free((thread) - (manager)->table[bru_vt_leaf_idx(manager)]->_thread_size)
 
-#define bru_thread_manager_init_thread(manager, thread_in, pc_in, sp_in) \
-    bru_vt_call_procedure(manager, init_thread, thread_in, pc_in, sp_in)
+#define bru_thread_manager_init_thread(manager, thread, pc, sp) \
+    bru_vt_call_procedure(manager, init_thread, thread, pc, sp)
 #define bru_thread_manager_copy_thread(manager, thread_src, thread_dst) \
     bru_vt_call_procedure(manager, copy_thread, thread_src, thread_dst)
-#define bru_thread_manager_schedule_thread(manager, thread_in) \
-    bru_vt_call_procedure(manager, schedule_thread, thread_in)
-#define bru_thread_manager_schedule_thread_in_order(manager, thread_in) \
-    bru_vt_call_procedure(manager, schedule_thread_in_order, thread_in)
-#define bru_thread_manager_next_thread(manager, thread_out) \
-    bru_vt_call_function(manager, thread_out, next_thread)
-#define bru_thread_manager_notify_thread_match(manager, thread_in) \
-    bru_vt_call_procedure(manager, notify_thread_match, thread_in)
-#define bru_thread_manager_clone_thread(manager, thread_out, thread_in) \
-    bru_vt_call_function(manager, thread_out, clone_thread, thread_in)
-#define bru_thread_manager_kill_thread(manager, thread_in) \
-    bru_vt_call_procedure(manager, kill_thread, thread_in)
-#define bru_thread_manager_check_thread_eq(manager, cmp_out, thread1_in, \
-                                           thread2_in)                   \
-    bru_vt_call_function(manager, cmp_out, check_thread_eq, thread1_in,  \
-                         thread2_in)
+#define bru_thread_manager_schedule_thread(manager, thread) \
+    bru_vt_call_procedure(manager, schedule_thread, thread)
+#define bru_thread_manager_schedule_thread_in_order(manager, thread) \
+    bru_vt_call_procedure(manager, schedule_thread_in_order, thread)
+#define bru_thread_manager_next_thread(manager) \
+    bru_vt_call_function(manager, next_thread)
+#define bru_thread_manager_notify_thread_match(manager, thread) \
+    bru_vt_call_procedure(manager, notify_thread_match, thread)
+#define bru_thread_manager_clone_thread(manager, thread) \
+    bru_vt_call_function(manager, clone_thread, thread)
+#define bru_thread_manager_kill_thread(manager, thread) \
+    bru_vt_call_procedure(manager, kill_thread, thread)
+#define bru_thread_manager_check_thread_eq(manager, thread1, thread2) \
+    bru_vt_call_function(manager, check_thread_eq, thread1, thread2)
 
-#define bru_thread_manager_pc(manager, pc_out, thread_in) \
-    bru_vt_call_function(manager, pc_out, pc, thread_in)
-#define bru_thread_manager_set_pc(manager, thread_in, pc_in) \
-    bru_vt_call_procedure(manager, set_pc, thread_in, pc_in)
-#define bru_thread_manager_sp(manager, sp_out, thread_in) \
-    bru_vt_call_function(manager, sp_out, sp, thread_in)
-#define bru_thread_manager_inc_sp(manager, thread_in) \
-    bru_vt_call_procedure(manager, inc_sp, thread_in)
+#define bru_thread_manager_pc(manager, thread) \
+    bru_vt_call_function(manager, pc, thread)
+#define bru_thread_manager_set_pc(manager, thread, pc) \
+    bru_vt_call_procedure(manager, set_pc, thread, pc)
+#define bru_thread_manager_sp(manager, thread) \
+    bru_vt_call_function(manager, sp, thread)
+#define bru_thread_manager_inc_sp(manager, thread) \
+    bru_vt_call_procedure(manager, inc_sp, thread)
 
-#define bru_thread_manager_init_memoisation(manager, nmemo_in, text_len_in) \
-    bru_vt_call_procedure(manager, init_memoisation, nmemo_in, text_len_in)
-#define bru_thread_manager_memoise_check(manager, memoised_out, thread_in, \
-                                         idx_in)                           \
-    bru_vt_call_function(manager, memoised_out, memoise_check, thread_in,  \
-                         idx_in)
-#define bru_thread_manager_memoise_set(manager, thread_in, idx_in) \
-    bru_vt_call_procedure(manager, memoise_set, thread_in, idx_in)
-#define bru_thread_manager_counter(manager, counter_out, thread_in, idx_in) \
-    bru_vt_call_function(manager, counter_out, counter, thread_in, idx_in)
-#define bru_thread_manager_set_counter(manager, thread_in, idx_in, val_in) \
-    bru_vt_call_procedure(manager, set_counter, thread_in, idx_in, val_in)
-#define bru_thread_manager_inc_counter(manager, thread_in, idx_in) \
-    bru_vt_call_procedure(manager, inc_counter, thread_in, idx_in)
-#define bru_thread_manager_memory(manager, memory_out, thread_in, idx_in) \
-    bru_vt_call_function(manager, memory_out, memory, thread_in, idx_in)
-#define bru_thread_manager_set_memory(manager, thread_in, idx_in, val_in, \
-                                      size_in)                            \
-    bru_vt_call_procedure(manager, set_memory, thread_in, idx_in, val_in, \
-                          size_in)
-#define bru_thread_manager_bytes(manager, bytes_out, thread_in, nbytes_in) \
-    bru_vt_call_function(manager, bytes_out, bytes, thread_in, nbytes_in)
-#define bru_thread_manager_write_byte(manager, thread_in, byte_in) \
-    bru_vt_call_procedure(manager, write_byte, thread_in, byte_in)
-#define bru_thread_manager_captures(manager, captures_out, thread_in, \
-                                    ncaptures_in)                     \
-    bru_vt_call_function(manager, captures_out, captures, thread_in,  \
-                         ncaptures_in)
-#define bru_thread_manager_set_capture(manager, thread_in, idx_in) \
-    bru_vt_call_procedure(manager, set_capture, thread_in, idx_in)
-#define bru_thread_manager_capture_val(manager, char_ptr_out, thread_in, \
-                                       idx_in)                           \
-    bru_vt_call_function(manager, char_ptr_out, capture_val, thread_in, idx_in)
-#define bru_thread_manager_backref_index(manager, len_out, thread_in) \
-    bru_vt_call_function(manager, len_out, backref_index, thread_in)
-#define bru_thread_manager_set_backref_index(manager, thread_in, len_in) \
-    bru_vt_call_procedure(manager, set_backref_index, thread_in, len_in)
+#define bru_thread_manager_init_memoisation(manager, nmemo, text_len) \
+    bru_vt_call_procedure(manager, init_memoisation, nmemo, text_len)
+#define bru_thread_manager_memoise_check(manager, thread, idx) \
+    bru_vt_call_function(manager, memoise_check, thread, idx)
+#define bru_thread_manager_memoise_set(manager, thread, idx) \
+    bru_vt_call_procedure(manager, memoise_set, thread, idx)
+#define bru_thread_manager_counter(manager, thread, idx) \
+    bru_vt_call_function(manager, counter, thread, idx)
+#define bru_thread_manager_set_counter(manager, thread, idx, val) \
+    bru_vt_call_procedure(manager, set_counter, thread, idx, val)
+#define bru_thread_manager_inc_counter(manager, thread, idx) \
+    bru_vt_call_procedure(manager, inc_counter, thread, idx)
+#define bru_thread_manager_memory(manager, thread, idx) \
+    bru_vt_call_function(manager, memory, thread, idx)
+#define bru_thread_manager_set_memory(manager, thread, idx, val, size) \
+    bru_vt_call_procedure(manager, set_memory, thread, idx, val, size)
+#define bru_thread_manager_bytes(manager, thread, nbytes) \
+    bru_vt_call_function(manager, bytes, thread, nbytes)
+#define bru_thread_manager_write_byte(manager, thread, byte) \
+    bru_vt_call_procedure(manager, write_byte, thread, byte)
+#define bru_thread_manager_captures(manager, thread, ncaptures) \
+    bru_vt_call_function(manager, captures, thread, ncaptures)
+#define bru_thread_manager_set_capture(manager, thread, idx) \
+    bru_vt_call_procedure(manager, set_capture, thread, idx)
+#define bru_thread_manager_capture_val(manager, thread, idx) \
+    bru_vt_call_function(manager, capture_val, thread, idx)
+#define bru_thread_manager_backref_index(manager, thread) \
+    bru_vt_call_function(manager, backref_index, thread)
+#define bru_thread_manager_set_backref_index(manager, thread, len) \
+    bru_vt_call_procedure(manager, set_backref_index, thread, len)
 
 #define BRU_THREAD_MANAGER_SET_REQUIRED_FUNCS(manager_interface, prefix)    \
     do {                                                                    \

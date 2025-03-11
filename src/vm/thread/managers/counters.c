@@ -119,7 +119,7 @@ static int thread_check_eq_with_counters(BruThreadManager *tm,
     size_t      i;
     int         eq;
 
-    if (!bru_vt_call_super_function(tm, tmi, eq, check_thread_eq, t1, t2))
+    if (!(eq = bru_vt_call_super_function(tm, tmi, check_thread_eq, t1, t2)))
         return eq;
 
     for (i = 0; i < self->ncounters && (eq = cntrs1[i] == cntrs2[i]); i++);

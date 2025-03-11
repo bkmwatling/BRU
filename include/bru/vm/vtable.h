@@ -103,20 +103,24 @@
         bru_vt_call_unsafe(vt, proc, ##__VA_ARGS__);   \
         bru_vt_restore_curr_idx(vt);                   \
     } while (0)
-#define bru_vt_call_function_from(vt, retvar, func, __i, ...)     \
-    (bru_vt_save_curr_idx(vt), bru_vt_lookup_from(vt, func, __i), \
-     (retvar) = bru_vt_call_unsafe(vt, func, ##__VA_ARGS__),      \
-     bru_vt_restore_curr_idx(vt), (retvar))
+#define bru_vt_call_function_from(vt, func, __i, ...)       \
+    __extension__({                                         \
+        bru_vt_save_curr_idx(vt);                           \
+        bru_vt_lookup_from(vt, func, __i);                  \
+        __auto_type _bru_vt_call_function_from_##__LINE__ = \
+            bru_vt_call_unsafe(vt, func, ##__VA_ARGS__);    \
+        bru_vt_restore_curr_idx(vt);                        \
+        _bru_vt_call_function_from_##__LINE__;              \
+    })
 #define bru_vt_call_procedure(vt, proc, ...) \
     bru_vt_call_procedure_from(vt, proc, bru_vt_leaf_idx(vt), ##__VA_ARGS__)
-#define bru_vt_call_function(vt, retvar, func, ...)                  \
-    bru_vt_call_function_from(vt, retvar, func, bru_vt_leaf_idx(vt), \
-                              ##__VA_ARGS__)
+#define bru_vt_call_function(vt, func, ...) \
+    bru_vt_call_function_from(vt, func, bru_vt_leaf_idx(vt), ##__VA_ARGS__)
 #define bru_vt_call_super_procedure(vt, instance, proc, ...)         \
     bru_vt_call_procedure_from(vt, proc, bru_vt_super_idx(instance), \
                                ##__VA_ARGS__)
-#define bru_vt_call_super_function(vt, instance, retvar, func, ...)         \
-    bru_vt_call_function_from(vt, retvar, func, bru_vt_super_idx(instance), \
+#define bru_vt_call_super_function(vt, instance, func, ...)         \
+    bru_vt_call_function_from(vt, func, bru_vt_super_idx(instance), \
                               ##__VA_ARGS__)
 
 /**

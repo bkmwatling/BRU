@@ -242,35 +242,35 @@ static int lockstep_threads_contain(BruThreadManager   *tm,
                                     BruThread          *thread)
 {
     size_t i, len;
-    int    _cmp = FALSE;
+    int    eq = FALSE;
 
     len = stc_vec_len(threads);
-    for (i = 0; i < len && !bru_thread_manager_check_thread_eq(
-                               tm, _cmp, threads[i], thread);
+    for (i = 0;
+         i < len &&
+         !(eq = bru_thread_manager_check_thread_eq(tm, threads[i], thread));
          i++);
 
-    return _cmp;
+    return eq;
 }
 
 static int lockstep_is_locking_thread(BruLockstepAltScheduler *self,
                                       BruThread               *thread)
 {
-    const bru_byte_t *_pc;
-    bru_len_t         k;
-    const char       *capture_start, *capture_end;
+    bru_len_t   k;
+    const char *capture_start, *capture_end;
 
     if (!thread) return FALSE;
 
-    switch ((BruBytecode) *bru_thread_manager_pc(self->tm, _pc, thread)) {
+    switch ((BruBytecode) *bru_thread_manager_pc(self->tm, thread)) {
         case BRU_CHAR:
         case BRU_PRED: return TRUE;
 
         case BRU_BACKREF:
-            bru_thread_manager_backref_index(self->tm, k, thread);
-            bru_thread_manager_capture_val(self->tm, capture_start, thread,
-                                           2 * k);
-            bru_thread_manager_capture_val(self->tm, capture_end, thread,
-                                           2 * k + 1);
+            k = bru_thread_manager_backref_index(self->tm, thread);
+            capture_start =
+                bru_thread_manager_capture_val(self->tm, thread, 2 * k);
+            capture_end =
+                bru_thread_manager_capture_val(self->tm, thread, 2 * k + 1);
 
             // capture not used
             if (!capture_start || !capture_end) return FALSE;

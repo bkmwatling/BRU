@@ -110,9 +110,8 @@ static int thread_check_eq_with_memory(BruThreadManager *tm,
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
     bru_byte_t *mem1 = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, t1);
     bru_byte_t *mem2 = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, t2);
-    int         _eq;
 
-    return bru_vt_call_super_function(tm, tmi, _eq, check_thread_eq, t1, t2) &&
+    return bru_vt_call_super_function(tm, tmi, check_thread_eq, t1, t2) &&
            memcmp(mem1, mem2, self->memlen * sizeof(*mem1)) == 0;
 }
 

@@ -95,8 +95,7 @@ static BruThread *backtrack_thread_manager_alloc_thread(BruThreadManager *tm)
 
 static BruThread *backtrack_thread_manager_spawn_thread(BruThreadManager *tm)
 {
-    BruThread *_t;
-    return bru_vt_call_function(tm, _t, alloc_thread);
+    return bru_vt_call_function(tm, alloc_thread);
 }
 
 static void backtrack_thread_manager_init(BruThreadManager *tm,
@@ -112,7 +111,7 @@ static void backtrack_thread_manager_init(BruThreadManager *tm,
         bru_thread_manager_kill_thread(tm, self->match);
         self->match = NULL;
     }
-    bru_vt_call_function(tm, thread, spawn_thread);
+    thread = bru_vt_call_function(tm, spawn_thread);
     bru_thread_manager_init_thread(tm, thread, start_pc, start_sp);
     bru_thread_manager_schedule_thread(tm, thread);
 }
@@ -230,7 +229,7 @@ static BruThread *backtrack_thread_manager_clone_thread(BruThreadManager *tm,
 {
     BruThread *clone;
 
-    bru_vt_call_function(tm, clone, spawn_thread);
+    clone = bru_vt_call_function(tm, spawn_thread);
     bru_thread_manager_copy_thread(tm, t, clone);
 
     return clone;

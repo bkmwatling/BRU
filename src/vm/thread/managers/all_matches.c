@@ -50,7 +50,7 @@ static void print_match(BruThreadManager *tm, BruThread *t)
 
     fprintf(self->logfile, "matched = TRUE\n");
     fprintf(self->logfile, "captures:\n");
-    bru_vt_call_super_function(tm, curr, captures, captures, t, &ncaptures);
+    captures = bru_vt_call_super_function(tm, curr, captures, t, &ncaptures);
     fprintf(self->logfile, "  input: '%s'\n", self->text);
     for (i = 0; i < 2 * ncaptures; i += 2) {
         fprintf(self->logfile, "%7hu: ", i);

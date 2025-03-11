@@ -125,7 +125,7 @@ thread_set_capture(BruThreadManager *tm, BruThread *thread, bru_len_t idx)
     const char               **captures =
         (const char **) BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
-    bru_thread_manager_sp(tm, captures[idx], thread);
+    captures[idx] = bru_thread_manager_sp(tm, thread);
 }
 
 static const char *

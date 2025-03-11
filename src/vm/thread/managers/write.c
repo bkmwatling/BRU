@@ -52,8 +52,7 @@ BruThreadManager *bru_thread_manager_with_write_new(BruThreadManager *tm)
 static BruThread *thread_alloc_with_write(BruThreadManager *tm)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThread                 *thread =
-        bru_vt_call_super_function(tm, tmi, thread, alloc_thread);
+    BruThread *thread = bru_vt_call_super_function(tm, tmi, alloc_thread);
     StcVec(bru_byte_t) *twb =
         (StcVec(bru_byte_t) *) WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);
 

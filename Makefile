@@ -23,9 +23,9 @@ else ifeq ($(BUILD_TYPE), Release)
     DEBUG      :=
 endif
 
-# enable Address Sanitizer by having `asan` in the ENABLE variable list
-# e.g. make ENABLE=asan ...  OR  make ENABLE=...,asan ...
-ifneq ($(findstring asan, $(ENABLE)),)
+# enable Address Sanitizer by having `asan` in the FEATURES variable list
+# e.g. make FEATURES=asan ...  OR  make FEATURES=...,asan ...
+ifneq ($(findstring asan, $(FEATURES)),)
     # NOTE: run executable with `run_with_asan.sh` to use Address Sanitizer,
     #       which works by giving command to run after the script,
     #       e.g. ./run_with_asan.sh ./bin/bru ...
@@ -39,7 +39,6 @@ endif
 OPTIMISE       := -O0
 WARNING        := -Wall -Wextra -Wswitch-enum -Wpedantic
 ifeq ($(CC), gcc) # GCC gives warnings for empty variadic macros with -Wpedantic
-    WARNING    += -Wno-unused-value
     EXTRA      += -std=gnu11
 else ifeq ($(CC), clang)
     WARNING    += -Wno-gnu-zero-variadic-macro-arguments
