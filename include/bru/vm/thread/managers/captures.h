@@ -11,7 +11,7 @@
  *
  * @return the thread manager
  */
-BruThreadManager *bru_thread_manager_with_captures_new(BruThreadManager *tm,
-                                                       bru_len_t ncaptures);
+BruThreadManager *bru_tm_with_captures_new(BruThreadManager *tm,
+                                           bru_len_t         ncaptures);
 
 #endif /* BRU_VM_THREAD_MANAGER_CAPTURES_H */

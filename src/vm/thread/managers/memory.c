@@ -11,7 +11,7 @@ typedef struct {
 
 /* --- Function prototypes -------------------------------------------------- */
 
-static void thread_manager_with_memory_free(BruThreadManager *tm);
+static void tm_with_memory_free(BruThreadManager *tm);
 
 static void thread_init_with_memory(BruThreadManager *tm,
                                     BruThread        *thread,
@@ -34,8 +34,7 @@ static void thread_set_memory(BruThreadManager *tm,
 
 /* --- API function definitions --------------------------------------------- */
 
-BruThreadManager *bru_thread_manager_with_memory_new(BruThreadManager *tm,
-                                                     bru_len_t         memlen)
+BruThreadManager *bru_tm_with_memory_new(BruThreadManager *tm, bru_len_t memlen)
 {
     BruThreadManagerInterface  *tmi, *super;
     BruThreadManagerWithMemory *impl = malloc(sizeof(*impl));
@@ -45,11 +44,11 @@ BruThreadManager *bru_thread_manager_with_memory_new(BruThreadManager *tm,
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi   = bru_thread_manager_interface_new(impl, memlen * sizeof(bru_byte_t) +
-                                                       super->_thread_size);
+    tmi   = bru_tm_interface_new(impl, memlen * sizeof(bru_byte_t) +
+                                           super->_thread_size);
 
     // store functions
-    tmi->free            = thread_manager_with_memory_free;
+    tmi->free            = tm_with_memory_free;
     tmi->init_thread     = thread_init_with_memory;
     tmi->copy_thread     = thread_copy_with_memory;
     tmi->check_thread_eq = thread_check_eq_with_memory;
@@ -57,7 +56,6 @@ BruThreadManager *bru_thread_manager_with_memory_new(BruThreadManager *tm,
     tmi->set_memory      = thread_set_memory;
 
     // register extension
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     bru_vt_extend(tm, tmi);
 
     return tm;
@@ -65,7 +63,7 @@ BruThreadManager *bru_thread_manager_with_memory_new(BruThreadManager *tm,
 
 /* --- BruCountersManager function definitions ------------------------------ */
 
-static void thread_manager_with_memory_free(BruThreadManager *tm)
+static void tm_with_memory_free(BruThreadManager *tm)
 {
     BruThreadManagerWithMemory *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
@@ -79,9 +77,9 @@ static void thread_init_with_memory(BruThreadManager *tm,
                                     const bru_byte_t *pc,
                                     const char       *sp)
 {
-    BruThreadManagerWithMemory *self = bru_vt_curr_impl(tm);
-    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
-    bru_byte_t *memory = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruThreadManagerWithMemory *self   = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi    = bru_vt_curr(tm);
+    bru_byte_t                 *memory = BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     memset(memory, 0, sizeof(*memory) * self->memlen);
 
@@ -92,10 +90,10 @@ static void thread_copy_with_memory(BruThreadManager *tm,
                                     const BruThread  *src,
                                     BruThread        *dst)
 {
-    BruThreadManagerWithMemory *self = bru_vt_curr_impl(tm);
-    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
-    bru_byte_t *src_memory = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, src);
-    bru_byte_t *dst_memory = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, dst);
+    BruThreadManagerWithMemory *self       = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi        = bru_vt_curr(tm);
+    bru_byte_t                 *src_memory = BRU_THREAD_FROM_INSTANCE(tmi, src);
+    bru_byte_t                 *dst_memory = BRU_THREAD_FROM_INSTANCE(tmi, dst);
 
     memcpy(dst_memory, src_memory, sizeof(*src_memory) * self->memlen);
 
@@ -108,8 +106,8 @@ static int thread_check_eq_with_memory(BruThreadManager *tm,
 {
     BruThreadManagerWithMemory *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
-    bru_byte_t *mem1 = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, t1);
-    bru_byte_t *mem2 = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, t2);
+    bru_byte_t                 *mem1 = BRU_THREAD_FROM_INSTANCE(tmi, t1);
+    bru_byte_t                 *mem2 = BRU_THREAD_FROM_INSTANCE(tmi, t2);
 
     return bru_vt_call_super_function(tm, tmi, check_thread_eq, t1, t2) &&
            memcmp(mem1, mem2, self->memlen * sizeof(*mem1)) == 0;
@@ -118,8 +116,8 @@ static int thread_check_eq_with_memory(BruThreadManager *tm,
 static void *
 thread_get_memory(BruThreadManager *tm, const BruThread *thread, bru_len_t idx)
 {
-    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    bru_byte_t *memory = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruThreadManagerInterface *tmi    = bru_vt_curr(tm);
+    bru_byte_t                *memory = BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     return memory + idx;
 }
@@ -130,8 +128,8 @@ static void thread_set_memory(BruThreadManager *tm,
                               const void       *val,
                               size_t            size)
 {
-    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    bru_byte_t *memory = (bru_byte_t *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruThreadManagerInterface *tmi    = bru_vt_curr(tm);
+    bru_byte_t                *memory = BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     memcpy(memory + idx, val, size);
 }

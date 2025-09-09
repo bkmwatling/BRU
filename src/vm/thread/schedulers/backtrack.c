@@ -21,14 +21,14 @@ static void       backtrack_scheduler_free(void *impl);
 
 BruScheduler *bru_backtrack_scheduler_new(void)
 {
-    BruBacktrackScheduler *ss = malloc(sizeof(*ss));
+    BruBacktrackScheduler *bs = malloc(sizeof(*bs));
     BruScheduler          *s  = malloc(sizeof(*s));
 
-    ss->in_order_idx = 0;
-    ss->active       = NULL;
-    stc_vec_default_init(&ss->stack); // NOLINT(bugprone-sizeof-expression)
+    bs->in_order_idx = 0;
+    bs->active       = NULL;
+    stc_vec_default_init(&bs->stack);
 
-    s->impl              = ss;
+    s->impl              = bs;
     s->init              = backtrack_scheduler_init;
     s->schedule          = backtrack_scheduler_schedule;
     s->schedule_in_order = backtrack_scheduler_schedule_in_order;
@@ -54,7 +54,6 @@ static int backtrack_scheduler_schedule(void *impl, BruThread *thread)
     BruBacktrackScheduler *self = impl;
     self->in_order_idx          = stc_vec_len(self->stack) + 1;
     if (self->active)
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_push_back(&self->stack, thread);
     else
         self->active = thread;
@@ -70,10 +69,8 @@ static int backtrack_scheduler_schedule_in_order(void *impl, BruThread *thread)
         backtrack_scheduler_schedule(self, thread);
         self->in_order_idx = len;
     } else if (self->in_order_idx == len) {
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_push_back(&self->stack, thread);
     } else {
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_insert(&self->stack, self->in_order_idx, thread);
     }
 

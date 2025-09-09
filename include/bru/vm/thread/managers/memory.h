@@ -11,7 +11,7 @@
  *
  * @return the thread manager
  */
-BruThreadManager *bru_thread_manager_with_memory_new(BruThreadManager *tm,
-                                                     bru_len_t memory_len);
+BruThreadManager *bru_tm_with_memory_new(BruThreadManager *tm,
+                                         bru_len_t         memory_len);
 
 #endif /* BRU_VM_THREAD_MANAGER_MEMORY_H */

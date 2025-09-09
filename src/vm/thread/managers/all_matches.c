@@ -9,15 +9,14 @@ typedef struct {
 
 /* --- AllMatchesThreadManager function prototypes -------------------------- */
 
-static void all_matches_thread_manager_free(BruThreadManager *tm);
-static void all_matches_thread_manager_notify_thread_match(BruThreadManager *tm,
-                                                           BruThread        *t);
+static void all_matches_tm_free(BruThreadManager *tm);
+static void all_matches_tm_notify_thread_match(BruThreadManager *tm,
+                                               BruThread        *t);
 
 /* --- API function definitions --------------------------------------------- */
 
-BruThreadManager *bru_all_matches_thread_manager_new(BruThreadManager *tm,
-                                                     FILE             *logfile,
-                                                     const char       *text)
+BruThreadManager *
+bru_all_matches_tm_new(BruThreadManager *tm, FILE *logfile, const char *text)
 {
     BruAllMatchesThreadManager *amtm = malloc(sizeof(*amtm));
     BruThreadManagerInterface  *tmi, *super;
@@ -25,12 +24,11 @@ BruThreadManager *bru_all_matches_thread_manager_new(BruThreadManager *tm,
     amtm->logfile = logfile;
     amtm->text    = text;
 
-    super = bru_vt_curr(tm);
-    tmi   = bru_thread_manager_interface_new(amtm, super->_thread_size);
-    tmi->notify_thread_match = all_matches_thread_manager_notify_thread_match;
-    tmi->free                = all_matches_thread_manager_free;
+    super                    = bru_vt_curr(tm);
+    tmi                      = bru_tm_interface_new(amtm, super->_thread_size);
+    tmi->notify_thread_match = all_matches_tm_notify_thread_match;
+    tmi->free                = all_matches_tm_free;
 
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     bru_vt_extend(tm, tmi);
 
     return tm;
@@ -65,7 +63,7 @@ static void print_match(BruThreadManager *tm, BruThread *t)
     }
 }
 
-static void all_matches_thread_manager_free(BruThreadManager *tm)
+static void all_matches_tm_free(BruThreadManager *tm)
 {
     BruAllMatchesThreadManager *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
@@ -75,11 +73,11 @@ static void all_matches_thread_manager_free(BruThreadManager *tm)
     bru_vt_call_super_procedure(tm, tmi, free);
 }
 
-static void all_matches_thread_manager_notify_thread_match(BruThreadManager *tm,
-                                                           BruThread        *t)
+static void all_matches_tm_notify_thread_match(BruThreadManager *tm,
+                                               BruThread        *t)
 {
     print_match(tm, t);
     bru_vt_call_super_procedure(tm, bru_vt_curr(tm), notify_thread_match, t);
 
-    // thread_manager_notify_thread_match(self->__manager, t);
+    // tm_notify_thread_match(self->__manager, t);
 }

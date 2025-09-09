@@ -29,16 +29,15 @@ static BruThread *thread_pool_clone_thread(BruThreadManager *tm,
 
 /* --- API function definitions --------------------------------------------- */
 
-BruThreadManager *bru_thread_manager_with_pool_new(BruThreadManager *tm,
-                                                   FILE             *logfile)
+BruThreadManager *bru_tm_with_pool_new(BruThreadManager *tm, FILE *logfile)
 {
     BruThreadPoolThreadManager *pool = malloc(sizeof(*pool));
     BruThreadManagerInterface  *tmi, *super;
 
-    super     = bru_vt_curr(tm);
-    tmi       = bru_thread_manager_interface_new(pool, super->_thread_size);
-    tmi->kill = thread_pool_kill;
-    tmi->free = thread_pool_free;
+    super             = bru_vt_curr(tm);
+    tmi               = bru_tm_interface_new(pool, super->_thread_size);
+    tmi->kill         = thread_pool_kill;
+    tmi->free         = thread_pool_free;
     tmi->spawn_thread = thread_pool_spawn_thread;
     tmi->clone_thread = thread_pool_clone_thread;
     tmi->kill_thread  = thread_pool_kill_thread;
@@ -47,7 +46,6 @@ BruThreadManager *bru_thread_manager_with_pool_new(BruThreadManager *tm,
     pool->enabled = TRUE;
     pool->logfile = logfile;
 
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     bru_vt_extend(tm, tmi);
 
     return tm;
@@ -64,7 +62,7 @@ static void thread_pool_kill(BruThreadManager *tm)
     self->enabled = FALSE;
     while ((p = self->pool)) {
         self->pool = self->pool->next;
-        // NOTE: we do not kill the thread via bru_thread_manager_kill_thread,
+        // NOTE: we do not kill the thread via bru_tm_kill_thread,
         // since the thread entered into the pool through a call to kill
         // already, so we just call the super manager's kill.
         bru_vt_call_super_procedure(tm, tmi, kill_thread, p->thread);
@@ -121,7 +119,7 @@ static BruThread *thread_pool_clone_thread(BruThreadManager *tm,
     BruThread                  *clone;
 
     if ((clone = bru_thread_pool_get_thread(self)))
-        bru_thread_manager_copy_thread(tm, t, clone);
+        bru_tm_copy_thread(tm, t, clone);
     else
         clone = bru_vt_call_super_function(tm, tmi, clone_thread, t);
 

@@ -39,12 +39,12 @@ typedef BruSRVMMatch SRVMMatch;
  * Construct a Symbolic Regular Expression Virtual Machine with given thream
  * manager and program.
  *
- * @param[in] thread_manager the thread manager for the SRVM to use
- * @param[in] prog           the program for the SRVM to execute
+ * @param[in] tm   the thread manager for the SRVM to use
+ * @param[in] prog the program for the SRVM to execute
  *
  * @return the constructed SRVM
  */
-BruSRVM *bru_srvm_new(BruThreadManager *thread_manager, const BruProgram *prog);
+BruSRVM *bru_srvm_new(BruThreadManager *tm, const BruProgram *prog);
 
 /**
  * Free the memory allocated for the SRVM.
@@ -88,13 +88,13 @@ BruSRVMMatch *bru_srvm_find(BruSRVM *self, const char *text);
  * Convenience function if the same program does not need to be matched again
  * and capture information is not needed.
  *
- * @param[in] thread_manager the thread manager to execute with
- * @param[in] prog           the program to executein
- * @param[in] text           the input string to match against
+ * @param[in] tm   the thread manager to execute with
+ * @param[in] prog the program to executein
+ * @param[in] text the input string to match against
  *
  * @return truthy value if the program matched against the input string; else 0
  */
-int bru_srvm_matches(BruThreadManager *thread_manager,
+int bru_srvm_matches(BruThreadManager *tm,
                      const BruProgram *prog,
                      const char       *text);
 

@@ -11,7 +11,7 @@
  *
  * @return the thread manager
  */
-BruThreadManager *bru_thread_manager_with_counters_new(BruThreadManager *tm,
-                                                       bru_len_t ncounters);
+BruThreadManager *bru_tm_with_counters_new(BruThreadManager *tm,
+                                           bru_len_t         ncounters);
 
 #endif /* BRU_VM_THREAD_MANAGER_COUNTERS_H */

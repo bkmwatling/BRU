@@ -32,17 +32,17 @@ static int lockstep_threads_contain(BruThreadManager   *tm,
 
 BruScheduler *bru_lockstep_scheduler_new(BruThreadManager *tm)
 {
-    BruLockstepScheduler *ts = malloc(sizeof(*ts));
+    BruLockstepScheduler *ls = malloc(sizeof(*ls));
     BruScheduler         *s  = malloc(sizeof(*s));
 
-    ts->tm          = tm;
-    ts->in_lockstep = FALSE;
-    ts->curr_idx    = 0;
-    stc_vec_default_init(&ts->curr); // NOLINT(bugprone-sizeof-expression)
-    stc_vec_default_init(&ts->next); // NOLINT(bugprone-sizeof-expression)
-    stc_vec_default_init(&ts->sync); // NOLINT(bugprone-sizeof-expression)
+    ls->tm          = tm;
+    ls->in_lockstep = FALSE;
+    ls->curr_idx    = 0;
+    stc_vec_default_init(&ls->curr);
+    stc_vec_default_init(&ls->next);
+    stc_vec_default_init(&ls->sync);
 
-    s->impl              = ts;
+    s->impl              = ls;
     s->init              = lockstep_scheduler_init;
     s->schedule          = lockstep_scheduler_schedule;
     s->schedule_in_order = lockstep_scheduler_schedule;
@@ -62,11 +62,8 @@ bru_lockstep_scheduler_remove_low_priority_threads(BruScheduler *self)
     size_t                i;
 
     if (ncurr) {
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_init(&threads, ncurr);
-
         for (i = 0; i < ncurr; i++)
-            // NOLINTNEXTLINE(bugprone-sizeof-expression)
             stc_vec_push_back(&threads, stc_vec_pop_back(&ls->curr));
     }
 
@@ -94,17 +91,14 @@ static void lockstep_schedule_char_match_instr(BruLockstepScheduler *self,
 {
 
     if (stc_vec_is_empty(self->next))
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_push_back(&self->sync, thread);
     else
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_push_back(&self->next, thread);
 }
 
 static void lockstep_schedule_non_char_match_instr(BruLockstepScheduler *self,
                                                    BruThread            *thread)
 {
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     stc_vec_push_back(&self->next, thread);
 }
 
@@ -118,16 +112,14 @@ static int lockstep_scheduler_schedule(void *impl, BruThread *thread)
         lockstep_threads_contain(self->tm, self->sync, thread))
         return FALSE;
 
-    switch ((BruBytecode) *bru_thread_manager_pc(self->tm, thread)) {
+    switch ((BruBytecode) *bru_tm_pc(self->tm, thread)) {
         case BRU_CHAR: /* fallthrough */
         case BRU_PRED: lockstep_schedule_char_match_instr(self, thread); break;
 
         case BRU_BACKREF:
-            k = bru_thread_manager_backref_index(self->tm, thread);
-            capture_start =
-                bru_thread_manager_capture_val(self->tm, thread, 2 * k);
-            capture_end =
-                bru_thread_manager_capture_val(self->tm, thread, 2 * k + 1);
+            k             = bru_tm_backref_index(self->tm, thread);
+            capture_start = bru_tm_get_capture(self->tm, thread, 2 * k);
+            capture_end   = bru_tm_get_capture(self->tm, thread, 2 * k + 1);
 
             if (!capture_start || !capture_end ||
                 capture_end - capture_start == 0) {
@@ -202,12 +194,12 @@ lockstep_scheduler_next_start:
 
     if (self->curr_idx < stc_vec_len(self->curr)) {
         thread = self->curr[self->curr_idx++];
-        switch ((BruBytecode) *bru_thread_manager_pc(self->tm, thread)) {
+        switch ((BruBytecode) *bru_tm_pc(self->tm, thread)) {
             case BRU_CHAR: /* fallthrough */
             case BRU_PRED:
                 if (!self->in_lockstep) {
                     if (!lockstep_scheduler_schedule(self, thread))
-                        bru_thread_manager_kill_thread(self->tm, thread);
+                        bru_tm_kill_thread(self->tm, thread);
                     goto lockstep_scheduler_next_start;
                 }
                 break;
@@ -261,8 +253,7 @@ static int lockstep_threads_contain(BruThreadManager   *tm,
 
     len = stc_vec_len(threads);
     for (i = 0; i < len; i++)
-        if (bru_thread_manager_check_thread_eq(tm, threads[i], thread))
-            return TRUE;
+        if (bru_tm_check_thread_eq(tm, threads[i], thread)) return TRUE;
 
     return FALSE;
 }

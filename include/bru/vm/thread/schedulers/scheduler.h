@@ -1,5 +1,5 @@
-#ifndef BRU_VM_THREAD_MANAGER_SCHEDULER_H
-#define BRU_VM_THREAD_MANAGER_SCHEDULER_H
+#ifndef BRU_VM_THREAD_SCHEDULER_H
+#define BRU_VM_THREAD_SCHEDULER_H
 
 /**
  * The Scheduler interface specifies functions for manipulating execution order
@@ -71,10 +71,10 @@ typedef struct {
     void *impl; /**< the underlying implementation of the scheduler           */
 } BruScheduler;
 
-#if !defined(BRU_VM_THREAD_MANAGER_SCHEDULER_DISABLE_SHORT_NAMES) && \
-    (defined(BRU_VM_THREAD_MANAGER_SCHEDULER_ENABLE_SHORT_NAMES) ||  \
-     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                         \
-         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                      \
+#if !defined(BRU_VM_THREAD_SCHEDULER_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_THREAD_SCHEDULER_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                 \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||              \
           defined(BRU_ENABLE_SHORT_NAMES)))
 #    define scheduler_init              bru_scheduler_init
 #    define scheduler_schedule          bru_scheduler_schedule
@@ -84,6 +84,6 @@ typedef struct {
 #    define scheduler_free              bru_scheduler_free
 
 typedef BruScheduler Scheduler;
-#endif /* BRU_VM_THREAD_MANAGER_SCHEDULER_ENABLE_SHORT_NAMES */
+#endif /* BRU_VM_THREAD_SCHEDULER_ENABLE_SHORT_NAMES */
 
-#endif /* BRU_VM_THREAD_MANAGER_SCHEDULER_H */
+#endif /* BRU_VM_THREAD_SCHEDULER_H */

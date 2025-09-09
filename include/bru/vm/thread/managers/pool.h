@@ -31,7 +31,6 @@
  *
  * @return the thread pool
  */
-BruThreadManager *bru_thread_manager_with_pool_new(BruThreadManager *tm,
-                                                   FILE             *logfile);
+BruThreadManager *bru_tm_with_pool_new(BruThreadManager *tm, FILE *logfile);
 
 #endif /* BRU_VM_THREAD_MANAGER_THREAD_POOL_H */

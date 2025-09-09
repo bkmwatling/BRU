@@ -332,32 +332,24 @@ BruProgram *bru_cli_make_program(BruOptions *options, BruParser *parser)
 BruThreadManager *bru_cli_make_thread_manager(BruOptions       *options,
                                               const BruProgram *prog)
 {
-    BruThreadManager *thread_manager;
+    BruThreadManager *tm;
 
     if (options->match.scheduler_type == SCH_BACKTRACK)
-        thread_manager = bru_backtrack_thread_manager_new();
+        tm = bru_backtrack_tm_new();
     else if (options->match.scheduler_type == SCH_LOCKSTEP)
-        thread_manager = bru_lockstep_thread_manager_new();
+        tm = bru_lockstep_tm_new();
 
-    if (prog->ncaptures)
-        thread_manager = bru_thread_manager_with_captures_new(thread_manager,
-                                                              prog->ncaptures);
-    if (prog->ncounters)
-        thread_manager = bru_thread_manager_with_counters_new(thread_manager,
-                                                              prog->ncounters);
+    if (prog->ncaptures) tm = bru_tm_with_captures_new(tm, prog->ncaptures);
+    if (prog->ncounters) tm = bru_tm_with_counters_new(tm, prog->ncounters);
     if (prog->thread_mem_len)
-        thread_manager = bru_thread_manager_with_memory_new(
-            thread_manager, prog->thread_mem_len);
-    if (prog->requires_writing)
-        thread_manager = bru_thread_manager_with_write_new(thread_manager);
+        tm = bru_tm_with_memory_new(tm, prog->thread_mem_len);
+    if (prog->requires_writing) tm = bru_tm_with_write_new(tm);
     if (options->match.thread_pool)
-        thread_manager =
-            bru_thread_manager_with_pool_new(thread_manager, options->logfile);
+        tm = bru_tm_with_pool_new(tm, options->logfile);
     if (options->compile.pipeline.memo_scheme != BRU_MS_NONE)
-        thread_manager = bru_memoised_thread_manager_new(thread_manager);
+        tm = bru_memoised_tm_new(tm);
     if (options->match.benchmark)
-        thread_manager =
-            bru_benchmark_thread_manager_new(thread_manager, options->logfile);
+        tm = bru_benchmark_tm_new(tm, options->logfile);
 
-    return thread_manager;
+    return tm;
 }

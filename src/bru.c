@@ -68,7 +68,7 @@ static int match(BruOptions *options)
 {
     BruParser        *parser;
     BruProgram       *prog;
-    BruThreadManager *thread_manager = NULL;
+    BruThreadManager *tm = NULL;
     BruSRVM          *srvm;
     StcStrView        capture;
     bru_len_t         i;
@@ -84,8 +84,8 @@ static int match(BruOptions *options)
         goto done;
     }
 
-    thread_manager = bru_cli_make_thread_manager(options, prog);
-    srvm           = bru_srvm_new(thread_manager, prog);
+    tm   = bru_cli_make_thread_manager(options, prog);
+    srvm = bru_srvm_new(tm, prog);
     if (!(match = bru_srvm_find(srvm, options->match.text)))
         fputs("No match\n", options->outfile);
     else

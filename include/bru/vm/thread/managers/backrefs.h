@@ -10,6 +10,6 @@
  *
  * @return the thread manager
  */
-BruThreadManager *bru_thread_manager_with_backrefs_new(BruThreadManager *tm);
+BruThreadManager *bru_tm_with_backrefs_new(BruThreadManager *tm);
 
 #endif /* BRU_VM_THREAD_MANAGER_CAPTURES_H */

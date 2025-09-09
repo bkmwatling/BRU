@@ -8,7 +8,7 @@
      !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                         \
          (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                      \
           defined(BRU_ENABLE_SHORT_NAMES)))
-#    define backtrack_thread_manager_new bru_backtrack_thread_manager_new
+#    define backtrack_tm_new bru_backtrack_tm_new
 #endif /* BRU_VM_THREAD_MANAGER_BACKTRACK_ENABLE_SHORT_NAMES */
 
 /* --- Backtrack ThreadManager function prototypes -------------------------- */
@@ -19,6 +19,6 @@
  *
  * @return the constructed Spencer-style thread manager
  */
-BruThreadManager *bru_backtrack_thread_manager_new(void);
+BruThreadManager *bru_backtrack_tm_new(void);
 
 #endif /* BRU_VM_THREAD_MANAGER_BACKTRACK_H */

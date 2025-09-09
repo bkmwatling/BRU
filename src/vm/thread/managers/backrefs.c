@@ -28,14 +28,14 @@ static void thread_set_backref_index(BruThreadManager *tm,
 
 /* --- API function definitions --------------------------------------------- */
 
-BruThreadManager *bru_thread_manager_with_backrefs_new(BruThreadManager *tm)
+BruThreadManager *bru_tm_with_backrefs_new(BruThreadManager *tm)
 {
     BruThreadManagerInterface *tmi, *super;
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi = bru_thread_manager_interface_new(NULL, sizeof(BruThreadWithBackref) +
-                                                     super->_thread_size);
+    tmi   = bru_tm_interface_new(NULL, sizeof(BruThreadWithBackref) +
+                                           super->_thread_size);
 
     // store functions
     tmi->init_thread       = thread_init_with_backrefs;
@@ -44,7 +44,6 @@ BruThreadManager *bru_thread_manager_with_backrefs_new(BruThreadManager *tm)
     tmi->set_backref_index = thread_set_backref_index;
 
     // register extension
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     bru_vt_extend(tm, tmi);
 
     return tm;
@@ -58,8 +57,7 @@ static void thread_init_with_backrefs(BruThreadManager *tm,
                                       const char       *sp)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithBackref      *twb =
-        (BruThreadWithBackref *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruThreadWithBackref      *twb = BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     twb->backref_idx = 0;
 
@@ -70,11 +68,9 @@ static void thread_copy_with_backrefs(BruThreadManager *tm,
                                       const BruThread  *src,
                                       BruThread        *dst)
 {
-    BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithBackref      *twb_src =
-        (BruThreadWithBackref *) BRU_THREAD_FROM_INSTANCE(tmi, src);
-    BruThreadWithBackref *twb_dst =
-        (BruThreadWithBackref *) BRU_THREAD_FROM_INSTANCE(tmi, dst);
+    BruThreadManagerInterface *tmi     = bru_vt_curr(tm);
+    BruThreadWithBackref      *twb_src = BRU_THREAD_FROM_INSTANCE(tmi, src);
+    BruThreadWithBackref      *twb_dst = BRU_THREAD_FROM_INSTANCE(tmi, dst);
 
     twb_dst->backref_idx = twb_src->backref_idx;
 
@@ -85,8 +81,7 @@ static bru_len_t thread_backref_index(BruThreadManager *tm,
                                       const BruThread  *thread)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithBackref      *twb =
-        (BruThreadWithBackref *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruThreadWithBackref      *twb = BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     return twb->backref_idx;
 }
@@ -95,8 +90,7 @@ static void
 thread_set_backref_index(BruThreadManager *tm, BruThread *thread, bru_len_t val)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
-    BruThreadWithBackref      *twb =
-        (BruThreadWithBackref *) BRU_THREAD_FROM_INSTANCE(tmi, thread);
+    BruThreadWithBackref      *twb = BRU_THREAD_FROM_INSTANCE(tmi, thread);
 
     twb->backref_idx = val;
 }

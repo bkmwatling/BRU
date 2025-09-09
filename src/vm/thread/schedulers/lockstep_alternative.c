@@ -63,11 +63,10 @@ BruScheduler *bru_lockstep_alt_scheduler_new(BruThreadManager *tm)
 
     las->tm    = tm;
     las->state = BRU_LOCKSTEP_SCHEDULER_STATE_NORMAL;
-    stc_vec_default_init(&las->locked); // NOLINT(bugprone-sizeof-expression)
+    stc_vec_default_init(&las->locked);
 
     las->active = NULL;
-    stc_vec_default_init(&las->stack); // NOLINT(bugprone-sizeof-expression)
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
+    stc_vec_default_init(&las->stack);
     stc_vec_default_init(&las->in_order_queue);
 
     s->impl              = las;
@@ -89,12 +88,8 @@ bru_lockstep_alt_scheduler_remove_low_priority_threads(BruScheduler *self)
 
     if (las->active || !stc_vec_is_empty(las->stack)) {
         threads = las->stack;
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_init(&las->stack, stc_vec_cap(threads));
-        if (las->active) {
-            // NOLINTNEXTLINE(bugprone-sizeof-expression)
-            stc_vec_push_back(&threads, las->active);
-        }
+        if (las->active) stc_vec_push_back(&threads, las->active);
     }
 
     return threads;
@@ -128,12 +123,10 @@ static int lockstep_alt_scheduler_schedule(void *impl, BruThread *thread)
 
 normal:
     if (self->active) {
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_push_back(&self->stack, thread);
     } else if (lockstep_is_locking_thread(self, thread)) {
         if (lockstep_threads_contain(self->tm, self->locked, thread))
             return FALSE;
-        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         stc_vec_push_back(&self->locked, thread);
     } else {
         self->active = thread;
@@ -156,7 +149,6 @@ static int lockstep_alt_scheduler_schedule_in_order(void      *impl,
                                                     BruThread *thread)
 {
     BruLockstepAltScheduler *self = impl;
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     stc_vec_push_back(&self->in_order_queue, thread);
     return TRUE;
 }
@@ -218,7 +210,6 @@ stepping:
     if (stc_vec_is_empty(self->locked)) return NULL;
 
     thread = stc_vec_first(self->locked);
-    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     stc_vec_remove(self->locked, 0);
     if (stc_vec_is_empty(self->locked)) STOP_STEPPING(self);
     return thread;
@@ -246,8 +237,7 @@ static int lockstep_threads_contain(BruThreadManager   *tm,
 
     len = stc_vec_len(threads);
     for (i = 0;
-         i < len &&
-         !(eq = bru_thread_manager_check_thread_eq(tm, threads[i], thread));
+         i < len && !(eq = bru_tm_check_thread_eq(tm, threads[i], thread));
          i++);
 
     return eq;
@@ -261,16 +251,14 @@ static int lockstep_is_locking_thread(BruLockstepAltScheduler *self,
 
     if (!thread) return FALSE;
 
-    switch ((BruBytecode) *bru_thread_manager_pc(self->tm, thread)) {
+    switch ((BruBytecode) *bru_tm_pc(self->tm, thread)) {
         case BRU_CHAR:
         case BRU_PRED: return TRUE;
 
         case BRU_BACKREF:
-            k = bru_thread_manager_backref_index(self->tm, thread);
-            capture_start =
-                bru_thread_manager_capture_val(self->tm, thread, 2 * k);
-            capture_end =
-                bru_thread_manager_capture_val(self->tm, thread, 2 * k + 1);
+            k             = bru_tm_backref_index(self->tm, thread);
+            capture_start = bru_tm_get_capture(self->tm, thread, 2 * k);
+            capture_end   = bru_tm_get_capture(self->tm, thread, 2 * k + 1);
 
             // capture not used
             if (!capture_start || !capture_end) return FALSE;

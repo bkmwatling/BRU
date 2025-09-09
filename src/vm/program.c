@@ -119,6 +119,8 @@ inst_print_formatted(FILE                  *stream,
                      bru_predicate_print_f *print_predicate,
                      bru_offset_print_f    *print_offset)
 {
+#define BRU_CNTR_IDX_FMT "c[" BRU_LEN_FMT "]"
+
     char             *p;
     const bru_byte_t *insts = prog ? prog->insts : NULL;
     const bru_byte_t *aux   = prog ? prog->aux : NULL;
@@ -174,10 +176,10 @@ inst_print_formatted(FILE                  *stream,
 
         case BRU_TSWITCH:
             BRU_MEMREAD(n, pc, bru_len_t);
-            fprintf(stream, "tswitch " BRU_LEN_FMT, n);
+            fputs("tswitch ", stream);
             for (i = 0; i < n; i++) {
                 BRU_MEMREAD(x, pc, bru_offset_t);
-                fputs(", ", stream);
+                if (i > 0) fputs(", ", stream);
                 print_offset(stream, x, pc, insts);
             }
             break;
@@ -194,13 +196,13 @@ inst_print_formatted(FILE                  *stream,
 
         case BRU_INC:
             BRU_MEMREAD(i, pc, bru_len_t);
-            fprintf(stream, "inc " BRU_LEN_FMT, i);
+            fprintf(stream, "inc " BRU_CNTR_IDX_FMT, i);
             break;
 
         case BRU_SET:
             BRU_MEMREAD(i, pc, bru_len_t);
             BRU_MEMREAD(c, pc, bru_cntr_t);
-            fprintf(stream, "set " BRU_LEN_FMT ", " BRU_CNTR_FMT, i, c);
+            fprintf(stream, "set " BRU_CNTR_IDX_FMT ", " BRU_CNTR_FMT, i, c);
             break;
 
         case BRU_CMP:
@@ -216,7 +218,7 @@ inst_print_formatted(FILE                  *stream,
                 case BRU_GT: fputs("cmpgt ", stream); break;
             }
 
-            fprintf(stream, BRU_LEN_FMT ", " BRU_CNTR_FMT, i, c);
+            fprintf(stream, BRU_CNTR_IDX_FMT ", " BRU_CNTR_FMT, i, c);
             break;
 
         case BRU_EPSRESET:
@@ -273,6 +275,8 @@ inst_print_formatted(FILE                  *stream,
     }
 
     return pc;
+
+#undef BRU_CNTR_IDX_FMT
 }
 
 static void

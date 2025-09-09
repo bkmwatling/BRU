@@ -3,7 +3,7 @@
 
 /**
  * VTable used for implementing simple linear inheritance of interfaces. Mainly
- * used by thread_manager to allow extending functionality.
+ * used by thread manager to allow extending functionality.
  *
  * The VTable is implemented as an array of tables, where each table is a
  * user defined struct of functions (an interface to a class) and the macro

@@ -1,17 +1,15 @@
-#ifndef BRU_VM_THREAD_MANAGER_SCHEDULER_LOCKSTEP_ALT_H
-#define BRU_VM_THREAD_MANAGER_SCHEDULER_LOCKSTEP_ALT_H
+#ifndef BRU_VM_THREAD_SCHEDULER_LOCKSTEP_ALT_H
+#define BRU_VM_THREAD_SCHEDULER_LOCKSTEP_ALT_H
 
 #include <bru/vm/thread/schedulers/scheduler.h>
 
-#if !defined(                                                                \
-    BRU_VM_THREAD_MANAGER_SCHEDULER_LOCKSTEP_ALT_DISABLE_SHORT_NAMES) &&     \
-    (defined(                                                                \
-         BRU_VM_THREAD_MANAGER_SCHEDULER_LOCKSTEP_ALT_ENABLE_SHORT_NAMES) || \
-     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                                 \
-         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                              \
+#if !defined(BRU_VM_THREAD_SCHEDULER_LOCKSTEP_ALT_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_THREAD_SCHEDULER_LOCKSTEP_ALT_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                              \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                           \
           defined(BRU_ENABLE_SHORT_NAMES)))
 #    define lockstep_alt_scheduler_new bru_lockstep_alt_scheduler_new
-#endif /* BRU_VM_THREAD_MANAGER_SCHEDULER_LOCKSTEP_ALT_ENABLE_SHORT_NAMES */
+#endif /* BRU_VM_THREAD_SCHEDULER_LOCKSTEP_ALT_ENABLE_SHORT_NAMES */
 
 /* --- lockstep Scheduler function prototypes ---------------------------- */
 
@@ -59,4 +57,4 @@ bru_lockstep_alt_scheduler_remove_low_priority_threads(BruScheduler *self);
  */
 int bru_lockstep_alt_scheduler_done_step(BruScheduler *self);
 
-#endif /* BRU_VM_THREAD_MANAGER_SCHEDULER_LOCKSTEP_ALT_H */
+#endif /* BRU_VM_THREAD_SCHEDULER_LOCKSTEP_ALT_H */
