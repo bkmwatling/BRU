@@ -20,7 +20,7 @@ static void       thread_copy_with_write(BruThreadManager *tm,
                                          BruThread        *dst);
 static void thread_free_with_write(BruThreadManager *tm, BruThread *thread);
 static bru_byte_t *
-thread_bytes(BruThreadManager *tm, BruThread *thread, size_t *nbytes);
+thread_read_bytes(BruThreadManager *tm, BruThread *thread, size_t *nbytes);
 static void
 thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte);
 
@@ -32,14 +32,13 @@ BruThreadManager *bru_tm_with_write_new(BruThreadManager *tm)
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi =
-        bru_tm_interface_new(NULL, WRITABLE_THREAD_SIZE + super->_thread_size);
+    tmi   = bru_tmi_new(NULL, WRITABLE_THREAD_SIZE + super->_thread_size);
 
     // store functions
     tmi->alloc_thread = thread_alloc_with_write;
     tmi->copy_thread  = thread_copy_with_write;
     tmi->free_thread  = thread_free_with_write;
-    tmi->bytes        = thread_bytes;
+    tmi->read_bytes   = thread_read_bytes;
     tmi->write_byte   = thread_write_byte;
 
     // register extension
@@ -94,7 +93,7 @@ thread_write_byte(BruThreadManager *tm, BruThread *thread, bru_byte_t byte)
 }
 
 static bru_byte_t *
-thread_bytes(BruThreadManager *tm, BruThread *thread, size_t *nbytes)
+thread_read_bytes(BruThreadManager *tm, BruThread *thread, size_t *nbytes)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
     StcVec(bru_byte_t)        *twb = WRITABLE_THREAD_FROM_INSTANCE(tmi, thread);

@@ -72,15 +72,15 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
         }                                                                 \
     } while (0)
 
-    BruActionListIterator *iter;
-    const BruAction       *act;
-    size_t                 idx, len;
+    BruActionListIter *iter;
+    const BruAction   *act;
+    size_t             idx, len;
 
     if (!acts) return;
 
     for (iter     = bru_smir_action_list_iter(acts),
-        act       = bru_smir_action_list_iterator_next(iter);
-         act; act = bru_smir_action_list_iterator_next(iter)) {
+        act       = bru_smir_action_list_iter_next(iter);
+         act; act = bru_smir_action_list_iter_next(iter)) {
         switch (bru_smir_action_type(act)) {
             case BRU_ACT_BEGIN:
                 PUSH_INSTRUCTION(instructions, .bytecode = BRU_BEGIN);
@@ -150,7 +150,7 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
                 // NOTE: MEMOSET is a sink instruction that will kill any thread
                 // that runs it, so we do not need to compile any other actions
                 // since the thread will be killed.
-                // *continue_compilation = FALSE;
+                // *continue_compilation = false;
                 // goto done;
                 break;
 
@@ -175,11 +175,11 @@ static void compile_actions(StcVec(BruInstruction) *instructions,
                 }
                 break;
 
-            case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
+            case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
         }
     }
 
-    bru_smir_action_list_iterator_free(iter);
+    bru_smir_action_list_iter_free(iter);
 
 #undef GET_IDX
 }
@@ -321,7 +321,7 @@ static void resolve_backpatches(StcVec(BruInstruction) instructions,
             case BRU_WRITE:
             case BRU_WRITE0:
             case BRU_WRITE1:
-            case BRU_NBYTECODES: assert(FALSE && "UNREACHABLE");
+            case BRU_NBYTECODES: assert(false && "UNREACHABLE");
         }
         free(bp);
         bp = tmp;

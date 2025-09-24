@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -49,7 +50,7 @@ struct bru_action_list {
     BruActionList   *next;
 };
 
-struct bru_action_list_iterator {
+struct bru_action_list_iter {
     const BruActionList *sentinel;
     BruActionList       *current;
 };
@@ -541,7 +542,7 @@ const BruAction *bru_smir_action_clone(const BruAction *self)
             clone = bru_smir_action_cmp(self->k, self->val, self->ord);
             break;
 
-        case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
+        case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
     }
 
     return clone;
@@ -556,16 +557,16 @@ void bru_smir_action_free(const BruAction *self)
     free((BruAction *) self);
 }
 
-int bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
+bool bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
 {
-    if (a1->type != a2->type) return FALSE;
+    if (a1->type != a2->type) return false;
     switch (a1->type) {
         case BRU_ACT_BEGIN: /* fallthrough */
-        case BRU_ACT_END: return TRUE;
+        case BRU_ACT_END: return true;
 
         case BRU_ACT_CHAR: return stc_utf8_cmp(a1->ch, a2->ch) == 0;
         case BRU_ACT_PRED:
-            assert(FALSE && "TODO: equality of predicates");
+            assert(false && "TODO: equality of predicates");
             break;
 
         case BRU_ACT_SAVE:    /* fallthrough */
@@ -584,7 +585,7 @@ int bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
         case BRU_ACT_WRITE: return a1->c == a2->c;
 
         case BRU_ACT_NACTIONS: /* fallthrough */
-        default: assert(FALSE && "unreachable"); break;
+        default: assert(false && "unreachable"); break;
     }
 }
 
@@ -642,7 +643,7 @@ void bru_smir_action_print(const BruAction *self, FILE *stream)
                     self->c);
             break;
 
-        case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
+        case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
     }
 }
 
@@ -660,13 +661,12 @@ BruActionList *bru_smir_action_list_clone(const BruActionList *self)
     BruActionList *clone;
 
     BRU_DLL_INIT(clone);
-    bru_smir_action_list_clone_into(self, clone);
+    bru_smir_action_list_copy(self, clone);
 
     return clone;
 }
 
-void bru_smir_action_list_clone_into(const BruActionList *self,
-                                     BruActionList       *clone)
+void bru_smir_action_list_copy(const BruActionList *self, BruActionList *dst)
 {
     BruActionList       *al;
     const BruActionList *tmp;
@@ -674,7 +674,7 @@ void bru_smir_action_list_clone_into(const BruActionList *self,
     for (tmp = self->next; tmp != self; tmp = tmp->next) {
         al      = malloc(sizeof(*al));
         al->act = bru_smir_action_clone(tmp->act);
-        BRU_DLL_PUSH_BACK(clone, al);
+        BRU_DLL_PUSH_BACK(dst, al);
     }
 }
 
@@ -746,9 +746,9 @@ void bru_smir_action_list_prepend(BruActionList *self, BruActionList *acts)
     acts->next = acts->prev = acts;
 }
 
-BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self)
+BruActionListIter *bru_smir_action_list_iter(const BruActionList *self)
 {
-    BruActionListIterator *iter = malloc(sizeof(*iter));
+    BruActionListIter *iter = malloc(sizeof(*iter));
 
     iter->sentinel = self;
     iter->current  = NULL;
@@ -756,7 +756,7 @@ BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self)
     return iter;
 }
 
-const BruAction *bru_smir_action_list_iterator_next(BruActionListIterator *self)
+const BruAction *bru_smir_action_list_iter_next(BruActionListIter *self)
 {
     BruActionList *al = self->current;
 
@@ -771,7 +771,7 @@ const BruAction *bru_smir_action_list_iterator_next(BruActionListIterator *self)
     return self->current->act;
 }
 
-const BruAction *bru_smir_action_list_iterator_prev(BruActionListIterator *self)
+const BruAction *bru_smir_action_list_iter_prev(BruActionListIter *self)
 {
     BruActionList *al = self->current;
 
@@ -786,7 +786,7 @@ const BruAction *bru_smir_action_list_iterator_prev(BruActionListIterator *self)
     return self->current->act;
 }
 
-void bru_smir_action_list_iterator_remove(BruActionListIterator *self)
+void bru_smir_action_list_iter_remove(BruActionListIter *self)
 {
     BruActionList *al;
 
@@ -802,7 +802,7 @@ void bru_smir_action_list_iterator_remove(BruActionListIterator *self)
     al->act = NULL;
 }
 
-void bru_smir_action_list_iterator_free(BruActionListIterator *self)
+void bru_smir_action_list_iter_free(BruActionListIter *self)
 {
     if (self->current != self->sentinel && self->current &&
         self->current->act == NULL)

@@ -28,7 +28,7 @@
  * to the next logical instruction.
  */
 
-#include "compiler.h"
+#include <bru/vm/compiler.h>
 
 /**
  * Eliminates unreachable code by overwriting each instruction with a NOOP.

@@ -1,6 +1,7 @@
 #ifndef BRU_RE_SRE_H
 #define BRU_RE_SRE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -16,7 +17,7 @@ typedef struct {
 } BruInterval;
 
 typedef struct {
-    int         neg;         /**< whether to negate the intervals             */
+    bool        neg;         /**< whether to negate the intervals             */
     size_t      len;         /**< number of intervals                         */
     BruInterval intervals[]; /**< array of underlying intervals               */
 } BruIntervals;
@@ -59,10 +60,10 @@ struct bru_regex_node {
     };
 
     union {
-        bru_byte_t greedy;      /**< whether repetition operator is greedy    */
-        bru_byte_t positive;    /**< whether lookahead is positive/negative   */
-        bru_len_t  capture_idx; /**< index for captures and backreferences    */
-        BruRegexNode *right;    /**< right child for binary operators         */
+        bool          greedy;      /**< whether repetition operator is greedy */
+        bool          positive;    /**< whether lookahead is positive         */
+        bru_len_t     capture_idx; /**< index for captures and backreferences */
+        BruRegexNode *right;       /**< right child for binary operators      */
     };
 
     bru_cntr_t min;         /**< minimum value for counter                    */
@@ -174,7 +175,7 @@ char *bru_interval_to_str(const BruInterval *self);
  * @return a collection of intervals with specified number of intervals
  *         allocated and specified negation
  */
-BruIntervals *bru_intervals_new(int neg, size_t len);
+BruIntervals *bru_intervals_new(bool neg, size_t len);
 
 /**
  * Free the memory allocated for the collection of intervals.
@@ -284,7 +285,7 @@ BruRegexNode *bru_regex_backreference(BruRegexNode *capture);
  * @return the constructed regex non-counter repetition node
  */
 BruRegexNode *
-bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy);
+bru_regex_repetition(BruRegexType type, BruRegexNode *child, bool greedy);
 
 /**
  * Construct a regex counter node with given regex tree child, greediness, and
@@ -299,7 +300,7 @@ bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy);
  * @return the constructed regex counter node
  */
 BruRegexNode *bru_regex_counter(BruRegexNode *child,
-                                bru_byte_t    greedy,
+                                bool          greedy,
                                 bru_cntr_t    min,
                                 bru_cntr_t    max,
                                 bru_len_t     idx);
@@ -313,7 +314,7 @@ BruRegexNode *bru_regex_counter(BruRegexNode *child,
  *
  * @return the constructed regex lookahead node
  */
-BruRegexNode *bru_regex_lookahead(BruRegexNode *child, bru_byte_t pos);
+BruRegexNode *bru_regex_lookahead(BruRegexNode *child, bool pos);
 
 /**
  * Free the memory allocated for the regex tree (the regex node and it's

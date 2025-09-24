@@ -1,6 +1,7 @@
 #ifndef BRU_FA_SMIR_H
 #define BRU_FA_SMIR_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -58,10 +59,10 @@ typedef struct bru_action {
     BruOrd     ord; /**< order for comparison for type = BRU_ACT_CMP          */
 } BruAction;
 
-typedef BruAction                       BruPredicate;
-typedef struct bru_action_list          BruActionList;
-typedef struct bru_action_list_iterator BruActionListIterator;
-typedef struct bru_state_machine        BruStateMachine;
+typedef BruAction                   BruPredicate;
+typedef struct bru_action_list      BruActionList;
+typedef struct bru_action_list_iter BruActionListIter;
+typedef struct bru_state_machine    BruStateMachine;
 
 typedef uint32_t bru_state_id; // 0 => nonexistent
 typedef uint64_t bru_trans_id; // (src state_id, idx into outgoing transitions)
@@ -72,18 +73,20 @@ typedef uint64_t bru_trans_id; // (src state_id, idx into outgoing transitions)
          (defined(BRU_FA_ENABLE_SHORT_NAMES) ||  \
           defined(BRU_ENABLE_SHORT_NAMES)))
 typedef BruActionType ActionType;
-#    define ACT_BEGIN  BRU_ACT_BEGIN
-#    define ACT_END    BRU_ACT_END
-#    define ACT_CHAR   BRU_ACT_CHAR
-#    define ACT_PRED   BRU_ACT_PRED
-#    define ACT_SAVE   BRU_ACT_SAVE
-#    define ACT_EPSCHK BRU_ACT_EPSCHK
-#    define ACT_EPSSET BRU_ACT_EPSSET
-#    define ACT_MEMO   BRU_ACT_MEMO
-#    define ACT_WRITE  BRU_ACT_WRITE
-#    define ACT_INC    BRU_ACT_INC
-#    define ACT_SET    BRU_ACT_SET
-#    define ACT_CMP    BRU_ACT_CMP
+#    define ACT_BEGIN   BRU_ACT_BEGIN
+#    define ACT_END     BRU_ACT_END
+#    define ACT_CHAR    BRU_ACT_CHAR
+#    define ACT_PRED    BRU_ACT_PRED
+#    define ACT_SAVE    BRU_ACT_SAVE
+#    define ACT_BACKREF BRU_ACT_BACKREF
+#    define ACT_INC     BRU_ACT_INC
+#    define ACT_SET     BRU_ACT_SET
+#    define ACT_CMP     BRU_ACT_CMP
+#    define ACT_EPSSET  BRU_ACT_EPSSET
+#    define ACT_EPSCHK  BRU_ACT_EPSCHK
+#    define ACT_MEMOSET BRU_ACT_MEMOSET
+#    define ACT_MEMOCHK BRU_ACT_MEMOCHK
+#    define ACT_WRITE   BRU_ACT_WRITE
 
 typedef BruPredicateType      PredicateType;
 typedef BruAction             Action;
@@ -574,9 +577,9 @@ void bru_smir_action_free(const BruAction *self);
  * @param[in] a1 the first action
  * @param[in] a2 the second action
  *
- * @return TRUE if the actions are equivalent, else FALSE
+ * @return true if the actions are equivalent; else false
  */
-int bru_smir_action_equal(const BruAction *a1, const BruAction *a2);
+bool bru_smir_action_equal(const BruAction *a1, const BruAction *a2);
 
 /**
  * Get the type of the action.
@@ -624,16 +627,15 @@ BruActionList *bru_smir_action_list_new(void);
 BruActionList *bru_smir_action_list_clone(const BruActionList *self);
 
 /**
- * Clone the list of actions into an existing list.
+ * Copy the list of actions into an existing list.
  *
- * Note: If the list to clone into is not empty, this will insert the cloned
+ * Note: If the list to copy into is not empty, this will insert the cloned
  * items at the end of the list.
  *
- * @param[in] self  the list of actions to clone
- * @param[in] clone the preallocated list to clone into
+ * @param[in] self  the list of actions to copy
+ * @param[in] clone the preallocated list to copy into
  */
-void bru_smir_action_list_clone_into(const BruActionList *self,
-                                     BruActionList       *clone);
+void bru_smir_action_list_copy(const BruActionList *self, BruActionList *dst);
 
 /**
  * Remove (and free) the elements of a list of actions.
@@ -704,7 +706,7 @@ void bru_smir_action_list_prepend(BruActionList *self, BruActionList *acts);
  *
  * @return the interator for the list of actions
  */
-BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self);
+BruActionListIter *bru_smir_action_list_iter(const BruActionList *self);
 
 /**
  * Get the next action in the action list iterator.
@@ -719,8 +721,7 @@ BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self);
  * @return the next action in the action list iterator if there is one;
  *         else NULL
  */
-const BruAction *
-bru_smir_action_list_iterator_next(BruActionListIterator *self);
+const BruAction *bru_smir_action_list_iter_next(BruActionListIter *self);
 
 /**
  * Get the previous action in the action list iterator.
@@ -735,8 +736,7 @@ bru_smir_action_list_iterator_next(BruActionListIterator *self);
  * @return the previous action in the action list iterator if there is one;
  *         else NULL
  */
-const BruAction *
-bru_smir_action_list_iterator_prev(BruActionListIterator *self);
+const BruAction *bru_smir_action_list_iter_prev(BruActionListIter *self);
 
 /**
  * Remove and free the memory of the current iteration action for the iterator
@@ -748,14 +748,14 @@ bru_smir_action_list_iterator_prev(BruActionListIterator *self);
  *
  * @param[in] self the action list iterator
  */
-void bru_smir_action_list_iterator_remove(BruActionListIterator *self);
+void bru_smir_action_list_iter_remove(BruActionListIter *self);
 
 /**
  * Free the memory of the action list iterator.
  *
  * @param[in] self the action list iterator
  */
-void bru_smir_action_list_iterator_free(BruActionListIterator *self);
+void bru_smir_action_list_iter_free(BruActionListIter *self);
 
 /**
  * Print the list of actions.

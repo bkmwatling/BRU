@@ -14,11 +14,11 @@ typedef struct {
 } BruLockstepThread;
 
 typedef struct {
-    BruScheduler     *scheduler; /**< lockstep scheduler for scheduling       */
-    const bru_byte_t *start_pc;  /**< the starting PC for new threads         */
-    const char       *start_sp;  /**< the starting SP for the current run     */
-    const char       *sp;        /**< the string pointer for lockstep         */
-    BruThread        *match;     /**< the matched thread                      */
+    BruThreadScheduler *ts;       /**< lockstep scheduler for scheduling      */
+    const bru_byte_t   *start_pc; /**< the starting PC for new threads        */
+    const char         *start_sp; /**< the starting SP for the current run    */
+    const char         *sp;       /**< the string pointer for lockstep        */
+    BruThread          *match;    /**< the matched thread                     */
 } BruLockstepThreadManager;
 
 /* --- LockstepThreadManager function prototypes ---------------------------- */
@@ -29,7 +29,7 @@ static void       lockstep_tm_init(BruThreadManager *tm,
 static void       lockstep_tm_reset(BruThreadManager *tm);
 static void       lockstep_tm_free(BruThreadManager *tm);
 static void       lockstep_tm_kill(BruThreadManager *tm);
-static int        lockstep_tm_done_exec(BruThreadManager *tm);
+static bool       lockstep_tm_done_exec(BruThreadManager *tm);
 static BruThread *lockstep_tm_get_match(BruThreadManager *tm);
 
 static BruThread *lockstep_tm_alloc_thread(BruThreadManager *tm);
@@ -41,7 +41,7 @@ static void       lockstep_tm_init_thread(BruThreadManager *tm,
 static void       lockstep_tm_copy_thread(BruThreadManager *tm,
                                           const BruThread  *src,
                                           BruThread        *dst);
-static int        lockstep_tm_check_thread_eq(BruThreadManager *tm,
+static bool       lockstep_tm_check_thread_eq(BruThreadManager *tm,
                                               const BruThread  *t1,
                                               const BruThread  *t2);
 static void lockstep_tm_schedule_thread(BruThreadManager *tm, BruThread *t);
@@ -66,13 +66,13 @@ BruThreadManager *bru_lockstep_tm_new(void)
 {
     BruLockstepThreadManager  *ltm = malloc(sizeof(*ltm));
     BruThreadManagerInterface *tmi =
-        bru_tm_interface_new(ltm, sizeof(BruLockstepThread));
+        bru_tmi_new(ltm, sizeof(BruLockstepThread));
     BruThreadManager *tm = malloc(sizeof(*tm));
 
     bru_vt_init(tm, tmi);
 
-    ltm->scheduler = bru_lockstep_scheduler_new(tm);
-    ltm->match     = NULL;
+    ltm->ts    = bru_lockstep_ts_new(tm);
+    ltm->match = NULL;
 
     BRU_TM_SET_REQUIRED_FUNCS(tmi, lockstep);
     BRU_TM_SET_NOOP_FUNCS(tmi);
@@ -89,7 +89,7 @@ static void lockstep_tm_init(BruThreadManager *tm,
 
     self->start_pc = start_pc;
     self->sp = self->start_sp = start_sp;
-    bru_scheduler_init(self->scheduler);
+    bru_ts_init(self->ts);
     if (self->match) {
         bru_tm_kill_thread(tm, self->match);
         self->match = NULL;
@@ -104,9 +104,9 @@ static void lockstep_tm_reset(BruThreadManager *tm)
 {
     BruThread                *t;
     BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
-    BruScheduler             *ts   = self->scheduler;
+    BruThreadScheduler       *ts   = self->ts;
 
-    while ((t = bru_scheduler_next(ts))) bru_tm_kill_thread(tm, t);
+    while ((t = bru_ts_next(ts))) bru_tm_kill_thread(tm, t);
 
     if (self->match) {
         bru_tm_kill_thread(tm, self->match);
@@ -118,7 +118,7 @@ static void lockstep_tm_free(BruThreadManager *tm)
 {
     BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
 
-    bru_scheduler_free(self->scheduler);
+    bru_ts_free(self->ts);
     free(self);
 }
 
@@ -128,7 +128,7 @@ static void lockstep_tm_kill(BruThreadManager *tm)
     _bru_tm_free(tm);
 }
 
-static int lockstep_tm_done_exec(BruThreadManager *tm)
+static bool lockstep_tm_done_exec(BruThreadManager *tm)
 {
     return *((BruLockstepThreadManager *) bru_vt_curr_impl(tm))->start_sp ==
            '\0';
@@ -172,9 +172,9 @@ static void lockstep_tm_copy_thread(BruThreadManager *tm,
     lt_dst->pc = lt_src->pc;
 }
 
-static int lockstep_tm_check_thread_eq(BruThreadManager *tm,
-                                       const BruThread  *t1,
-                                       const BruThread  *t2)
+static bool lockstep_tm_check_thread_eq(BruThreadManager *tm,
+                                        const BruThread  *t1,
+                                        const BruThread  *t2)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
     BruLockstepThread         *lt1 = BRU_THREAD_FROM_INSTANCE(tmi, t1);
@@ -186,7 +186,7 @@ static int lockstep_tm_check_thread_eq(BruThreadManager *tm,
 static void lockstep_tm_schedule_thread(BruThreadManager *tm, BruThread *t)
 {
     BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
-    if (!bru_scheduler_schedule(self->scheduler, t)) bru_tm_kill_thread(tm, t);
+    if (!bru_ts_schedule(self->ts, t)) bru_tm_kill_thread(tm, t);
 }
 
 static BruThread *lockstep_tm_next_thread(BruThreadManager *tm)
@@ -196,8 +196,8 @@ static BruThread *lockstep_tm_next_thread(BruThreadManager *tm)
 
     // advance the SP after a lockstep only if we still have threads to
     // execute, or we don't have a match yet in which case we spawn a new thread
-    if (bru_lockstep_scheduler_done_step(self->scheduler) && *self->sp &&
-        (!self->match || bru_scheduler_has_next(self->scheduler))) {
+    if (bru_lockstep_ts_done_step(self->ts) && *self->sp &&
+        (!self->match || bru_ts_has_next(self->ts))) {
         self->sp = stc_utf8_str_next(self->sp);
         if (!self->match) {
             thread = bru_vt_call_function(tm, spawn_thread);
@@ -206,21 +206,20 @@ static BruThread *lockstep_tm_next_thread(BruThreadManager *tm)
         }
     }
 
-    return bru_scheduler_next(self->scheduler);
+    return bru_ts_next(self->ts);
 }
 
 static void lockstep_tm_notify_thread_match(BruThreadManager *tm, BruThread *t)
 {
     BruLockstepThreadManager *self = bru_vt_curr_impl(tm);
-    BruScheduler             *ts   = self->scheduler;
+    BruThreadScheduler       *ts   = self->ts;
     StcVec(BruThread *)       low_priority_threads;
     size_t                    i, nthreads;
 
     if (self->match) bru_tm_kill_thread(tm, self->match);
     self->match = t;
 
-    low_priority_threads =
-        bru_lockstep_scheduler_remove_low_priority_threads(ts);
+    low_priority_threads = bru_lockstep_ts_remove_low_priority_threads(ts);
     if ((nthreads =
              low_priority_threads ? stc_vec_len(low_priority_threads) : 0)) {
         for (i = 0; i < nthreads; i++)

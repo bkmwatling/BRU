@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,7 +87,7 @@ static void    rfa_construct(BruRfa             *self,
                              const BruRegexNode *re,
                              BruPosPairList     *first,
                              BruConstructionOpts opts);
-static void    rfa_merge_outgoing(BruRfa *rfa, size_t pos, bru_len_t *visited);
+static void    rfa_merge_outgoing(BruRfa *rfa, size_t pos, bool *visited);
 
 static size_t count(const BruRegexNode *re);
 static void   emit(BruStateMachine *sm, const BruRfa *rfa);
@@ -108,7 +109,7 @@ BruStateMachine *bru_glushkov_construct(BruRegex re, BruConstructionOpts opts)
     BruPosPair       *pp;
     BruPosPairList  **follow;
     const BruAction **positions;
-    bru_len_t        *visited;
+    bool             *visited;
     BruRfa           *rfa;
     BruStateMachine  *sm;
 
@@ -400,7 +401,7 @@ static void rfa_construct(BruRfa             *self,
             FOREACH(pp, self->last->sentinel) {
                 ppl_clone_into(first_r2, ppl_tmp);
                 FOREACH(pp_tmp, ppl_tmp->sentinel) {
-                    bru_smir_action_list_clone_into(pp->actions, al_tmp);
+                    bru_smir_action_list_copy(pp->actions, al_tmp);
                     bru_smir_action_list_prepend(pp_tmp->actions, al_tmp);
                 }
                 ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
@@ -408,8 +409,7 @@ static void rfa_construct(BruRfa             *self,
 
             if (NULLABLE(first)) {
                 FOREACH(pp_tmp, first_r2->sentinel) {
-                    bru_smir_action_list_clone_into(first->gamma->actions,
-                                                    al_tmp);
+                    bru_smir_action_list_copy(first->gamma->actions, al_tmp);
                     bru_smir_action_list_prepend(pp_tmp->actions, al_tmp);
                 }
                 ppl_replace_gamma(first, first_r2);
@@ -417,8 +417,7 @@ static void rfa_construct(BruRfa             *self,
 
             if (NULLABLE(first_r2)) {
                 FOREACH(pp_tmp, self->last->sentinel) {
-                    bru_smir_action_list_clone_into(first_r2->gamma->actions,
-                                                    al_tmp);
+                    bru_smir_action_list_copy(first_r2->gamma->actions, al_tmp);
                     bru_smir_action_list_append(pp_tmp->actions, al_tmp);
                 }
                 ppl_append(self->last, rfa_r2->last);
@@ -476,7 +475,7 @@ static void rfa_construct(BruRfa             *self,
                 if (opts.capture_semantics == BRU_CS_RE2 && NULLABLE(first))
                     bru_smir_action_list_clear(ppl_tmp->gamma->actions);
                 FOREACH(pp_tmp, ppl_tmp->sentinel) {
-                    bru_smir_action_list_clone_into(pp->actions, al_tmp);
+                    bru_smir_action_list_copy(pp->actions, al_tmp);
                     bru_smir_action_list_prepend(pp_tmp->actions, al_tmp);
                 }
                 ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
@@ -500,7 +499,7 @@ static void rfa_construct(BruRfa             *self,
                 FOREACH(pp_tmp, ppl_tmp->sentinel) {
                     if (opts.capture_semantics == BRU_CS_RE2 && NULLABLE(first))
                         bru_smir_action_list_clear(ppl_tmp->gamma->actions);
-                    bru_smir_action_list_clone_into(pp->actions, al_tmp);
+                    bru_smir_action_list_copy(pp->actions, al_tmp);
                     bru_smir_action_list_prepend(pp_tmp->actions, al_tmp);
                 }
                 ppl_replace_gamma(self->follow[pp->pos], ppl_tmp);
@@ -522,8 +521,8 @@ static void rfa_construct(BruRfa             *self,
         case BRU_COUNTER: /* fallthrough */
             // TODO: PCRE/RE2 semantics
         case BRU_LOOKAHEAD: /* fallthrough */
-        case BRU_BACKREFERENCE: assert(0 && "TODO");
-        case BRU_NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_BACKREFERENCE: assert(false && "TODO");
+        case BRU_NREGEXTYPES: assert(false && "unreachable");
     }
 
 cleanup:
@@ -535,13 +534,13 @@ cleanup:
 #undef APPEND_POSITION
 }
 
-static void rfa_merge_outgoing(BruRfa *rfa, size_t pos, bru_len_t *visited)
+static void rfa_merge_outgoing(BruRfa *rfa, size_t pos, bool *visited)
 {
     bru_len_t      *seen;
     BruPosPair     *t, *e;
     BruPosPairList *follow = rfa->follow[pos];
 
-    visited[pos] = TRUE;
+    visited[pos] = true;
     FOREACH(t, follow->sentinel)
         if (!visited[t->pos]) rfa_merge_outgoing(rfa, t->pos, visited);
 
@@ -552,12 +551,12 @@ static void rfa_merge_outgoing(BruRfa *rfa, size_t pos, bru_len_t *visited)
             e = pp_remove(e);
             follow->len--;
         } else {
-            seen[e->pos] = TRUE;
+            seen[e->pos] = true;
             e            = e->next;
         }
     }
     free(seen);
-    visited[pos] = FALSE;
+    visited[pos] = false;
 }
 
 static size_t count(const BruRegexNode *re)
@@ -587,7 +586,7 @@ static size_t count(const BruRegexNode *re)
         case BRU_COUNTER: npos = count(re->left); break;
         case BRU_LOOKAHEAD: npos = 1 + count(re->left); break;
 
-        case BRU_NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_NREGEXTYPES: assert(false && "unreachable");
     }
 
     return npos;
@@ -671,9 +670,9 @@ static void ppl_print(BruPosPairList *self, FILE *stream)
                 default:
                     fprintf(stream, "action type = %d\n",
                             bru_smir_action_type(act));
-                    assert(0 && "unreachable");
+                    assert(false && "unreachable");
 
-                case BRU_ACT_NACTIONS: assert(0 && "unreachable");
+                case BRU_ACT_NACTIONS: assert(false && "unreachable");
             }
             fprintf(stream, ",");
         }

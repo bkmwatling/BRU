@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -271,7 +272,7 @@ inst_print_formatted(FILE                  *stream,
 
         case BRU_NBYTECODES:
             fprintf(stderr, "bytecode = %d\n", pc[-1]);
-            assert(0 && "unreachable");
+            assert(false && "unreachable");
     }
 
     return pc;
@@ -339,7 +340,7 @@ static void print_offset_as_absolute_index(FILE             *stream,
             case BRU_WRITE1: break;
             case BRU_NBYTECODES:
                 fprintf(stderr, "bytecode = %d\n", insts[-1]);
-                assert(0 && "unreachable");
+                assert(false && "unreachable");
         }
     }
 

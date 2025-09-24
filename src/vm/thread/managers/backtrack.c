@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include <bru/vm/thread/managers/backtrack.h>
@@ -12,9 +13,9 @@ typedef struct bru_backtrack_thread {
 } BruBacktrackThread;
 
 typedef struct bru_backtrack_tm {
-    BruScheduler *scheduler; /**< the backtrack scheduler for scheduling      */
-    const char   *start_sp;  /**< the starting SP for the current run         */
-    BruThread    *match;     /**< the matched thread                          */
+    BruThreadScheduler *ts;       /**< the backtrack scheduler for scheduling */
+    const char         *start_sp; /**< the starting SP for the current run    */
+    BruThread          *match;    /**< the matched thread                     */
 } BruBacktrackThreadManager;
 
 /* --- BacktrackThreadManager function prototypes --------------------------- */
@@ -25,7 +26,7 @@ static void       backtrack_tm_init(BruThreadManager *tm,
 static void       backtrack_tm_reset(BruThreadManager *tm);
 static void       backtrack_tm_free(BruThreadManager *tm);
 static void       backtrack_tm_kill(BruThreadManager *tm);
-static int        backtrack_tm_done_exec(BruThreadManager *tm);
+static bool       backtrack_tm_done_exec(BruThreadManager *tm);
 static BruThread *backtrack_tm_get_match(BruThreadManager *tm);
 
 static BruThread *backtrack_tm_alloc_thread(BruThreadManager *tm);
@@ -37,7 +38,7 @@ static void       backtrack_tm_init_thread(BruThreadManager *tm,
 static void       backtrack_tm_copy_thread(BruThreadManager *tm,
                                            const BruThread  *src,
                                            BruThread        *dst);
-static int        backtrack_tm_check_thread_eq(BruThreadManager *tm,
+static bool       backtrack_tm_check_thread_eq(BruThreadManager *tm,
                                                const BruThread  *t1,
                                                const BruThread  *t2);
 static void backtrack_tm_schedule_thread(BruThreadManager *tm, BruThread *t);
@@ -64,14 +65,14 @@ BruThreadManager *bru_backtrack_tm_new(void)
 {
     BruBacktrackThreadManager *btm = malloc(sizeof(*btm));
     BruThreadManagerInterface *tmi =
-        bru_tm_interface_new(btm, sizeof(BruBacktrackThread));
+        bru_tmi_new(btm, sizeof(BruBacktrackThread));
     BruThreadManager *tm = malloc(sizeof(*tm));
 
     bru_vt_init(tm, tmi);
 
-    btm->scheduler = bru_backtrack_scheduler_new();
-    btm->match     = NULL;
-    btm->start_sp  = NULL;
+    btm->ts       = bru_backtrack_ts_new();
+    btm->match    = NULL;
+    btm->start_sp = NULL;
 
     BRU_TM_SET_REQUIRED_FUNCS(tmi, backtrack);
     BRU_TM_SET_NOOP_FUNCS(tmi);
@@ -114,7 +115,7 @@ static void backtrack_tm_reset(BruThreadManager *tm)
     BruBacktrackThreadManager *self = bru_vt_curr_impl(tm);
     BruThread                 *t;
 
-    while ((t = bru_scheduler_next(self->scheduler))) bru_tm_kill_thread(tm, t);
+    while ((t = bru_ts_next(self->ts))) bru_tm_kill_thread(tm, t);
 
     if (self->match) {
         bru_tm_kill_thread(tm, self->match);
@@ -126,7 +127,7 @@ static void backtrack_tm_free(BruThreadManager *tm)
 {
     BruBacktrackThreadManager *self = bru_vt_curr_impl(tm);
 
-    bru_scheduler_free(self->scheduler);
+    bru_ts_free(self->ts);
     free(self);
 }
 
@@ -136,7 +137,7 @@ static void backtrack_tm_kill(BruThreadManager *tm)
     _bru_tm_free(tm);
 }
 
-static int backtrack_tm_done_exec(BruThreadManager *tm)
+static bool backtrack_tm_done_exec(BruThreadManager *tm)
 {
     return *((BruBacktrackThreadManager *) bru_vt_curr_impl(tm))->start_sp ==
            '\0';
@@ -171,9 +172,9 @@ static void backtrack_tm_copy_thread(BruThreadManager *tm,
     bt_dst->pc = bt_src->pc;
 }
 
-static int backtrack_tm_check_thread_eq(BruThreadManager *tm,
-                                        const BruThread  *t1,
-                                        const BruThread  *t2)
+static bool backtrack_tm_check_thread_eq(BruThreadManager *tm,
+                                         const BruThread  *t1,
+                                         const BruThread  *t2)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
     BruBacktrackThread        *bt1 = BRU_THREAD_FROM_INSTANCE(tmi, t1);
@@ -184,21 +185,21 @@ static int backtrack_tm_check_thread_eq(BruThreadManager *tm,
 
 static void backtrack_tm_schedule_thread(BruThreadManager *tm, BruThread *t)
 {
-    bru_scheduler_schedule(
-        ((BruBacktrackThreadManager *) bru_vt_curr_impl(tm))->scheduler, t);
+    bru_ts_schedule(((BruBacktrackThreadManager *) bru_vt_curr_impl(tm))->ts,
+                    t);
 }
 
 static void backtrack_tm_schedule_thread_in_order(BruThreadManager *tm,
                                                   BruThread        *t)
 {
-    bru_scheduler_schedule_in_order(
-        ((BruBacktrackThreadManager *) bru_vt_curr_impl(tm))->scheduler, t);
+    bru_ts_schedule_in_order(
+        ((BruBacktrackThreadManager *) bru_vt_curr_impl(tm))->ts, t);
 }
 
 static BruThread *backtrack_tm_next_thread(BruThreadManager *tm)
 {
-    return bru_scheduler_next(
-        ((BruBacktrackThreadManager *) bru_vt_curr_impl(tm))->scheduler);
+    return bru_ts_next(
+        ((BruBacktrackThreadManager *) bru_vt_curr_impl(tm))->ts);
 }
 
 static void backtrack_tm_notify_thread_match(BruThreadManager *tm, BruThread *t)

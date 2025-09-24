@@ -19,6 +19,8 @@
  * underlying thread manager.
  */
 
+#include <stdbool.h>
+
 #include <bru/types.h>
 #include <bru/vm/program.h>
 #include <bru/vm/vtable.h>
@@ -42,11 +44,11 @@
  * Use the bru_tm_kill macro defined above to kill a thread manager
  * and deallocate all of its memory.
  */
-#define _bru_tm_free(manager)                                           \
-    do {                                                                \
-        bru_vt_call_procedure(manager, free);                           \
-        while (!stc_vec_is_empty((manager)->table))                     \
-            bru_tm_interface_free(stc_vec_pop_back(&(manager)->table)); \
+#define _bru_tm_free(manager)                                  \
+    do {                                                       \
+        bru_vt_call_procedure(manager, free);                  \
+        while (!stc_vec_is_empty((manager)->table))            \
+            bru_tmi_free(stc_vec_pop_back(&(manager)->table)); \
     } while (0)
 
 /**
@@ -94,28 +96,28 @@
     bru_vt_call_function(manager, memoise_check, thread, idx)
 #define bru_tm_memoise_set(manager, thread, idx) \
     bru_vt_call_procedure(manager, memoise_set, thread, idx)
-#define bru_tm_counter(manager, thread, idx) \
-    bru_vt_call_function(manager, counter, thread, idx)
+#define bru_tm_get_counter(manager, thread, idx) \
+    bru_vt_call_function(manager, get_counter, thread, idx)
 #define bru_tm_set_counter(manager, thread, idx, val) \
     bru_vt_call_procedure(manager, set_counter, thread, idx, val)
 #define bru_tm_inc_counter(manager, thread, idx) \
     bru_vt_call_procedure(manager, inc_counter, thread, idx)
-#define bru_tm_memory(manager, thread, idx) \
-    bru_vt_call_function(manager, memory, thread, idx)
+#define bru_tm_get_memory(manager, thread, idx) \
+    bru_vt_call_function(manager, get_memory, thread, idx)
 #define bru_tm_set_memory(manager, thread, idx, val, size) \
     bru_vt_call_procedure(manager, set_memory, thread, idx, val, size)
-#define bru_tm_bytes(manager, thread, nbytes) \
-    bru_vt_call_function(manager, bytes, thread, nbytes)
+#define bru_tm_read_bytes(manager, thread, nbytes) \
+    bru_vt_call_function(manager, read_bytes, thread, nbytes)
 #define bru_tm_write_byte(manager, thread, byte) \
     bru_vt_call_procedure(manager, write_byte, thread, byte)
-#define bru_tm_captures(manager, thread, ncaptures) \
-    bru_vt_call_function(manager, captures, thread, ncaptures)
+#define bru_tm_get_captures(manager, thread, ncaptures) \
+    bru_vt_call_function(manager, get_captures, thread, ncaptures)
 #define bru_tm_set_capture(manager, thread, idx) \
     bru_vt_call_procedure(manager, set_capture, thread, idx)
 #define bru_tm_get_capture(manager, thread, idx) \
     bru_vt_call_function(manager, get_capture, thread, idx)
-#define bru_tm_backref_index(manager, thread) \
-    bru_vt_call_function(manager, backref_index, thread)
+#define bru_tm_get_backref_index(manager, thread) \
+    bru_vt_call_function(manager, get_backref_index, thread)
 #define bru_tm_set_backref_index(manager, thread, len) \
     bru_vt_call_procedure(manager, set_backref_index, thread, len)
 
@@ -154,16 +156,17 @@
         (manager_interface)->init_memoisation = bru_tm_init_memoisation_noop; \
         (manager_interface)->memoise_check    = bru_tm_memoise_check_noop;    \
         (manager_interface)->memoise_set      = bru_tm_memoise_set_noop;      \
-        (manager_interface)->counter          = bru_tm_counter_noop;          \
+        (manager_interface)->get_counter      = bru_tm_get_counter_noop;      \
         (manager_interface)->set_counter      = bru_tm_set_counter_noop;      \
         (manager_interface)->inc_counter      = bru_tm_inc_counter_noop;      \
-        (manager_interface)->memory           = bru_tm_memory_noop;           \
+        (manager_interface)->get_memory       = bru_tm_get_memory_noop;       \
         (manager_interface)->set_memory       = bru_tm_set_memory_noop;       \
-        (manager_interface)->bytes            = bru_tm_bytes_noop;            \
+        (manager_interface)->read_bytes       = bru_tm_read_bytes_noop;       \
         (manager_interface)->write_byte       = bru_tm_write_byte_noop;       \
-        (manager_interface)->captures         = bru_tm_captures_noop;         \
+        (manager_interface)->get_captures     = bru_tm_get_captures_noop;     \
         (manager_interface)->set_capture      = bru_tm_set_capture_noop;      \
-        (manager_interface)->backref_index    = bru_tm_backref_index_noop;    \
+        (manager_interface)->get_backref_index =                              \
+            bru_tm_get_backref_index_noop;                                    \
         (manager_interface)->set_backref_index =                              \
             bru_tm_set_backref_index_noop;                                    \
     } while (0)
@@ -179,7 +182,7 @@ typedef struct bru_tm_interface {
                  const bru_byte_t *start_pc,
                  const char       *start_sp);
     void (*reset)(BruThreadManager *self);
-    int (*done_exec)(BruThreadManager *self);
+    bool (*done_exec)(BruThreadManager *self);
     BruThread *(*get_match)(BruThreadManager *self);
 
     /**
@@ -209,10 +212,9 @@ typedef struct bru_tm_interface {
     void (*kill_thread)(BruThreadManager *self, BruThread *thread);
     void (*free_thread)(BruThreadManager *self, BruThread *thread);
 
-    /**< return non-zero if equal, zero otherwise */
-    int (*check_thread_eq)(BruThreadManager *self,
-                           const BruThread  *t1,
-                           const BruThread  *t2);
+    bool (*check_thread_eq)(BruThreadManager *self,
+                            const BruThread  *t1,
+                            const BruThread  *t2);
     void (*schedule_thread)(BruThreadManager *self, BruThread *thread);
     void (*schedule_thread_in_order)(BruThreadManager *self, BruThread *thread);
     BruThread *(*next_thread)(BruThreadManager *self);
@@ -230,17 +232,17 @@ typedef struct bru_tm_interface {
     void (*init_memoisation)(BruThreadManager *self,
                              size_t            nmemo_insts,
                              const char       *text);
-    int (*memoise_check)(BruThreadManager *self,
-                         BruThread        *thread,
-                         bru_len_t         idx);
+    bool (*memoise_check)(BruThreadManager *self,
+                          BruThread        *thread,
+                          bru_len_t         idx);
     void (*memoise_set)(BruThreadManager *self,
                         BruThread        *thread,
                         bru_len_t         idx);
 
     // counters
-    bru_cntr_t (*counter)(BruThreadManager *self,
-                          const BruThread  *thread,
-                          bru_len_t         idx);
+    bru_cntr_t (*get_counter)(BruThreadManager *self,
+                              const BruThread  *thread,
+                              bru_len_t         idx);
     void (*set_counter)(BruThreadManager *self,
                         BruThread        *thread,
                         bru_len_t         idx,
@@ -250,9 +252,9 @@ typedef struct bru_tm_interface {
                         bru_len_t         idx);
 
     // arbitrary memory
-    void *(*memory)(BruThreadManager *self,
-                    const BruThread  *thread,
-                    bru_len_t         idx);
+    void *(*get_memory)(BruThreadManager *self,
+                        const BruThread  *thread,
+                        bru_len_t         idx);
     void (*set_memory)(BruThreadManager *self,
                        BruThread        *thread,
                        bru_len_t         idx,
@@ -260,17 +262,17 @@ typedef struct bru_tm_interface {
                        size_t            size);
 
     // arbitrary writing bytes
-    bru_byte_t *(*bytes)(BruThreadManager *self,
-                         BruThread        *thread,
-                         size_t           *nbytes);
+    bru_byte_t *(*read_bytes)(BruThreadManager *self,
+                              BruThread        *thread,
+                              size_t           *nbytes);
     void (*write_byte)(BruThreadManager *self,
                        BruThread        *thread,
                        bru_byte_t        byte);
 
     // captures
-    const char *const *(*captures)(BruThreadManager *self,
-                                   const BruThread  *thread,
-                                   bru_len_t        *ncaptures);
+    const char *const *(*get_captures)(BruThreadManager *self,
+                                       const BruThread  *thread,
+                                       bru_len_t        *ncaptures);
     void (*set_capture)(BruThreadManager *self,
                         BruThread        *thread,
                         bru_len_t         idx);
@@ -279,7 +281,8 @@ typedef struct bru_tm_interface {
                                bru_len_t         idx);
 
     // backrefs
-    bru_len_t (*backref_index)(BruThreadManager *self, const BruThread *thread);
+    bru_len_t (*get_backref_index)(BruThreadManager *self,
+                                   const BruThread  *thread);
     void (*set_backref_index)(BruThreadManager *self,
                               BruThread        *thread,
                               bru_len_t         len);
@@ -322,34 +325,37 @@ typedef struct bru_tm_interface {
 #    define tm_init_memoisation bru_tm_init_memoisation
 #    define tm_memoise_check    bru_tm_memoise_check
 #    define tm_memoise_set      bru_tm_memoise_set
-#    define tm_counter          bru_tm_counter
+#    define tm_get_counter      bru_tm_get_counter
 #    define tm_set_counter      bru_tm_set_counter
 #    define tm_inc_counter      bru_tm_inc_counter
-#    define tm_memory           bru_tm_memory
+#    define tm_get_memory       bru_tm_get_memory
 #    define tm_set_memory       bru_tm_set_memory
-#    define tm_captures         bru_tm_captures
+#    define tm_get_captures     bru_tm_get_captures
 #    define tm_set_capture      bru_tm_set_capture
-#    define tm_bytes            bru_tm_bytes
+#    define tm_read_bytes       bru_tm_read_bytes
 #    define tm_write_byte       bru_tm_write_byte
 
 #    define TM_SET_REQUIRED_FUNCS BRU_TM_SET_REQUIRED_FUNCS
-#    define TM_SET_ALL_FUNCS      BRU_TM_SET_ALL_FUNCS
+#    define TM_SET_NOOP_FUNCS     BRU_TM_SET_NOOP_FUNCS
 
 typedef BruThread                 Thread;
 typedef BruThreadManager          ThreadManager;
 typedef BruThreadManagerInterface ThreadManagerInterface;
 
+#    define tmi_new  bru_tmi_new
+#    define tmi_free bru_tmi_free
+
 #    define tm_init_memoisation_noop bru_tm_init_memoisation_noop
 #    define tm_memoise_check_noop    bru_tm_memoise_check_noop
 #    define tm_memoise_set_noop      bru_tm_memoise_set_noop
-#    define tm_counter_noop          bru_tm_counter_noop
+#    define tm_get_counter_noop      bru_tm_get_counter_noop
 #    define tm_set_counter_noop      bru_tm_set_counter_noop
 #    define tm_inc_counter_noop      bru_tm_inc_counter_noop
-#    define tm_memory_noop           bru_tm_memory_noop
+#    define tm_get_memory_noop       bru_tm_get_memory_noop
 #    define tm_set_memory_noop       bru_tm_set_memory_noop
-#    define tm_captures_noop         bru_tm_captures_noop
+#    define tm_get_captures_noop     bru_tm_get_captures_noop
 #    define tm_set_capture_noop      bru_tm_set_capture_noop
-#    define tm_bytes_noop            bru_tm_bytes_noop
+#    define tm_read_bytes_noop       bru_tm_read_bytes_noop
 #    define tm_write_byte_noop       bru_tm_write_byte_noop
 #endif /* BRU_VM_THREAD_MANAGER_ENABLE_SHORT_NAMES */
 
@@ -363,14 +369,14 @@ typedef BruThreadManagerInterface ThreadManagerInterface;
  * @param[in] impl  the implementing object
  * @param[in] tsize the size of the thread used by the thread manager
  */
-BruThreadManagerInterface *bru_tm_interface_new(void *impl, size_t tsize);
+BruThreadManagerInterface *bru_tmi_new(void *impl, size_t tsize);
 
 /**
  * Free the thread manager interface.
  *
  * @param[in] tmi the thread manager interface
  */
-void bru_tm_interface_free(BruThreadManagerInterface *tmi);
+void bru_tmi_free(BruThreadManagerInterface *tmi);
 
 /* --- Thread manager NO-OP function prototypes ----------------------------- */
 
@@ -382,17 +388,17 @@ void bru_tm_init_memoisation_noop(BruThreadManager *tm,
                                   size_t            nmemo_insts,
                                   const char       *text);
 
-int bru_tm_memoise_check_noop(BruThreadManager *tm,
-                              BruThread        *thread,
-                              bru_len_t         idx);
+bool bru_tm_memoise_check_noop(BruThreadManager *tm,
+                               BruThread        *thread,
+                               bru_len_t         idx);
 
 void bru_tm_memoise_set_noop(BruThreadManager *tm,
                              BruThread        *thread,
                              bru_len_t         idx);
 
-bru_cntr_t bru_tm_counter_noop(BruThreadManager *tm,
-                               const BruThread  *thread,
-                               bru_len_t         idx);
+bru_cntr_t bru_tm_get_counter_noop(BruThreadManager *tm,
+                                   const BruThread  *thread,
+                                   bru_len_t         idx);
 
 void bru_tm_set_counter_noop(BruThreadManager *tm,
                              BruThread        *thread,
@@ -403,9 +409,9 @@ void bru_tm_inc_counter_noop(BruThreadManager *tm,
                              BruThread        *thread,
                              bru_len_t         idx);
 
-void *bru_tm_memory_noop(BruThreadManager *tm,
-                         const BruThread  *thread,
-                         bru_len_t         idx);
+void *bru_tm_get_memory_noop(BruThreadManager *tm,
+                             const BruThread  *thread,
+                             bru_len_t         idx);
 
 void bru_tm_set_memory_noop(BruThreadManager *tm,
                             BruThread        *thread,
@@ -417,19 +423,20 @@ void bru_tm_write_byte_noop(BruThreadManager *self,
                             BruThread        *thread,
                             bru_byte_t        byte);
 
-bru_byte_t *
-bru_tm_bytes_noop(BruThreadManager *self, BruThread *thread, size_t *nbytes);
+bru_byte_t *bru_tm_read_bytes_noop(BruThreadManager *self,
+                                   BruThread        *thread,
+                                   size_t           *nbytes);
 
-const char *const *bru_tm_captures_noop(BruThreadManager *tm,
-                                        const BruThread  *thread,
-                                        bru_len_t        *ncaptures);
+const char *const *bru_tm_get_captures_noop(BruThreadManager *tm,
+                                            const BruThread  *thread,
+                                            bru_len_t        *ncaptures);
 
 void bru_tm_set_capture_noop(BruThreadManager *tm,
                              BruThread        *thread,
                              bru_len_t         idx);
 
-bru_len_t bru_tm_backref_index_noop(BruThreadManager *tm,
-                                    const BruThread  *thread);
+bru_len_t bru_tm_get_backref_index_noop(BruThreadManager *tm,
+                                        const BruThread  *thread);
 
 void bru_tm_set_backref_index_noop(BruThreadManager *tm,
                                    BruThread        *thread,

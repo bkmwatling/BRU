@@ -25,7 +25,7 @@ bru_all_matches_tm_new(BruThreadManager *tm, FILE *logfile, const char *text)
     amtm->text    = text;
 
     super                    = bru_vt_curr(tm);
-    tmi                      = bru_tm_interface_new(amtm, super->_thread_size);
+    tmi                      = bru_tmi_new(amtm, super->_thread_size);
     tmi->notify_thread_match = all_matches_tm_notify_thread_match;
     tmi->free                = all_matches_tm_free;
 
@@ -46,9 +46,10 @@ static void print_match(BruThreadManager *tm, BruThread *t)
 
     if (!t) return;
 
-    fprintf(self->logfile, "matched = TRUE\n");
+    fprintf(self->logfile, "matched = true\n");
     fprintf(self->logfile, "captures:\n");
-    captures = bru_vt_call_super_function(tm, curr, captures, t, &ncaptures);
+    captures =
+        bru_vt_call_super_function(tm, curr, get_captures, t, &ncaptures);
     fprintf(self->logfile, "  input: '%s'\n", self->text);
     for (i = 0; i < 2 * ncaptures; i += 2) {
         fprintf(self->logfile, "%7hu: ", i);

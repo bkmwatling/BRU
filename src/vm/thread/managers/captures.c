@@ -44,16 +44,16 @@ BruThreadManager *bru_tm_with_captures_new(BruThreadManager *tm,
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi   = bru_tm_interface_new(impl, 2 * ncaptures * sizeof(const char *) +
-                                           super->_thread_size);
+    tmi =
+        bru_tmi_new(impl, 2 * ncaptures * sizeof(char *) + super->_thread_size);
 
     // store functions
-    tmi->free        = tm_with_captures_free;
-    tmi->init_thread = thread_init_with_captures;
-    tmi->copy_thread = thread_copy_with_captures;
-    tmi->captures    = thread_get_captures;
-    tmi->set_capture = thread_set_capture;
-    tmi->get_capture = thread_get_capture;
+    tmi->free         = tm_with_captures_free;
+    tmi->init_thread  = thread_init_with_captures;
+    tmi->copy_thread  = thread_copy_with_captures;
+    tmi->get_captures = thread_get_captures;
+    tmi->set_capture  = thread_set_capture;
+    tmi->get_capture  = thread_get_capture;
 
     // register extension
     bru_vt_extend(tm, tmi);

@@ -32,17 +32,18 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   When requesting the next thread from the scheduler, there is a chance the
   thread points to a `CHAR`/`PRED` instruction. If the scheduler is not
   currently in lockstep then it attempts to reschedule the thread using
-  `lockstep_scheduler_schedule`. If this call returns FALSE, the thread is
+  `lockstep_scheduler_schedule`. If this call returns `FALSE`, the thread is
   supposed to be killed since it is a duplicate—this does not currently happen,
   which results in the thread's memory being lost.
 
-- [ ] Switch to using `stdbool` for Boolean values
+- [x] Switch to using `stdbool` for Boolean values
 
   **Files:** Whole project  
   **Location:** Whole project  
   **Date reported:** 2024-10-18  
   **Reported by:** [bkmwatling][bkmwatling]  
-  **Relevant branch:** `refactor/stdbool`
+  **Relevant branch:** `refactor/stdbool`  
+  **Fixed by:** [bkmwatling][bkmwatling]
 
   The project uses integers to represent Boolean values with the `TRUE` and
   `FALSE` macros defined in `src/types.h`. This is unnecessary as the project
@@ -175,7 +176,7 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   **Reported by:** [aroodt][aroodt]  
   **Relevant branch:** `feature/instruction-ir`  
   **Date fixed:** 2025-02-05  
-  **Fixed by:**  [aroodt][arroodt]
+  **Fixed by:**  [aroodt][aroodt]
 
   Compilers for programming languages typically implement an intermendiate
   representation consisting of a sequence of tuples containing the bytecode and
@@ -194,7 +195,7 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   **Reported by:** [aroodt][aroodt]  
   **Relevant branch:** `refactor/smir-compilation`  
   **Date fixed:** 2025-02-05  
-  **Fixed by:**  [aroodt][arroodt]
+  **Fixed by:**  [aroodt][aroodt]
 
   BRU's codebase structure gives clear separation between machinery used for
   parsing (the `re` folder), finite automata (the `fa` folder), and the virtual
@@ -225,7 +226,7 @@ fields **Date fixed** and **Fixed by** after **Relevant branch**.
   **Reported by:** [aroodt][aroodt]  
   **Relevant branch:** `fix/posix-cc`  
   **Date fixed:** 2025-02-20  
-  **Fixed by:**  [aroodt][arroodt]
+  **Fixed by:**  [aroodt][aroodt]
 
   Posix character classes are not correctly recognised during parsing due to
   the use of `strcmp`. This causes classes like `"[:alnum:]"` to be compared

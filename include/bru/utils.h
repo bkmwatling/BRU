@@ -1,6 +1,8 @@
 #ifndef BRU_UTILS_H
 #define BRU_UTILS_H
 
+#include <stdlib.h>
+
 #if !defined(BRU_UTILS_DISABLE_SHORT_NAMES) && \
     (defined(BRU_UTILS_ENABLE_SHORT_NAMES) || defined(BRU_ENABLE_SHORT_NAMES))
 #    define UNUSED       BRU_UNUSED

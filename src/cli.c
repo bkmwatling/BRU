@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include <bru/cli.h>
@@ -97,14 +98,14 @@ static StcArgConvertResult convert_optimise_level(const char *arg, void *out)
     return STC_ARG_CR_SUCCESS;
 }
 
-static StcArgConvertResult convert_scheduler_type(const char *arg, void *out)
+static StcArgConvertResult convert_ts_type(const char *arg, void *out)
 {
-    SchedulerType *type = out;
+    BruThreadSchedulerType *type = out;
 
     if (strcmp(arg, "backtrack") == 0 || strcmp(arg, "spencer") == 0)
-        *type = SCH_BACKTRACK;
+        *type = BRU_TS_BACKTRACK;
     else if (strcmp(arg, "lockstep") == 0 || strcmp(arg, "thompson") == 0)
-        *type = SCH_LOCKSTEP;
+        *type = BRU_TS_LOCKSTEP;
     else
         return STC_ARG_CR_FAILURE;
 
@@ -118,27 +119,27 @@ static void add_parsing_args(StcArgParser *ap, BruOptions *options)
     stc_argparser_add_bool_option(
         ap, NULL, "--only-counters",
         "whether to use just counters and treat *, +, and ? as counters",
-        &options->parse.opts.only_counters, FALSE);
+        &options->parse.opts.only_counters, false);
     stc_argparser_add_bool_option(
         ap, "-u", "--unbounded-counters",
         "whether to permit unbounded counters or substitute with *",
-        &options->parse.opts.unbounded_counters, FALSE);
+        &options->parse.opts.unbounded_counters, false);
     stc_argparser_add_bool_option(
         ap, "-e", "--expand-counters",
         "whether to expand counters with concatenation and nested ?",
-        &options->parse.opts.expand_counters, FALSE);
+        &options->parse.opts.expand_counters, false);
     stc_argparser_add_bool_option(
         ap, "-w", "--whole-match-capture",
         "whether to have the whole regex match be the 0th capture",
-        &options->parse.opts.whole_match_capture, FALSE);
+        &options->parse.opts.whole_match_capture, false);
     stc_argparser_add_bool_option(
         ap, NULL, "--log-unsupported",
         "whether to log unsupported features in the regex",
-        &options->parse.opts.log_unsupported, FALSE);
+        &options->parse.opts.log_unsupported, false);
     stc_argparser_add_bool_option(
         ap, NULL, "--flag-problematic",
         "whether to flag expressions like E* with E matching epsilon",
-        &options->parse.opts.allow_repeated_nullability, TRUE);
+        &options->parse.opts.allow_repeated_nullability, true);
 }
 
 static void add_compilation_args(StcArgParser *ap, BruOptions *options)
@@ -151,7 +152,7 @@ static void add_compilation_args(StcArgParser *ap, BruOptions *options)
     stc_argparser_add_bool_option(
         ap, NULL, "--only-std-split",
         "whether to use standard `split` instruction only",
-        &options->compile.pipeline.only_std_split, FALSE);
+        &options->compile.pipeline.only_std_split, false);
     stc_argparser_add_custom_option(
         ap, NULL, "--capture-semantics", "pcre | re2",
         "which type of capturing semantics to compile with",
@@ -164,11 +165,11 @@ static void add_compilation_args(StcArgParser *ap, BruOptions *options)
     stc_argparser_add_bool_option(
         ap, NULL, "--mark-states",
         "whether to compile state marking instructions",
-        &options->compile.pipeline.mark_states, FALSE);
+        &options->compile.pipeline.mark_states, false);
     stc_argparser_add_bool_option(
         ap, NULL, "--encode-priorities",
         "whether to encode transition priorities on the transitions",
-        &options->compile.pipeline.encode_priorities, FALSE);
+        &options->compile.pipeline.encode_priorities, false);
     stc_argparser_add_custom_option(
         ap, "-O", "--optimise", "none | 0 | full | 1",
         "set the level of compiled code optimisation",
@@ -177,7 +178,7 @@ static void add_compilation_args(StcArgParser *ap, BruOptions *options)
     stc_argparser_add_bool_option(
         ap, NULL, "--state-machine",
         "output the state machine instead of the program",
-        &options->compile.only_state_machine, FALSE);
+        &options->compile.only_state_machine, false);
 }
 
 static void add_matching_args(StcArgParser *ap, BruOptions *options)
@@ -185,18 +186,18 @@ static void add_matching_args(StcArgParser *ap, BruOptions *options)
     stc_argparser_add_custom_option(
         ap, "-s", "--scheduler", "backtrack | spencer | lockstep | thompson",
         "which scheduler to use for execution", &options->match.scheduler_type,
-        "backtrack", convert_scheduler_type);
+        "backtrack", convert_ts_type);
     stc_argparser_add_bool_option(
         ap, "-b", "--benchmark",
         "whether to benchmark SRVM execution, writing to the logfile",
-        &options->match.benchmark, FALSE);
+        &options->match.benchmark, false);
     stc_argparser_add_bool_option(ap, NULL, "--no-pool",
                                   "disable thread pool usage (no thread reuse)",
-                                  &options->match.thread_pool, TRUE);
+                                  &options->match.thread_pool, true);
     // NOTE: deprecated/not useful, see all_matches ThreadManager
     // stc_argparser_add_bool_option(ap, NULL, "--all-matches",
     //                               "whether to report all matches",
-    //                               &options->all_matches, FALSE);
+    //                               &options->all_matches, false);
     stc_argparser_add_str_argument(
         ap, "<input>", "the input string to match against the regex",
         &options->match.text);
@@ -334,9 +335,9 @@ BruThreadManager *bru_cli_make_thread_manager(BruOptions       *options,
 {
     BruThreadManager *tm;
 
-    if (options->match.scheduler_type == SCH_BACKTRACK)
+    if (options->match.scheduler_type == BRU_TS_BACKTRACK)
         tm = bru_backtrack_tm_new();
-    else if (options->match.scheduler_type == SCH_LOCKSTEP)
+    else if (options->match.scheduler_type == BRU_TS_LOCKSTEP)
         tm = bru_lockstep_tm_new();
 
     if (prog->ncaptures) tm = bru_tm_with_captures_new(tm, prog->ncaptures);

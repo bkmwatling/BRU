@@ -8,17 +8,17 @@
      !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                           \
          (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                        \
           defined(BRU_ENABLE_SHORT_NAMES)))
-#    define backtrack_scheduler_new bru_backtrack_scheduler_new
+#    define backtrack_ts_new bru_backtrack_ts_new
 #endif /* BRU_VM_THREAD_SCHEDULER_BACKTRACK_ENABLE_SHORT_NAMES */
 
-/* --- Backtrack Scheduler function prototypes ------------------------------ */
+/* --- Backtrack Thread Scheduler function prototypes ----------------------- */
 
 /**
- * Construct a scheduler that performs Spencer-style DFS/stack thread
- * scheduling.
+ * Construct a thread scheduler that performs Spencer-style DFS/stack
+ * backtracking thread scheduling.
  *
- * @return the constructed Spencer-style scheduler
+ * @return the constructed backtracking thread scheduler
  */
-BruScheduler *bru_backtrack_scheduler_new(void);
+BruThreadScheduler *bru_backtrack_ts_new(void);
 
 #endif /* BRU_VM_THREAD_SCHEDULER_BACKTRACK_H */

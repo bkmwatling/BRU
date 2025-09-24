@@ -19,8 +19,8 @@ static void thread_copy_with_backrefs(BruThreadManager *tm,
                                       const BruThread  *src,
                                       BruThread        *dst);
 
-static bru_len_t thread_backref_index(BruThreadManager *tm,
-                                      const BruThread  *thread);
+static bru_len_t thread_get_backref_index(BruThreadManager *tm,
+                                          const BruThread  *thread);
 
 static void thread_set_backref_index(BruThreadManager *tm,
                                      BruThread        *thread,
@@ -34,13 +34,12 @@ BruThreadManager *bru_tm_with_backrefs_new(BruThreadManager *tm)
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi   = bru_tm_interface_new(NULL, sizeof(BruThreadWithBackref) +
-                                           super->_thread_size);
+    tmi = bru_tmi_new(NULL, sizeof(BruThreadWithBackref) + super->_thread_size);
 
     // store functions
     tmi->init_thread       = thread_init_with_backrefs;
     tmi->copy_thread       = thread_copy_with_backrefs;
-    tmi->backref_index     = thread_backref_index;
+    tmi->get_backref_index = thread_get_backref_index;
     tmi->set_backref_index = thread_set_backref_index;
 
     // register extension
@@ -77,8 +76,8 @@ static void thread_copy_with_backrefs(BruThreadManager *tm,
     bru_vt_call_super_procedure(tm, tmi, copy_thread, src, dst);
 }
 
-static bru_len_t thread_backref_index(BruThreadManager *tm,
-                                      const BruThread  *thread)
+static bru_len_t thread_get_backref_index(BruThreadManager *tm,
+                                          const BruThread  *thread)
 {
     BruThreadManagerInterface *tmi = bru_vt_curr(tm);
     BruThreadWithBackref      *twb = BRU_THREAD_FROM_INSTANCE(tmi, thread);

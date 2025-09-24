@@ -1,16 +1,18 @@
 #ifndef BRU_RE_PARSER_H
 #define BRU_RE_PARSER_H
 
+#include <stdbool.h>
+
 #include <bru/re/sre.h>
 
 typedef struct {
-    int only_counters;              /**< convert *, +, and ? to counters      */
-    int unbounded_counters;         /**< allow counters to be unbounded       */
-    int expand_counters;            /**< expand counters                      */
-    int whole_match_capture;        /**< save entire match into capture 0     */
-    int log_unsupported;            /**< log unsupported features in the expr */
-    int allow_repeated_nullability; /**< allow expressions like (a?)*         */
-    FILE *logfile;                  /**< the file for logging                 */
+    bool only_counters;              /**< convert *, +, and ? to counters     */
+    bool unbounded_counters;         /**< allow counters to be unbounded      */
+    bool expand_counters;            /**< expand counters                     */
+    bool whole_match_capture;        /**< save entire match into capture 0    */
+    bool log_unsupported;            /**< log unsupported features in expr    */
+    bool allow_repeated_nullability; /**< allow expressions like (a?)*        */
+    FILE *logfile;                   /**< the file for logging                */
 } BruParserOpts;
 
 typedef struct {

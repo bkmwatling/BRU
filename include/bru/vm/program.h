@@ -1,9 +1,10 @@
 #ifndef BRU_VM_PROGRAM_H
 #define BRU_VM_PROGRAM_H
 
-#include <stc/fatp/vec.h>
-
+#include <stdbool.h>
 #include <string.h>
+
+#include <stc/fatp/vec.h>
 
 #include <bru/re/sre.h>
 #include <bru/types.h>
@@ -152,8 +153,8 @@ typedef struct {
     bru_len_t thread_mem_len; /**< number of bytes needed for thread memory   */
 
     // compile-time collected info
-    int requires_writing; /**< if the program contains WRITE* instructions    */
-    int requires_backref; /**< if the program contains BACKREF instructions   */
+    bool requires_writing; /**< if the program contains WRITE* instructions   */
+    bool requires_backref; /**< if the program contains BACKREF instructions  */
 } BruProgram;
 
 #if !defined(BRU_VM_PROGRAM_DISABLE_SHORT_NAMES) && \

@@ -84,7 +84,7 @@
         free(vt);                       \
     } while (0)
 
-// offset computation is performed at runtime now, since the type is not
+// Offset computation is performed at runtime now, since the type is not
 // provided. Enums could maybe be used instead?
 #define bru_vt_lookup_from(vt, func, __i)                                    \
     _bru_vt_lookup_from(((void *) (vt)),                                     \

@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +52,7 @@
         }                                             \
     } while (0)
 
-#define FLAG_UNSUPPORTED(code, ps) ((*(ps)->unsupported_feats)[code] = TRUE)
+#define FLAG_UNSUPPORTED(code, ps) ((*(ps)->unsupported_feats)[code] = true)
 
 /* --- Type definitions ----------------------------------------------------- */
 
@@ -94,17 +95,17 @@ struct bru_interval_list_item {
 };
 
 typedef struct {
-    int                  neg;
+    bool                 neg;
     size_t               len;
     BruIntervalListItem *sentinel;
 } BruIntervalList;
 
 typedef struct {
     BruUnsupportedFeatureCode (*unsupported_feats)[BRU_NUM_UNSUPPORTED_CODES];
-    bru_byte_t allow_repeated_nullability; /*<< allow expressions like (a?)*  */
+    bool        allow_repeated_nullability; /**< allow expressions like (a?)* */
     const char *ch;
-    int         in_subexpr;
-    int         in_lookahead;
+    bool        in_subexpr;
+    bool        in_lookahead;
 
     /**
      * The below variable is the array of parsed capture groups.
@@ -188,10 +189,10 @@ static void print_unsupported_feature(unsigned int feature_idx, FILE *stream);
 
 static BruRegexNode *
 parser_regex_counter(BruSubRegex   *subre /**< in,out paramter */,
-                     bru_byte_t     greedy,
+                     bool           greedy,
                      bru_cntr_t     min,
                      bru_cntr_t     max,
-                     int            expand_counters,
+                     bool           expand_counters,
                      BruParseState *ps);
 
 /* --- API function definitions --------------------------------------------- */
@@ -223,8 +224,8 @@ BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
                          .allow_repeated_nullability =
                              self->opts.allow_repeated_nullability,
                          .ch           = self->regex,
-                         .in_subexpr   = FALSE,
-                         .in_lookahead = FALSE,
+                         .in_subexpr   = false,
+                         .in_lookahead = false,
                          .captures     = NULL,
                          .next_rid     = 0 };
     stc_vec_default_init(&ps.captures);
@@ -267,7 +268,7 @@ BruParseResult bru_parser_parse(const BruParser *self, BruRegex *re)
 
 static BruIntervals *dot(void)
 {
-    BruIntervals *dot = bru_intervals_new(TRUE, DOT_NINTERVALS);
+    BruIntervals *dot = bru_intervals_new(true, DOT_NINTERVALS);
 
     dot->intervals[0] = bru_interval("\0", "\0");
     dot->intervals[1] = bru_interval("\n", "\n");
@@ -447,7 +448,7 @@ parse_quantifier(const BruParser *self,
 {
     BruRegexNode  *tmp;
     BruParseResult res = { BRU_PARSE_SUCCESS, NULL };
-    bru_byte_t     greedy;
+    bool           greedy;
     bru_cntr_t     min, max;
 
     /* check for quantifier */
@@ -502,13 +503,13 @@ parse_quantifier(const BruParser *self,
             }
             break;
 
-        case BRU_NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_NREGEXTYPES: assert(false && "unreachable");
     }
 
     /* check for lazy */
     switch (*ps->ch) {
         case '?':
-            greedy = FALSE;
+            greedy = false;
             ps->ch++;
             break;
 
@@ -519,7 +520,7 @@ parse_quantifier(const BruParser *self,
             res.code = BRU_PARSE_UNSUPPORTED;
             break;
 
-        default: greedy = TRUE;
+        default: greedy = true;
     }
 
     /* check for single or zero repitition */
@@ -619,7 +620,7 @@ static BruParseResult parse_paren(const BruParser *self,
     BruUnsupportedFeatureCode unsupported_code;
     const char               *ch;
     bru_len_t                 capture_idx;
-    int                       is_lookahead = FALSE, pos = FALSE;
+    bool                      is_lookahead = false, pos = false;
 
     if (*(ch = ps->ch) != '(') return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
     ps->ch++;
@@ -671,9 +672,9 @@ static BruParseResult parse_paren(const BruParser *self,
                     goto unsupported_group;
 
                 // TODO: support lookaheads
-                case '=': // pos = TRUE; /* fallthrough */
+                case '=': // pos = true; /* fallthrough */
                 case '!':
-                    // is_lookahead = TRUE; break;
+                    // is_lookahead = true; break;
                     unsupported_code = BRU_UNSUPPORTED_LOOKAHEAD;
                     goto unsupported_group;
 
@@ -709,7 +710,7 @@ static BruParseResult parse_paren(const BruParser *self,
                 .unsupported_feats          = ps->unsupported_feats,
                 .allow_repeated_nullability = ps->allow_repeated_nullability,
                 .ch                         = ps->ch,
-                .in_subexpr                 = TRUE,
+                .in_subexpr                 = true,
                 .in_lookahead               = ps->in_lookahead || is_lookahead,
                 .captures                   = ps->captures,
                 .next_rid                   = ps->next_rid
@@ -741,7 +742,7 @@ static BruParseResult parse_paren(const BruParser *self,
                                   .allow_repeated_nullability =
                                       ps->allow_repeated_nullability,
                                   .ch           = ps->ch,
-                                  .in_subexpr   = TRUE,
+                                  .in_subexpr   = true,
                                   .in_lookahead = ps->in_lookahead,
                                   .captures     = ps->captures,
                                   .next_rid     = ps->next_rid };
@@ -788,12 +789,12 @@ static BruParseResult parse_cc(BruParseState *ps,
     BruIntervals        *intervals;
     const char          *ch;
     size_t               i;
-    int                  neg = FALSE;
+    bool                 neg = false;
 
     if (*(ch = ps->ch) != '[') return PARSE_RES(BRU_PARSE_NO_MATCH, ps->ch);
 
     if (*++ps->ch == '^') {
-        neg = TRUE;
+        neg = true;
         ps->ch++;
     }
 
@@ -956,7 +957,7 @@ static BruParseResult parse_escape(BruParseState *ps,
     res = parse_escape_cc(ps, &list);
     if (ERRORED(res.code)) goto done;
     if (SUCCEEDED(res.code)) {
-        intervals = bru_intervals_new(FALSE, list.len);
+        intervals = bru_intervals_new(false, list.len);
         for (i = 0, item = list.sentinel->next; item != list.sentinel;
              i++, item   = item->next) {
             intervals->intervals[i] = item->interval;
@@ -1363,19 +1364,19 @@ check_for_comment:
 
 static void find_matching_closing_parenthesis(BruParseState *ps)
 {
-    size_t     nparen   = 1;
-    bru_byte_t in_cc    = FALSE;
-    bru_byte_t in_quote = FALSE;
-    char       ch;
+    size_t nparen   = 1;
+    bool   in_cc    = false;
+    bool   in_quote = false;
+    char   ch;
 
     while ((ch = *ps->ch)) {
         switch (ch) {
             case '[':
-                if (!in_quote) in_cc = TRUE;
+                if (!in_quote) in_cc = true;
                 break;
 
             case ']':
-                if (in_cc) in_cc = FALSE;
+                if (in_cc) in_cc = false;
                 break;
 
             case ')':
@@ -1392,9 +1393,9 @@ static void find_matching_closing_parenthesis(BruParseState *ps)
                 ps->ch++;
                 if (in_cc) break;
                 if (*ps->ch == 'Q')
-                    in_quote = TRUE;
+                    in_quote = true;
                 else if (*ps->ch == 'E' && in_quote)
-                    in_quote = FALSE;
+                    in_quote = false;
                 break;
 
             default: break;
@@ -1439,10 +1440,10 @@ static void print_unsupported_feature(unsigned int feature_idx, FILE *stream)
 }
 
 static BruRegexNode *parser_regex_counter(BruSubRegex   *subre,
-                                          bru_byte_t     greedy,
+                                          bool           greedy,
                                           bru_cntr_t     min,
                                           bru_cntr_t     max,
-                                          int            expand_counters,
+                                          bool           expand_counters,
                                           BruParseState *ps)
 {
     BruRegexNode *left, *right, *tmp;

@@ -18,8 +18,8 @@
  *
  * NOTE: This transform does not create a new state machine.
  *
- * MS_IN: Memoise states with more than 1 incoming transition.
- * MS_CN: Memoise all states that are targets of backedges.
+ * MS_IN:  Memoise states with more than 1 incoming transition.
+ * MS_CN:  Memoise all states that are targets of backedges.
  * MS_IAR: Not currently supported.
  *
  * @param[in] sm      the state machine

@@ -41,7 +41,7 @@ BruThreadManager *bru_benchmark_tm_new(BruThreadManager *tm, FILE *logfile)
     memset(btm->inst_counts, 0, sizeof(btm->inst_counts));
 
     super             = bru_vt_curr(tm);
-    tmi               = bru_tm_interface_new(btm, super->_thread_size);
+    tmi               = bru_tmi_new(btm, super->_thread_size);
     tmi->free         = benchmark_tm_free;
     tmi->next_thread  = benchmark_tm_next_thread;
     tmi->kill_thread  = benchmark_tm_kill_thread;

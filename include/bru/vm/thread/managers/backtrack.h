@@ -17,7 +17,7 @@
  * Construct a thread manager that performs Spencer-style backtracking regex
  * matching.
  *
- * @return the constructed Spencer-style thread manager
+ * @return the constructed backtracking thread manager
  */
 BruThreadManager *bru_backtrack_tm_new(void);
 

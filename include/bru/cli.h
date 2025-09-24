@@ -1,6 +1,8 @@
 #ifndef BRU_CLI_H
 #define BRU_CLI_H
 
+#include <stdbool.h>
+
 #include <stc/util/argparser.h>
 
 #include <bru/fa/constructions/opts.h>
@@ -13,15 +15,15 @@
 
 typedef enum { BRU_THOMPSON, BRU_GLUSHKOV, BRU_FLAT } BruConstruction;
 
-typedef enum { SCH_BACKTRACK, SCH_LOCKSTEP } SchedulerType;
+typedef enum { BRU_TS_BACKTRACK, BRU_TS_LOCKSTEP } BruThreadSchedulerType;
 
 typedef struct {
     BruConstruction      construction;
     BruConstructionOpts  construction_opts;
     BruMemoScheme        memo_scheme;
-    int                  only_std_split;
-    int                  mark_states;
-    int                  encode_priorities;
+    bool                 only_std_split;
+    bool                 mark_states;
+    bool                 encode_priorities;
     BruOptimisationLevel optimisation_level;
 } BruCompilationPipeline;
 
@@ -32,15 +34,15 @@ typedef struct {
 
 typedef struct {
     BruCompilationPipeline pipeline;
-    int                    only_state_machine;
+    bool                   only_state_machine;
 } BruCLICompileOpts;
 
 typedef struct {
-    const char   *text;
-    int           benchmark;
-    int           thread_pool;
-    int           all_matches;
-    SchedulerType scheduler_type;
+    const char            *text;
+    bool                   benchmark;
+    bool                   thread_pool;
+    bool                   all_matches;
+    BruThreadSchedulerType scheduler_type;
 } BruCLIMatchOpts;
 
 typedef struct {

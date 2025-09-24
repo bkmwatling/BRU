@@ -1,10 +1,11 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <bru/vm/thread/managers/memoisation.h>
 
 typedef struct {
-    bru_byte_t *memoisation_memory; /**< memory used for memoisation          */
+    bool       *memoisation_memory; /**< memory used for memoisation          */
     const char *text;               /**< input string being matched against   */
     size_t      text_len;           /**< length of the input string           */
     size_t      nmemo_insts;        /**< the number of memo instructions      */
@@ -18,7 +19,7 @@ static void memoised_tm_free(BruThreadManager *tm);
 static void memoised_tm_init_memoisation(BruThreadManager *tm,
                                          size_t            nmemo_insts,
                                          const char       *text);
-static int
+static bool
 memoised_tm_memoise_check(BruThreadManager *tm, BruThread *t, bru_len_t idx);
 static void
 memoised_tm_memoise_set(BruThreadManager *tm, BruThread *t, bru_len_t idx);
@@ -35,7 +36,7 @@ BruThreadManager *bru_memoised_tm_new(BruThreadManager *tm)
     mtm->nmemo_insts        = 0;
 
     super                 = bru_vt_curr(tm);
-    tmi                   = bru_tm_interface_new(mtm, super->_thread_size);
+    tmi                   = bru_tmi_new(mtm, super->_thread_size);
     tmi->reset            = memoised_tm_reset;
     tmi->free             = memoised_tm_free;
     tmi->init_memoisation = memoised_tm_init_memoisation;
@@ -55,7 +56,7 @@ static void memoised_tm_reset(BruThreadManager *tm)
     BruThreadManagerInterface *tmi  = bru_vt_curr(tm);
     bru_vt_call_super_procedure(tm, tmi, reset);
     if (self->memoisation_memory)
-        memset(self->memoisation_memory, FALSE,
+        memset(self->memoisation_memory, false,
                self->nmemo_insts * self->text_len *
                    sizeof(*self->memoisation_memory));
 }
@@ -84,11 +85,11 @@ static void memoised_tm_init_memoisation(BruThreadManager *tm,
     self->nmemo_insts        = nmemo_insts;
     self->memoisation_memory = malloc(nmemo_insts * self->text_len *
                                       sizeof(*self->memoisation_memory));
-    memset(self->memoisation_memory, FALSE,
+    memset(self->memoisation_memory, false,
            nmemo_insts * self->text_len * sizeof(*self->memoisation_memory));
 }
 
-static int
+static bool
 memoised_tm_memoise_check(BruThreadManager *tm, BruThread *t, bru_len_t idx)
 {
     BruMemoisedThreadManager *self = bru_vt_curr_impl(tm);
@@ -105,5 +106,5 @@ memoised_tm_memoise_set(BruThreadManager *tm, BruThread *t, bru_len_t idx)
 
     size_t i = idx * self->text_len + (bru_tm_sp(tm, t) - self->text);
 
-    self->memoisation_memory[i] = TRUE;
+    self->memoisation_memory[i] = true;
 }

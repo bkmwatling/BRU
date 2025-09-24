@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -43,12 +44,12 @@ char *bru_interval_to_str(const BruInterval *self)
     return s;
 }
 
-BruIntervals *bru_intervals_new(int neg, size_t len)
+BruIntervals *bru_intervals_new(bool neg, size_t len)
 {
     BruIntervals *intervals =
         malloc(sizeof(*intervals) + len * sizeof(*intervals->intervals));
 
-    intervals->neg = neg ? TRUE : FALSE;
+    intervals->neg = neg ? true : false;
     intervals->len = len;
 
     return intervals;
@@ -110,7 +111,7 @@ BruRegexNode *bru_regex_new(BruRegexType type)
     assert(type == BRU_CARET || type == BRU_DOLLAR || /* type == MEMOISE || */
            type == BRU_EPSILON);
     re->type     = type;
-    re->nullable = TRUE;
+    re->nullable = true;
 
     return re;
 }
@@ -121,7 +122,7 @@ BruRegexNode *bru_regex_literal(const char *ch)
 
     re->type     = BRU_LITERAL;
     re->ch       = ch;
-    re->nullable = FALSE;
+    re->nullable = false;
 
     return re;
 }
@@ -132,7 +133,7 @@ BruRegexNode *bru_regex_cc(BruIntervals *intervals)
 
     re->type      = BRU_CC;
     re->intervals = intervals;
-    re->nullable  = FALSE;
+    re->nullable  = false;
 
     return re;
 }
@@ -177,7 +178,7 @@ BruRegexNode *bru_regex_backreference(BruRegexNode *capture)
 }
 
 BruRegexNode *
-bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy)
+bru_regex_repetition(BruRegexType type, BruRegexNode *child, bool greedy)
 {
     BruRegexNode *re = malloc(sizeof(*re));
 
@@ -186,13 +187,13 @@ bru_regex_repetition(BruRegexType type, BruRegexNode *child, bru_byte_t greedy)
     re->type     = type;
     re->left     = child;
     re->greedy   = greedy;
-    re->nullable = (type == BRU_PLUS) ? child->nullable : TRUE;
+    re->nullable = (type == BRU_PLUS) ? child->nullable : true;
 
     return re;
 }
 
 BruRegexNode *bru_regex_counter(BruRegexNode *child,
-                                bru_byte_t    greedy,
+                                bool          greedy,
                                 bru_cntr_t    min,
                                 bru_cntr_t    max,
                                 bru_len_t     idx)
@@ -210,14 +211,14 @@ BruRegexNode *bru_regex_counter(BruRegexNode *child,
     return re;
 }
 
-BruRegexNode *bru_regex_lookahead(BruRegexNode *child, bru_byte_t positive)
+BruRegexNode *bru_regex_lookahead(BruRegexNode *child, bool positive)
 {
     BruRegexNode *re = malloc(sizeof(*re));
 
     re->type     = BRU_LOOKAHEAD;
     re->left     = child;
     re->positive = positive;
-    assert(FALSE && "TODO: Are lookaheads nullable?");
+    assert(false && "TODO: Are lookaheads nullable?");
 
     return re;
 }
@@ -246,7 +247,7 @@ void bru_regex_node_free(BruRegexNode *self)
         case BRU_QUES:    /* fallthrough */
         case BRU_COUNTER: /* fallthrough */
         case BRU_LOOKAHEAD: bru_regex_node_free(self->left); break;
-        case BRU_NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_NREGEXTYPES: assert(false && "unreachable");
     }
 
     free(self);
@@ -281,7 +282,7 @@ BruRegexNode *bru_regex_clone(const BruRegexNode *self)
         case BRU_QUES:    /* fallthrough */
         case BRU_COUNTER: /* fallthrough */
         case BRU_LOOKAHEAD: re->left = bru_regex_clone(self->left); break;
-        case BRU_NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_NREGEXTYPES: assert(false && "unreachable");
     }
 
     return re;
@@ -363,6 +364,6 @@ regex_print_tree_indent(FILE *stream, const BruRegexNode *re, int indent)
             fprintf(stream, "Backreference(" BRU_LEN_FMT ")", re->capture_idx);
             break;
 
-        case BRU_NREGEXTYPES: assert(0 && "unreachable");
+        case BRU_NREGEXTYPES: assert(false && "unreachable");
     }
 }

@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include <bru/vm/thread/managers/pool.h>
@@ -14,7 +15,7 @@ struct bru_thread_list {
 typedef struct {
     BruThreadList *pool;
     FILE          *logfile;
-    int            enabled; /**< if the pool is enabled; see free/kill_thread */
+    bool           enabled; /**< if the pool is enabled; see free/kill_thread */
 } BruThreadPoolThreadManager;
 
 /* --- ThreadPool funtion prototypes ---------------------------------------- */
@@ -35,7 +36,7 @@ BruThreadManager *bru_tm_with_pool_new(BruThreadManager *tm, FILE *logfile)
     BruThreadManagerInterface  *tmi, *super;
 
     super             = bru_vt_curr(tm);
-    tmi               = bru_tm_interface_new(pool, super->_thread_size);
+    tmi               = bru_tmi_new(pool, super->_thread_size);
     tmi->kill         = thread_pool_kill;
     tmi->free         = thread_pool_free;
     tmi->spawn_thread = thread_pool_spawn_thread;
@@ -43,7 +44,7 @@ BruThreadManager *bru_tm_with_pool_new(BruThreadManager *tm, FILE *logfile)
     tmi->kill_thread  = thread_pool_kill_thread;
 
     pool->pool    = NULL;
-    pool->enabled = TRUE;
+    pool->enabled = true;
     pool->logfile = logfile;
 
     bru_vt_extend(tm, tmi);
@@ -59,7 +60,7 @@ static void thread_pool_kill(BruThreadManager *tm)
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
     BruThreadList              *p;
 
-    self->enabled = FALSE;
+    self->enabled = false;
     while ((p = self->pool)) {
         self->pool = self->pool->next;
         // NOTE: we do not kill the thread via bru_tm_kill_thread,

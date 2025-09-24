@@ -51,7 +51,7 @@ static size_t instruction_size(BruInstruction instruction)
         case BRU_MEMOSET: /* fallthrough */
         case BRU_MEMOCHK: size += sizeof(instruction.idx); break;
 
-        case BRU_ZWA: assert(FALSE && "TOD: ZWA compilationO");
+        case BRU_ZWA: assert(false && "TOD: ZWA compilationO");
 
         case BRU_STATE: break;
 
@@ -59,7 +59,7 @@ static size_t instruction_size(BruInstruction instruction)
         case BRU_WRITE0: /* fallthrough */
         case BRU_WRITE1: break;
 
-        case BRU_NBYTECODES: assert(FALSE && "unreachable"); break;
+        case BRU_NBYTECODES: assert(false && "unreachable"); break;
     }
 
     return size;
@@ -90,7 +90,7 @@ static void populate_memory_requirements(StcVec(BruInstruction) instructions,
                     prog->ncaptures = (instr->idx / 2) + 1;
                 break;
 
-            case BRU_BACKREF: prog->requires_backref = TRUE; break;
+            case BRU_BACKREF: prog->requires_backref = true; break;
 
             case BRU_INC: /* fallthrough */
             case BRU_SET: /* fallthrough */
@@ -117,7 +117,7 @@ static void populate_memory_requirements(StcVec(BruInstruction) instructions,
 
             case BRU_WRITE:  /* fallthrough */
             case BRU_WRITE0: /* fallthrough */
-            case BRU_WRITE1: prog->requires_writing = TRUE; break;
+            case BRU_WRITE1: prog->requires_writing = true; break;
 
             case BRU_NOOP:    /* fallthrough */
             case BRU_MATCH:   /* fallthrough */
@@ -131,8 +131,8 @@ static void populate_memory_requirements(StcVec(BruInstruction) instructions,
             case BRU_TSWITCH: /* fallthrough */
             case BRU_STATE: break;
 
-            case BRU_ZWA: assert(FALSE && "TODO: ZWA compilation"); break;
-            case BRU_NBYTECODES: assert(FALSE && "UNREACHABLE"); break;
+            case BRU_ZWA: assert(false && "TODO: ZWA compilation"); break;
+            case BRU_NBYTECODES: assert(false && "UNREACHABLE"); break;
         }
     }
 
@@ -239,18 +239,18 @@ static bru_byte_t *compile_instruction(bru_byte_t    *pc,
         case BRU_MEMOSET: /* fallthrough */
         case BRU_MEMOCHK: BRU_MEMWRITE(pc, bru_len_t, instruction.idx); break;
 
-        case BRU_ZWA: assert(FALSE && "TODO: ZWA compilation");
+        case BRU_ZWA: assert(false && "TODO: ZWA compilation");
 
         case BRU_STATE: break;
 
         case BRU_WRITE:
-            prog->requires_writing = TRUE;
+            prog->requires_writing = true;
             BRU_MEMWRITE(pc, char, instruction.c);
             break;
         case BRU_WRITE0: /* fallthrough */
-        case BRU_WRITE1: prog->requires_writing = TRUE; break;
+        case BRU_WRITE1: prog->requires_writing = true; break;
 
-        case BRU_NBYTECODES: assert(FALSE && "unreachable"); break;
+        case BRU_NBYTECODES: assert(false && "unreachable"); break;
     }
 
     return pc;

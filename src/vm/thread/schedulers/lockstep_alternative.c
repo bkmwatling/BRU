@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -23,7 +24,7 @@ typedef enum {
     BRU_LOCKSTEP_SCHEDULER_STATE_NORMAL,   /**< normal execution              */
     BRU_LOCKSTEP_SCHEDULER_STATE_STEPPING, /**< providing threads from locked */
     BRU_LOCKSTEP_SCHEDULER_STATE_DONE_STEP /**< no more threads in locked     */
-} BruLockstepSchedulerState;
+} BruLockstepThreadSchedulerState;
 
 typedef struct {
     BruThreadManager   *tm;     /**< the thread manager using the scheduler   */
@@ -33,33 +34,32 @@ typedef struct {
     StcVec(BruThread *) stack;          /**< DFS stack for inbetween steps    */
     StcVec(BruThread *) in_order_queue; /**< queue to schedule in-order       */
 
-    BruLockstepSchedulerState state; /**< current state of scheduling         */
-} BruLockstepAltScheduler;
+    BruLockstepThreadSchedulerState state; /**< current state of scheduling   */
+} BruLockstepAltThreadScheduler;
 
 /* --- LockstepScheduler function prototypes -------------------------------- */
 
-static void lockstep_alt_scheduler_init(void *impl);
-static int  lockstep_alt_scheduler_schedule(void *impl, BruThread *thread);
-static int  lockstep_alt_scheduler_schedule_in_order(void      *impl,
-                                                     BruThread *thread);
-static int  lockstep_alt_scheduler_has_next(const void *impl);
-static BruThread *lockstep_alt_scheduler_next(void *impl);
-static void       lockstep_alt_scheduler_free(void *impl);
+static void lockstep_alt_ts_init(void *impl);
+static bool lockstep_alt_ts_schedule(void *impl, BruThread *thread);
+static bool lockstep_alt_ts_schedule_in_order(void *impl, BruThread *thread);
+static bool lockstep_alt_ts_has_next(const void *impl);
+static BruThread *lockstep_alt_ts_next(void *impl);
+static void       lockstep_alt_ts_free(void *impl);
 
 /* --- Helper function prototypes ------------------------------------------- */
 
 static int lockstep_threads_contain(BruThreadManager   *tm,
                                     StcVec(BruThread *) threads,
                                     BruThread          *thread);
-static int lockstep_is_locking_thread(BruLockstepAltScheduler *self,
-                                      BruThread               *t);
+static int lockstep_is_locking_thread(BruLockstepAltThreadScheduler *self,
+                                      BruThread                     *t);
 
 /* --- Lockstep function definitions ---------------------------------------- */
 
-BruScheduler *bru_lockstep_alt_scheduler_new(BruThreadManager *tm)
+BruThreadScheduler *bru_lockstep_alt_ts_new(BruThreadManager *tm)
 {
-    BruLockstepAltScheduler *las = malloc(sizeof(*las));
-    BruScheduler            *s   = malloc(sizeof(*s));
+    BruLockstepAltThreadScheduler *las = malloc(sizeof(*las));
+    BruThreadScheduler            *s   = malloc(sizeof(*s));
 
     las->tm    = tm;
     las->state = BRU_LOCKSTEP_SCHEDULER_STATE_NORMAL;
@@ -70,21 +70,21 @@ BruScheduler *bru_lockstep_alt_scheduler_new(BruThreadManager *tm)
     stc_vec_default_init(&las->in_order_queue);
 
     s->impl              = las;
-    s->init              = lockstep_alt_scheduler_init;
-    s->schedule          = lockstep_alt_scheduler_schedule;
-    s->schedule_in_order = lockstep_alt_scheduler_schedule_in_order;
-    s->has_next          = lockstep_alt_scheduler_has_next;
-    s->next              = lockstep_alt_scheduler_next;
-    s->free              = lockstep_alt_scheduler_free;
+    s->init              = lockstep_alt_ts_init;
+    s->schedule          = lockstep_alt_ts_schedule;
+    s->schedule_in_order = lockstep_alt_ts_schedule_in_order;
+    s->has_next          = lockstep_alt_ts_has_next;
+    s->next              = lockstep_alt_ts_next;
+    s->free              = lockstep_alt_ts_free;
 
     return s;
 }
 
 StcVec(BruThread *)
-bru_lockstep_alt_scheduler_remove_low_priority_threads(BruScheduler *self)
+bru_lockstep_alt_ts_remove_low_priority_threads(BruThreadScheduler *self)
 {
-    BruLockstepAltScheduler *las     = self->impl;
-    StcVec(BruThread *)      threads = NULL;
+    BruLockstepAltThreadScheduler *las     = self->impl;
+    StcVec(BruThread *)            threads = NULL;
 
     if (las->active || !stc_vec_is_empty(las->stack)) {
         threads = las->stack;
@@ -95,25 +95,25 @@ bru_lockstep_alt_scheduler_remove_low_priority_threads(BruScheduler *self)
     return threads;
 }
 
-int bru_lockstep_alt_scheduler_done_step(BruScheduler *self)
+bool bru_lockstep_alt_ts_done_step(BruThreadScheduler *self)
 {
-    BruLockstepAltScheduler *las = self->impl;
+    BruLockstepAltThreadScheduler *las = self->impl;
     return las->state == BRU_LOCKSTEP_SCHEDULER_STATE_DONE_STEP;
 }
 
 /* --- LockstepScheduler function definitions ------------------------------- */
 
-static void lockstep_alt_scheduler_init(void *impl)
+static void lockstep_alt_ts_init(void *impl)
 {
-    BruLockstepAltScheduler *self = impl;
+    BruLockstepAltThreadScheduler *self = impl;
 
     self->active = NULL;
     self->state  = BRU_LOCKSTEP_SCHEDULER_STATE_NORMAL;
 }
 
-static int lockstep_alt_scheduler_schedule(void *impl, BruThread *thread)
+static bool lockstep_alt_ts_schedule(void *impl, BruThread *thread)
 {
-    BruLockstepAltScheduler *self = impl;
+    BruLockstepAltThreadScheduler *self = impl;
 
     switch (self->state) {
         case BRU_LOCKSTEP_SCHEDULER_STATE_NORMAL: goto normal;
@@ -126,18 +126,18 @@ normal:
         stc_vec_push_back(&self->stack, thread);
     } else if (lockstep_is_locking_thread(self, thread)) {
         if (lockstep_threads_contain(self->tm, self->locked, thread))
-            return FALSE;
+            return false;
         stc_vec_push_back(&self->locked, thread);
     } else {
         self->active = thread;
     }
 
-    return TRUE;
+    return true;
 
 stepping:
     // if stepping, we want to keep the original priority so schedule
     // in order
-    return lockstep_alt_scheduler_schedule_in_order(impl, thread);
+    return lockstep_alt_ts_schedule_in_order(impl, thread);
 
 done_step:
     // this is the final 'locked' thread being rescheduled; do the same as if we
@@ -145,26 +145,25 @@ done_step:
     goto stepping;
 }
 
-static int lockstep_alt_scheduler_schedule_in_order(void      *impl,
-                                                    BruThread *thread)
+static bool lockstep_alt_ts_schedule_in_order(void *impl, BruThread *thread)
 {
-    BruLockstepAltScheduler *self = impl;
+    BruLockstepAltThreadScheduler *self = impl;
     stc_vec_push_back(&self->in_order_queue, thread);
-    return TRUE;
+    return true;
 }
 
-static int lockstep_alt_scheduler_has_next(const void *impl)
+static bool lockstep_alt_ts_has_next(const void *impl)
 {
-    const BruLockstepAltScheduler *self = impl;
+    const BruLockstepAltThreadScheduler *self = impl;
     return !(self->active == NULL && stc_vec_is_empty(self->stack) &&
              stc_vec_is_empty(self->in_order_queue) &&
              stc_vec_is_empty(self->locked));
 }
 
-static BruThread *lockstep_alt_scheduler_next(void *impl)
+static BruThread *lockstep_alt_ts_next(void *impl)
 {
-    BruLockstepAltScheduler *self = impl;
-    BruThread               *thread;
+    BruLockstepAltThreadScheduler *self = impl;
+    BruThread                     *thread;
 
     switch (self->state) {
         case BRU_LOCKSTEP_SCHEDULER_STATE_NORMAL: goto normal;
@@ -219,9 +218,9 @@ done_step:
     goto normal;
 }
 
-static void lockstep_alt_scheduler_free(void *impl)
+static void lockstep_alt_ts_free(void *impl)
 {
-    BruLockstepAltScheduler *self = impl;
+    BruLockstepAltThreadScheduler *self = impl;
     stc_vec_free(self->stack);
     stc_vec_free(self->locked);
     stc_vec_free(self->in_order_queue);
@@ -233,7 +232,7 @@ static int lockstep_threads_contain(BruThreadManager   *tm,
                                     BruThread          *thread)
 {
     size_t i, len;
-    int    eq = FALSE;
+    bool   eq = false;
 
     len = stc_vec_len(threads);
     for (i = 0;
@@ -243,31 +242,31 @@ static int lockstep_threads_contain(BruThreadManager   *tm,
     return eq;
 }
 
-static int lockstep_is_locking_thread(BruLockstepAltScheduler *self,
-                                      BruThread               *thread)
+static int lockstep_is_locking_thread(BruLockstepAltThreadScheduler *self,
+                                      BruThread                     *thread)
 {
     bru_len_t   k;
     const char *capture_start, *capture_end;
 
-    if (!thread) return FALSE;
+    if (!thread) return false;
 
     switch ((BruBytecode) *bru_tm_pc(self->tm, thread)) {
         case BRU_CHAR:
-        case BRU_PRED: return TRUE;
+        case BRU_PRED: return true;
 
         case BRU_BACKREF:
-            k             = bru_tm_backref_index(self->tm, thread);
+            k             = bru_tm_get_backref_index(self->tm, thread);
             capture_start = bru_tm_get_capture(self->tm, thread, 2 * k);
             capture_end   = bru_tm_get_capture(self->tm, thread, 2 * k + 1);
 
             // capture not used
-            if (!capture_start || !capture_end) return FALSE;
+            if (!capture_start || !capture_end) return false;
             assert(capture_start <= capture_end);
 
             // empty capture; nothing to backref
-            if (capture_end - capture_start == 0) return FALSE;
+            if (capture_end - capture_start == 0) return false;
 
-            return TRUE;
+            return true;
 
         case BRU_NOOP:       /* fallthrough */
         case BRU_MATCH:      /* fallthrough */
@@ -293,6 +292,6 @@ static int lockstep_is_locking_thread(BruLockstepAltScheduler *self,
         case BRU_WRITE0:     /* fallthrough */
         case BRU_WRITE1:     /* fallthrough */
         case BRU_NBYTECODES: /* fallthrough */
-        default: return FALSE;
+        default: return false;
     }
 }

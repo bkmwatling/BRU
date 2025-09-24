@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,7 +47,7 @@ void bru_optimise_remove_dead_code(StcVec(BruInstruction) instructions)
      !reachable[(instruction) - instructions])
 
     size_t                   i, m, n = stc_vec_len(instructions);
-    bru_byte_t              *reachable = calloc(n, sizeof(*reachable));
+    bool                    *reachable = calloc(n, sizeof(*reachable));
     StcVec(BruInstruction *) dfs_stack;
     BruInstruction          *curr;
 
@@ -56,7 +57,7 @@ void bru_optimise_remove_dead_code(StcVec(BruInstruction) instructions)
 
     while (!stc_vec_is_empty(dfs_stack)) {
         curr                           = stc_vec_pop_back(&dfs_stack);
-        reachable[curr - instructions] = TRUE;
+        reachable[curr - instructions] = true;
 
         switch (curr->bytecode) {
             case BRU_JMP:
@@ -105,7 +106,7 @@ void bru_optimise_remove_dead_code(StcVec(BruInstruction) instructions)
                     stc_vec_push_back(&dfs_stack, curr + 1);
                 break;
 
-            case BRU_NBYTECODES: assert(FALSE && "UNREACHABLE"); break;
+            case BRU_NBYTECODES: assert(false && "UNREACHABLE"); break;
         }
     }
 
@@ -206,7 +207,7 @@ void bru_optimise_compress_control_flow_chain(
             case BRU_WRITE0:
             case BRU_WRITE1: break;
 
-            case BRU_NBYTECODES: assert(FALSE && "UNREACHABLE"); break;
+            case BRU_NBYTECODES: assert(false && "UNREACHABLE"); break;
         }
     }
 }

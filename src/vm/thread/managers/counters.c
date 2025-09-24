@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,7 +21,7 @@ static void thread_init_with_counters(BruThreadManager *tm,
 static void thread_copy_with_counters(BruThreadManager *tm,
                                       const BruThread  *src,
                                       BruThread        *dst);
-static int  thread_check_eq_with_counters(BruThreadManager *tm,
+static bool thread_check_eq_with_counters(BruThreadManager *tm,
                                           const BruThread  *t1,
                                           const BruThread  *t2);
 
@@ -47,15 +48,15 @@ BruThreadManager *bru_tm_with_counters_new(BruThreadManager *tm,
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi   = bru_tm_interface_new(impl, ncounters * sizeof(bru_cntr_t) +
-                                           super->_thread_size);
+    tmi =
+        bru_tmi_new(impl, ncounters * sizeof(bru_cntr_t) + super->_thread_size);
 
     // store functions
     tmi->free            = tm_with_counters_free;
     tmi->init_thread     = thread_init_with_counters;
     tmi->copy_thread     = thread_copy_with_counters;
     tmi->check_thread_eq = thread_check_eq_with_counters;
-    tmi->counter         = thread_get_counter;
+    tmi->get_counter     = thread_get_counter;
     tmi->set_counter     = thread_set_counter;
     tmi->inc_counter     = thread_inc_counter;
 
@@ -105,16 +106,16 @@ static void thread_copy_with_counters(BruThreadManager *tm,
     bru_vt_call_super_procedure(tm, tmi, copy_thread, src, dst);
 }
 
-static int thread_check_eq_with_counters(BruThreadManager *tm,
-                                         const BruThread  *t1,
-                                         const BruThread  *t2)
+static bool thread_check_eq_with_counters(BruThreadManager *tm,
+                                          const BruThread  *t1,
+                                          const BruThread  *t2)
 {
     BruThreadManagerWithCounters *self   = bru_vt_curr_impl(tm);
     BruThreadManagerInterface    *tmi    = bru_vt_curr(tm);
     bru_cntr_t                   *cntrs1 = BRU_THREAD_FROM_INSTANCE(tmi, t1);
     bru_cntr_t                   *cntrs2 = BRU_THREAD_FROM_INSTANCE(tmi, t2);
     size_t                        i;
-    int                           eq;
+    bool                          eq;
 
     if (!(eq = bru_vt_call_super_function(tm, tmi, check_thread_eq, t1, t2)))
         return eq;

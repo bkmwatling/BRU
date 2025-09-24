@@ -14,11 +14,14 @@
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <https://www.gnu.org/licenses/>.  */
+   <https://www.gnu.org/licenses/>.
+*/
+
 #define _GNU_SOURCE
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -157,8 +160,8 @@ int main(int argc, char **argv)
         StcArgParser *argparser = bru_cli_setup_argparser(&options);
         stc_argparser_parse(argparser, bru_argc, bru_argv);
         stc_argparser_free(argparser);
-        options.parse.opts.whole_match_capture = TRUE;
-        options.parse.opts.expand_counters     = TRUE;
+        options.parse.opts.whole_match_capture = true;
+        options.parse.opts.expand_counters     = true;
 
         if (expected_res == MATCH) {
             char *bounds[n_groups];

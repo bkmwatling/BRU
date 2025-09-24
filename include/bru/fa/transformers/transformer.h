@@ -30,16 +30,16 @@ typedef bru_trans_predicate_f trans_predicate_f;
 /**
  * Create the submachine induced by a set of state identifiers.
  *
- * The set is indicated by a boolean array of length equal to the number of
+ * The set is indicated by a Boolean array of length equal to the number of
  * states in the state machine. If a state identifier in the given state machine
- * maps to a non-zero value in the boolean vector, it will be in the new state
+ * maps to a non-zero value in the Boolean vector, it will be in the new state
  * machine.
  *
  * Note that the old state identifiers will not necessarily map to corresponding
  * states in the transformed state machine.
  *
  * @param[in]     sm     the state machine
- * @param[in,out] states the boolean array indicating which states to keep,
+ * @param[in,out] states the Boolean array indicating which states to keep,
  *                       i.e., the map of old state identifiers to new state
  *                       identifiers where 0 indicates the state does not
  *                       exist

@@ -1,7 +1,8 @@
-#include "bru/fa/smir.h"
 #include <assert.h>
+#include <stdbool.h>
 
 #include <bru/fa/constructions/thompson.h>
+#include <bru/fa/smir.h>
 #include <bru/re/sre.h>
 
 /* --- Preprocessor directives ---------------------------------------------- */
@@ -386,7 +387,7 @@ emit(BruStateMachine *sm, const BruRegexNode *re, BruConstructionOpts opts)
 
         /* TODO: */
         case BRU_LOOKAHEAD: /* fallthrough */
-        case BRU_NREGEXTYPES: assert(0 && "unreachable"); break;
+        case BRU_NREGEXTYPES: assert(false && "unreachable"); break;
     }
 
     return frag;

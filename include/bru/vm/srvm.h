@@ -1,6 +1,8 @@
 #ifndef BRU_VM_SRVM_H
 #define BRU_VM_SRVM_H
 
+#include <stdbool.h>
+
 #include <stc/fatp/str_view.h>
 
 #include <bru/vm/thread/managers/manager.h>
@@ -92,10 +94,10 @@ BruSRVMMatch *bru_srvm_find(BruSRVM *self, const char *text);
  * @param[in] prog the program to executein
  * @param[in] text the input string to match against
  *
- * @return truthy value if the program matched against the input string; else 0
+ * @return true if the program matched against the input string; else false
  */
-int bru_srvm_matches(BruThreadManager *tm,
-                     const BruProgram *prog,
-                     const char       *text);
+bool bru_srvm_matches(BruThreadManager *tm,
+                      const BruProgram *prog,
+                      const char       *text);
 
 #endif /* BRU_VM_SRVM_H */

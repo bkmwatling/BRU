@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,7 +21,7 @@ static void thread_init_with_memory(BruThreadManager *tm,
 static void thread_copy_with_memory(BruThreadManager *tm,
                                     const BruThread  *src,
                                     BruThread        *dst);
-static int  thread_check_eq_with_memory(BruThreadManager *tm,
+static bool thread_check_eq_with_memory(BruThreadManager *tm,
                                         const BruThread  *t1,
                                         const BruThread  *t2);
 
@@ -44,15 +45,14 @@ BruThreadManager *bru_tm_with_memory_new(BruThreadManager *tm, bru_len_t memlen)
 
     // create thread manager instance
     super = bru_vt_curr(tm);
-    tmi   = bru_tm_interface_new(impl, memlen * sizeof(bru_byte_t) +
-                                           super->_thread_size);
+    tmi = bru_tmi_new(impl, memlen * sizeof(bru_byte_t) + super->_thread_size);
 
     // store functions
     tmi->free            = tm_with_memory_free;
     tmi->init_thread     = thread_init_with_memory;
     tmi->copy_thread     = thread_copy_with_memory;
     tmi->check_thread_eq = thread_check_eq_with_memory;
-    tmi->memory          = thread_get_memory;
+    tmi->get_memory      = thread_get_memory;
     tmi->set_memory      = thread_set_memory;
 
     // register extension
@@ -100,9 +100,9 @@ static void thread_copy_with_memory(BruThreadManager *tm,
     bru_vt_call_super_procedure(tm, tmi, copy_thread, src, dst);
 }
 
-static int thread_check_eq_with_memory(BruThreadManager *tm,
-                                       const BruThread  *t1,
-                                       const BruThread  *t2)
+static bool thread_check_eq_with_memory(BruThreadManager *tm,
+                                        const BruThread  *t1,
+                                        const BruThread  *t2)
 {
     BruThreadManagerWithMemory *self = bru_vt_curr_impl(tm);
     BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);

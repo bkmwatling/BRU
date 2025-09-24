@@ -18,7 +18,7 @@
  * Construct a thread manager that performs Thompson-style lockstep regex
  * matching.
  *
- * @return the constructed Thompson-style lockstep thread manager
+ * @return the constructed lockstep thread manager
  */
 BruThreadManager *bru_lockstep_tm_new(void);
 

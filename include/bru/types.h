@@ -1,8 +1,6 @@
 #ifndef BRU_TYPES_H
 #define BRU_TYPES_H
 
-#define TRUE         1
-#define FALSE        0
 #define BRU_UINT_MAX ((bru_uint_t) ~0)
 #define BRU_CNTR_MAX ((bru_cntr_t) ~0)
 

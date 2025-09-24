@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -35,7 +36,7 @@ _transition_sublist(const BruActionList *actions, ...)
     BruActionType             t;
     unsigned int              action_set = 0;
     StcVec(const BruAction *) sublist;
-    BruActionListIterator    *ali;
+    BruActionListIter        *ali;
     const BruAction          *a;
 
     va_start(args, actions);
@@ -45,7 +46,7 @@ _transition_sublist(const BruActionList *actions, ...)
 
     stc_vec_default_init(&sublist);
     ali = bru_smir_action_list_iter(actions);
-    while ((a = bru_smir_action_list_iterator_next(ali)))
+    while ((a = bru_smir_action_list_iter_next(ali)))
         if (action_set & (1 << bru_smir_action_type(a)))
             stc_vec_push_back(&sublist, a);
 
@@ -55,21 +56,21 @@ _transition_sublist(const BruActionList *actions, ...)
 #define transition_sublist(actions, ...) \
     _transition_sublist((actions), ##__VA_ARGS__, BRU_ACT_NACTIONS)
 
-static int transition_contains_type(const BruActionList *actions,
-                                    BruActionType        type)
+static bool transition_contains_type(const BruActionList *actions,
+                                     BruActionType        type)
 {
-    const BruAction       *a;
-    BruActionListIterator *ali      = bru_smir_action_list_iter(actions);
-    int                    contains = FALSE;
+    const BruAction   *a;
+    BruActionListIter *ali      = bru_smir_action_list_iter(actions);
+    bool               contains = false;
 
-    while ((a = bru_smir_action_list_iterator_next(ali))) {
+    while ((a = bru_smir_action_list_iter_next(ali))) {
         if (bru_smir_action_type(a) == type) {
-            contains = TRUE;
+            contains = true;
             break;
         }
     }
 
-    bru_smir_action_list_iterator_free(ali);
+    bru_smir_action_list_iter_free(ali);
     return contains;
 }
 
@@ -82,9 +83,9 @@ typedef enum {
 static UsefulResult
 transition_useful_caret(const BruActionList *existing_actions,
                         const BruActionList *new_actions,
-                        int                  sequential_transitions)
+                        bool                 is_sequential)
 {
-    BRU_UNUSED(sequential_transitions);
+    BRU_UNUSED(is_sequential);
     const BruActionType caret = BRU_ACT_BEGIN;
     UsefulResult useful = transition_contains_type(existing_actions, caret) &&
                                   !transition_contains_type(new_actions, caret)
@@ -97,10 +98,10 @@ transition_useful_caret(const BruActionList *existing_actions,
 static UsefulResult
 transition_useful_dollar(const BruActionList *existing_actions,
                          const BruActionList *new_actions,
-                         int                  sequential_transitions)
+                         bool                 is_sequential)
 
 {
-    BRU_UNUSED(sequential_transitions);
+    BRU_UNUSED(is_sequential);
     const BruActionType dollar = BRU_ACT_END;
     UsefulResult useful = transition_contains_type(existing_actions, dollar) &&
                                   !transition_contains_type(new_actions, dollar)
@@ -110,10 +111,10 @@ transition_useful_dollar(const BruActionList *existing_actions,
     return useful;
 }
 
-static int _is_memochk_subset(StcVec(const BruAction *) s1,
-                              StcVec(const BruAction *) s2)
+static bool _is_memochk_subset(StcVec(const BruAction *) s1,
+                               StcVec(const BruAction *) s2)
 {
-    int    is_subset = TRUE;
+    bool   is_subset = true;
     size_t i, len1, j, len2;
 
     // check if it is a subset by assuming it is, and then checking if any
@@ -123,7 +124,7 @@ static int _is_memochk_subset(StcVec(const BruAction *) s1,
         if (bru_smir_action_type(s1[i]) == BRU_ACT_MEMOCHK) {
             for (j = 0; j < len2; j++)
                 if (bru_smir_action_equal(s1[i], s2[j])) goto in_set;
-            is_subset = FALSE;
+            is_subset = false;
         in_set:;
         }
     }
@@ -134,7 +135,7 @@ static int _is_memochk_subset(StcVec(const BruAction *) s1,
 static UsefulResult
 transition_useful_memo(const BruActionList *existing_actions,
                        const BruActionList *new_actions,
-                       int                  is_sequential)
+                       bool                 is_sequential)
 {
     StcVec(const BruAction *) existing_memo =
         transition_sublist(existing_actions, BRU_ACT_MEMOCHK, BRU_ACT_MEMOSET);
@@ -194,16 +195,16 @@ transition_useful_memo(const BruActionList *existing_actions,
 
 static int is_epsilon_state(const BruActionList *actions)
 {
-    BruActionListIterator *ali = bru_smir_action_list_iter(actions);
-    const BruAction       *act;
-    bru_byte_t             is_epsilon = TRUE;
+    BruActionListIter *ali = bru_smir_action_list_iter(actions);
+    const BruAction   *act;
+    bool               is_epsilon = true;
 
-    while ((act = bru_smir_action_list_iterator_next(ali))) {
+    while ((act = bru_smir_action_list_iter_next(ali))) {
         switch (bru_smir_action_type(act)) {
             case BRU_ACT_MEMOSET: /* fallthrough */
             case BRU_ACT_CHAR:    /* fallthrough */
             case BRU_ACT_BACKREF: /* fallthrough */
-            case BRU_ACT_PRED: is_epsilon = FALSE; goto done;
+            case BRU_ACT_PRED: is_epsilon = false; goto done;
 
             case BRU_ACT_BEGIN:   /* fallthrough */
             case BRU_ACT_END:     /* fallthrough */
@@ -216,7 +217,7 @@ static int is_epsilon_state(const BruActionList *actions)
             case BRU_ACT_MEMOCHK: /* fallthrough */
             case BRU_ACT_WRITE: break;
 
-            case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
+            case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
         }
     }
 
@@ -228,16 +229,16 @@ done:
 
 static void remove_unnecessary_actions(const BruActionList *actions)
 {
-    BruActionListIterator    *ali = bru_smir_action_list_iter(actions);
+    BruActionListIter        *ali = bru_smir_action_list_iter(actions);
     const BruAction          *act;
     StcVec(const BruAction *) unique_elements;
     size_t                    i;
-    int                       remove_all = FALSE;
+    bool                      remove_all = false;
 
     stc_vec_default_init(&unique_elements);
-    while ((act = bru_smir_action_list_iterator_next(ali))) {
+    while ((act = bru_smir_action_list_iter_next(ali))) {
         if (remove_all) {
-            bru_smir_action_list_iterator_remove(ali);
+            bru_smir_action_list_iter_remove(ali);
             continue;
         }
         switch (bru_smir_action_type(act)) {
@@ -252,25 +253,23 @@ static void remove_unnecessary_actions(const BruActionList *actions)
 
             // remove EPSSET/EPSCHK actions
             case BRU_ACT_EPSSET: /* fallthrough */
-            case BRU_ACT_EPSCHK:
-                bru_smir_action_list_iterator_remove(ali);
-                break;
+            case BRU_ACT_EPSCHK: bru_smir_action_list_iter_remove(ali); break;
 
-            case BRU_ACT_MEMOSET: remove_all = TRUE; break;
+            case BRU_ACT_MEMOSET: remove_all = true; break;
 
             case BRU_ACT_BEGIN: /* fallthrough */
             case BRU_ACT_END:   /* fallthrough */
             case BRU_ACT_MEMOCHK:
                 for (i = 0; i < stc_vec_len(unique_elements); i++)
                     if (bru_smir_action_equal(act, unique_elements[i])) {
-                        bru_smir_action_list_iterator_remove(ali);
+                        bru_smir_action_list_iter_remove(ali);
                         goto no_push;
                     }
                 stc_vec_push_back(&unique_elements, act);
             no_push:
                 break;
 
-            case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
+            case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
         }
     }
     free(ali);
@@ -283,21 +282,22 @@ static void remove_unnecessary_actions(const BruActionList *actions)
  *
  * @param[in] actions the sequence of actions
  *
- * @return FALSE if the sequence of actions contains an EPSSET followed at some
- *         point by the corresponding EPSCHK, otherwise TRUE
+ * @return false if the sequence of actions contains an EPSSET followed at some
+ *         point by the corresponding EPSCHK, otherwise true
  */
-static int action_list_eps_satisfiable(const BruActionList *actions)
+static bool action_list_eps_satisfiable(const BruActionList *actions)
 {
-    BruActionListIterator *ali;
-    const BruAction       *act;
-    StcVec(size_t)         epssets;
-    size_t                 idx, num, satisfiable = TRUE;
+    BruActionListIter *ali;
+    const BruAction   *act;
+    StcVec(size_t)     epssets;
+    size_t             idx, num;
+    bool               satisfiable = true;
 
     // TODO: use Set instead of Vec
     stc_vec_default_init(&epssets);
     ali = bru_smir_action_list_iter(actions);
 
-    while ((act = bru_smir_action_list_iterator_next(ali))) {
+    while ((act = bru_smir_action_list_iter_next(ali))) {
         switch (bru_smir_action_type(act)) {
             case BRU_ACT_BEGIN:   /* fallthrough */
             case BRU_ACT_END:     /* fallthrough */
@@ -320,13 +320,13 @@ static int action_list_eps_satisfiable(const BruActionList *actions)
                 num = bru_smir_action_get_num(act);
                 for (idx = 0; idx < stc_vec_len(epssets); idx++) {
                     if (epssets[idx] == num) {
-                        satisfiable = FALSE;
+                        satisfiable = false;
                         goto done;
                     }
                 }
                 break;
 
-            case BRU_ACT_NACTIONS: assert(FALSE && "unreachable"); break;
+            case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
         }
     }
 
@@ -347,10 +347,11 @@ done:
  * @return whether the resulting sequence of actions has an EPSSET before the
  *         corresponding EPSCHK.
  */
-static int can_explore(const BruActionList *prefix, const BruActionList *suffix)
+static bool can_explore(const BruActionList *prefix,
+                        const BruActionList *suffix)
 {
     BruActionList *concat, *tmp;
-    int            satisfiable;
+    bool           satisfiable;
 
     concat = bru_smir_action_list_clone(prefix);
     tmp    = bru_smir_action_list_clone(suffix);
@@ -386,7 +387,7 @@ static UsefulResult transition_is_useful(const BruActionList *new_actions,
     bru_trans_id        *out_trans;
     StcVec(bru_trans_id) deleted_transitions;
     size_t               nout, i, last_idx;
-    int                  useful = KEEP_BOTH;
+    UsefulResult         useful = KEEP_BOTH;
     const BruActionList *existing_actions;
 
     stc_vec_default_init(&deleted_transitions);
@@ -397,23 +398,24 @@ static UsefulResult transition_is_useful(const BruActionList *new_actions,
         if (bru_smir_get_dst(sm, out_trans[i]) == dst) {
             existing_actions = bru_smir_trans_get_actions(sm, out_trans[i]);
             switch (
-                (useful = transition_useful_dollar(existing_actions,
+                (int) (useful =
+                           transition_useful_dollar(
+                               existing_actions, new_actions, i == last_idx) |
+                           transition_useful_caret(existing_actions,
                                                    new_actions, i == last_idx) |
-                          transition_useful_caret(existing_actions, new_actions,
-                                                  i == last_idx) |
-                          transition_useful_memo(existing_actions, new_actions,
-                                                 i == last_idx))) {
+                           transition_useful_memo(existing_actions, new_actions,
+                                                  i == last_idx))) {
                 case KEEP_EXISTING_ONLY:
                 case KEEP_BOTH: break;
                 case KEEP_NEW_ONLY:
                     // TODO: delete transition and carry on
                     last_idx--;
                     stc_vec_push_back(&deleted_transitions, out_trans[i]);
-                    assert(FALSE && "TODO");
+                    assert(false && "TODO");
 
                 case KEEP_BOTH | KEEP_NEW_ONLY: useful = KEEP_BOTH; break;
 
-                default: assert(FALSE && "unreachable");
+                default: assert(false && "unreachable");
             }
             break;
         }
@@ -460,13 +462,13 @@ static void flatten_dfs(bru_state_id       original_src,
                         BruActionList     *path_actions,
                         BruFlattenGlobals *globals)
 {
-    BruActionListIterator *ali;
-    BruActionList         *action_list_clone;
-    const BruActionList   *trans_actions, *original_dst_actions;
-    bru_trans_id          *out_trans;
-    size_t                 nout, idx, count;
-    bru_state_id           original_dst, new_src, new_dst;
-    bru_trans_id           new_trans;
+    BruActionListIter   *ali;
+    BruActionList       *action_list_clone;
+    const BruActionList *trans_actions, *original_dst_actions;
+    bru_trans_id        *out_trans;
+    size_t               nout, idx, count;
+    bru_state_id         original_dst, new_src, new_dst;
+    bru_trans_id         new_trans;
 
     out_trans =
         bru_smir_get_out_transitions(globals->origin_sm, current, &nout);
@@ -499,8 +501,8 @@ static void flatten_dfs(bru_state_id       original_src,
             // remove state actions from path
             for (ali  = bru_smir_action_list_iter(path_actions),
                 count = bru_smir_action_list_len(original_dst_actions);
-                 bru_smir_action_list_iterator_prev(ali) && count--;)
-                bru_smir_action_list_iterator_remove(ali);
+                 bru_smir_action_list_iter_prev(ali) && count--;)
+                bru_smir_action_list_iter_remove(ali);
             free(ali);
         } else {
             // insert state in new machine if not created before
@@ -509,7 +511,7 @@ static void flatten_dfs(bru_state_id       original_src,
             new_src = globals->state_map[original_src];
 
             if (!globals->created[original_dst]) {
-                globals->created[original_dst] = TRUE;
+                globals->created[original_dst] = true;
                 new_dst = globals->state_map[original_dst] =
                     bru_smir_add_state(globals->new_sm);
                 bru_smir_state_set_actions(
@@ -547,8 +549,8 @@ static void flatten_dfs(bru_state_id       original_src,
         // remove transition actions
         for (ali  = bru_smir_action_list_iter(path_actions),
             count = bru_smir_action_list_len(trans_actions);
-             bru_smir_action_list_iterator_prev(ali) && count--;) {
-            bru_smir_action_list_iterator_remove(ali);
+             bru_smir_action_list_iter_prev(ali) && count--;) {
+            bru_smir_action_list_iter_remove(ali);
         }
         free(ali);
     }
@@ -564,7 +566,7 @@ flatten(BruStateMachine *original, BruStateMachine *new, FILE *logfile)
     size_t             nstates;
     bru_state_id       src;
 
-    if (!original || !new) return;
+    if (!(original && new)) return;
 
     path_actions = bru_smir_action_list_new();
 
@@ -579,9 +581,9 @@ flatten(BruStateMachine *original, BruStateMachine *new, FILE *logfile)
     stc_vec_default_init(&globals->state_queue);
     globals->eliminated_path_count = 0;
 
-    globals->created[BRU_INITIAL_STATE_ID]   = TRUE;
+    globals->created[BRU_INITIAL_STATE_ID]   = true;
     globals->state_map[BRU_INITIAL_STATE_ID] = BRU_INITIAL_STATE_ID;
-    globals->created[BRU_FINAL_STATE_ID]     = TRUE;
+    globals->created[BRU_FINAL_STATE_ID]     = true;
     globals->state_map[BRU_FINAL_STATE_ID]   = BRU_FINAL_STATE_ID;
     stc_vec_push_back(&globals->state_queue, BRU_INITIAL_STATE_ID);
 
