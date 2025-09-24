@@ -1,4 +1,4 @@
-#include "closure_node.h"
+#include <bru/re/walkers/thompson/closure_node.h>
 
 /* --- Walk functions ------------------------------------------------------- */
 

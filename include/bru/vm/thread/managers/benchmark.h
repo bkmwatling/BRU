@@ -1,0 +1,27 @@
+#ifndef BRU_VM_THREAD_MANAGER_BENCHMARK_H
+#define BRU_VM_THREAD_MANAGER_BENCHMARK_H
+
+#include <stdio.h>
+
+#include <bru/vm/thread/managers/manager.h>
+
+#if !defined(BRU_VM_THREAD_MANAGER_BENCHMARK_DISABLE_SHORT_NAMES) && \
+    (defined(BRU_VM_THREAD_MANAGER_BENCHMARK_ENABLE_SHORT_NAMES) ||  \
+     !defined(BRU_VM_DISABLE_SHORT_NAMES) &&                         \
+         (defined(BRU_VM_ENABLE_SHORT_NAMES) ||                      \
+          defined(BRU_ENABLE_SHORT_NAMES)))
+#    define benchmark_tm_new bru_benchmark_tm_new
+#endif /* BRU_VM_THREAD_MANAGER_BENCHMARK_ENABLE_SHORT_NAMES */
+
+/**
+ * Construct a thread manager that benchmarks the performance of an SRVM
+ * execution whilst using an underlying thread manager.
+ *
+ * @param[in] tm      the underlying thread manager
+ * @param[in] logfile the file stream for logging captures on match
+ *
+ * @return the constructed benchmark thread manager
+ */
+BruThreadManager *bru_benchmark_tm_new(BruThreadManager *tm, FILE *logfile);
+
+#endif /* BRU_VM_THREAD_MANAGER_BENCHMARK_H */

@@ -1,0 +1,144 @@
+#include <stdbool.h>
+#include <stdlib.h>
+
+#include <bru/vm/thread/managers/pool.h>
+
+/* --- Type definitions ----------------------------------------------------- */
+
+typedef struct bru_thread_list BruThreadList;
+
+struct bru_thread_list {
+    BruThread     *thread;
+    BruThreadList *next;
+};
+
+typedef struct {
+    BruThreadList *pool;
+    FILE          *logfile;
+    bool           enabled; /**< if the pool is enabled; see free/kill_thread */
+} BruThreadPoolThreadManager;
+
+/* --- ThreadPool funtion prototypes ---------------------------------------- */
+
+static void thread_pool_kill(BruThreadManager *tm);
+static void thread_pool_free(BruThreadManager *tm);
+
+static BruThread *thread_pool_spawn_thread(BruThreadManager *tm);
+static void       thread_pool_kill_thread(BruThreadManager *tm, BruThread *t);
+static BruThread *thread_pool_clone_thread(BruThreadManager *tm,
+                                           const BruThread  *t);
+
+/* --- API function definitions --------------------------------------------- */
+
+BruThreadManager *bru_tm_with_pool_new(BruThreadManager *tm, FILE *logfile)
+{
+    BruThreadPoolThreadManager *pool = malloc(sizeof(*pool));
+    BruThreadManagerInterface  *tmi, *super;
+
+    super             = bru_vt_curr(tm);
+    tmi               = bru_tmi_new(pool, super->_thread_size);
+    tmi->kill         = thread_pool_kill;
+    tmi->free         = thread_pool_free;
+    tmi->spawn_thread = thread_pool_spawn_thread;
+    tmi->clone_thread = thread_pool_clone_thread;
+    tmi->kill_thread  = thread_pool_kill_thread;
+
+    pool->pool    = NULL;
+    pool->enabled = true;
+    pool->logfile = logfile;
+
+    bru_vt_extend(tm, tmi);
+
+    return tm;
+}
+
+/* --- Helper functions ----------------------------------------------------- */
+
+static void thread_pool_kill(BruThreadManager *tm)
+{
+    BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
+    BruThreadList              *p;
+
+    self->enabled = false;
+    while ((p = self->pool)) {
+        self->pool = self->pool->next;
+        // NOTE: we do not kill the thread via bru_tm_kill_thread,
+        // since the thread entered into the pool through a call to kill
+        // already, so we just call the super manager's kill.
+        bru_vt_call_super_procedure(tm, tmi, kill_thread, p->thread);
+        free(p);
+    }
+
+    bru_vt_call_super_procedure(tm, tmi, kill);
+}
+
+static void thread_pool_free(BruThreadManager *tm)
+{
+    BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
+
+    free(self);
+    bru_vt_call_super_procedure(tm, tmi, free);
+}
+
+static BruThread *bru_thread_pool_get_thread(BruThreadPoolThreadManager *self)
+{
+    BruThread     *t;
+    BruThreadList *p;
+
+    if ((p = self->pool)) {
+        self->pool = p->next;
+        t          = p->thread;
+        free(p);
+    } else {
+        t = NULL;
+    }
+
+    return t;
+}
+
+/* --- ThreadPool manager functions ----------------------------------------- */
+
+static BruThread *thread_pool_spawn_thread(BruThreadManager *tm)
+{
+    BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
+    BruThread                  *thread;
+
+    if (!(thread = bru_thread_pool_get_thread(self)))
+        thread = bru_vt_call_super_function(tm, tmi, spawn_thread);
+
+    return thread;
+}
+
+static BruThread *thread_pool_clone_thread(BruThreadManager *tm,
+                                           const BruThread  *t)
+{
+    BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
+    BruThread                  *clone;
+
+    if ((clone = bru_thread_pool_get_thread(self)))
+        bru_tm_copy_thread(tm, t, clone);
+    else
+        clone = bru_vt_call_super_function(tm, tmi, clone_thread, t);
+
+    return clone;
+}
+
+static void thread_pool_kill_thread(BruThreadManager *tm, BruThread *t)
+{
+    BruThreadPoolThreadManager *self = bru_vt_curr_impl(tm);
+    BruThreadManagerInterface  *tmi  = bru_vt_curr(tm);
+    BruThreadList              *p;
+
+    if (!self->enabled) {
+        bru_vt_call_super_procedure(tm, tmi, kill_thread, t);
+    } else if (t) {
+        p          = malloc(sizeof(*p));
+        p->thread  = t;
+        p->next    = self->pool;
+        self->pool = p;
+    }
+}

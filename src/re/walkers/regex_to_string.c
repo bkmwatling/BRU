@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../utils.h"
-#include "regex_to_string.h"
+#include <bru/re/walkers/regex_to_string.h>
+#include <bru/utils.h>
 
 /* --- Type definitions ----------------------------------------------------- */
 

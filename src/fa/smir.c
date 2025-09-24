@@ -1,11 +1,12 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../stc/fatp/vec.h"
+#include <stc/fatp/vec.h>
 
-#include "../utils.h"
-#include "smir.h"
+#include <bru/fa/smir.h>
+#include <bru/utils.h>
 
 /* --- Preprocessor directives ---------------------------------------------- */
 
@@ -24,16 +25,6 @@
 /* --- Type definitions ----------------------------------------------------- */
 
 typedef struct bru_trans BruTrans;
-
-struct bru_action {
-    BruActionType type;
-
-    union {
-        const char         *ch;   /**< type = ACT_CHAR                        */
-        const BruIntervals *pred; /**< type = ACT_PRED                        */
-        size_t k; /**< type = ACT_MEMO | ACT_SAVE | ACT_EPSCHK | ACT_EPSSET   */
-    };
-};
 
 typedef struct {
     BruActionList *actions_sentinel;
@@ -59,16 +50,16 @@ struct bru_action_list {
     BruActionList   *next;
 };
 
-struct bru_action_list_iterator {
+struct bru_action_list_iter {
     const BruActionList *sentinel;
     BruActionList       *current;
 };
 
 struct bru_state_machine {
-    const char *regex;
-    BruState   *states;
-    BruTrans   *initial_functions_sentinel;
-    size_t      ninits;
+    const char      *regex;
+    StcVec(BruState) states;
+    BruTrans        *initial_functions_sentinel;
+    size_t           ninits;
 };
 
 /* --- Helper functions ----------------------------------------------------- */
@@ -108,7 +99,7 @@ BruStateMachine *bru_smir_default(const char *regex)
 
     sm->regex  = regex;
     sm->ninits = 0;
-    stc_vec_default_init(sm->states);
+    stc_vec_default_init(&sm->states);
     BRU_DLL_INIT(sm->initial_functions_sentinel);
 
     return sm;
@@ -120,7 +111,7 @@ BruStateMachine *bru_smir_new(const char *regex, uint32_t nstates)
 
     sm->regex  = regex;
     sm->ninits = 0;
-    stc_vec_init(sm->states, nstates);
+    stc_vec_init(&sm->states, nstates);
     while (nstates--) bru_smir_add_state(sm);
     BRU_DLL_INIT(sm->initial_functions_sentinel);
 
@@ -135,7 +126,7 @@ void bru_smir_free(BruStateMachine *self)
     if (!self) return;
 
     if (self->states) {
-        nstates = stc_vec_len_unsafe(self->states);
+        nstates = stc_vec_len(self->states);
         while (nstates) state_free(&self->states[--nstates]);
         stc_vec_free(self->states);
     }
@@ -146,20 +137,15 @@ void bru_smir_free(BruStateMachine *self)
     free(self);
 }
 
-BruProgram *bru_smir_compile(BruStateMachine *self)
-{
-    return bru_smir_compile_with_meta(self, NULL, NULL);
-}
-
 bru_state_id bru_smir_add_state(BruStateMachine *self)
 {
     BruState state = { 0 };
 
     BRU_DLL_INIT(state.actions_sentinel);
     BRU_DLL_INIT(state.out_transitions_sentinel);
-    stc_vec_push_back(self->states, state);
+    stc_vec_push_back(&self->states, state);
 
-    return stc_vec_len_unsafe(self->states);
+    return stc_vec_len(self->states);
 }
 
 size_t bru_smir_get_num_states(BruStateMachine *self)
@@ -207,6 +193,22 @@ bru_trans_id bru_smir_add_transition(BruStateMachine *self, bru_state_id sid)
     BRU_DLL_PUSH_BACK(transitions, transition);
 
     return trans_id_from_parts(sid, (*n)++);
+}
+
+void bru_smir_remove_transition(BruStateMachine *self, bru_trans_id tid)
+{
+    bru_state_id sid = trans_id_sid(tid);
+    uint32_t     idx = trans_id_idx(tid);
+    BruTrans    *transitions, *transition;
+
+    transitions = sid ? self->states[sid - 1].out_transitions_sentinel
+                      : self->initial_functions_sentinel;
+
+    BRU_DLL_GET(transitions, idx, transition);
+
+    transition->prev->next = transition->next;
+    transition->next->prev = transition->prev;
+    trans_free(transition);
 }
 
 bru_trans_id *
@@ -274,8 +276,7 @@ void bru_smir_state_set_actions(BruStateMachine *self,
 
     // recalculate the number of actions
     for (state->nactions = 0, acts                                = acts->next;
-         acts != state->actions_sentinel; state->nactions++, acts = acts->next)
-        ;
+         acts != state->actions_sentinel; state->nactions++, acts = acts->next);
 }
 
 BruActionList *bru_smir_state_clone_actions(BruStateMachine *self,
@@ -395,8 +396,7 @@ void bru_smir_trans_set_actions(BruStateMachine *self,
     // recalculate the number of actions
     for (transition->nactions = 0, acts = acts->next;
          acts != transition->actions_sentinel;
-         transition->nactions++, acts = acts->next)
-        ;
+         transition->nactions++, acts = acts->next);
 }
 
 BruActionList *bru_smir_trans_clone_actions(BruStateMachine *self,
@@ -477,7 +477,33 @@ const BruAction *bru_smir_action_num(BruActionType type, size_t k)
     BruAction *act = malloc(sizeof(*act));
 
     act->type = type;
+    if (type == BRU_ACT_WRITE)
+        act->c = (char) k;
+    else
+        act->k = k;
+
+    return act;
+}
+
+const BruAction *bru_smir_action_set(size_t k, bru_cntr_t val)
+{
+    BruAction *act = malloc(sizeof(*act));
+
+    act->type = BRU_ACT_SET;
     act->k    = k;
+    act->val  = val;
+
+    return act;
+}
+
+const BruAction *bru_smir_action_cmp(size_t k, bru_cntr_t val, BruOrd ord)
+{
+    BruAction *act = malloc(sizeof(*act));
+
+    act->type = BRU_ACT_CMP;
+    act->k    = k;
+    act->val  = val;
+    act->ord  = ord;
 
     return act;
 }
@@ -497,12 +523,26 @@ const BruAction *bru_smir_action_clone(const BruAction *self)
             clone = bru_smir_action_predicate(bru_intervals_clone(self->pred));
             break;
 
-        case BRU_ACT_MEMO:   /* fallthrough */
-        case BRU_ACT_SAVE:   /* fallthrough */
-        case BRU_ACT_EPSCHK: /* fallthrough */
-        case BRU_ACT_EPSSET:
+        case BRU_ACT_SAVE:    /* fallthrough */
+        case BRU_ACT_BACKREF: /* fallthrough */
+        case BRU_ACT_INC:     /* fallthrough */
+        case BRU_ACT_EPSSET:  /* fallthrough */
+        case BRU_ACT_EPSCHK:  /* fallthrough */
+        case BRU_ACT_MEMOSET: /* fallthrough */
+        case BRU_ACT_MEMOCHK: /* fallthrough */
+        case BRU_ACT_WRITE:
             clone = bru_smir_action_num(self->type, self->k);
             break;
+
+        case BRU_ACT_SET:
+            clone = bru_smir_action_set(self->k, self->val);
+            break;
+
+        case BRU_ACT_CMP:
+            clone = bru_smir_action_cmp(self->k, self->val, self->ord);
+            break;
+
+        case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
     }
 
     return clone;
@@ -517,12 +557,44 @@ void bru_smir_action_free(const BruAction *self)
     free((BruAction *) self);
 }
 
+bool bru_smir_action_equal(const BruAction *a1, const BruAction *a2)
+{
+    if (a1->type != a2->type) return false;
+    switch (a1->type) {
+        case BRU_ACT_BEGIN: /* fallthrough */
+        case BRU_ACT_END: return true;
+
+        case BRU_ACT_CHAR: return stc_utf8_cmp(a1->ch, a2->ch) == 0;
+        case BRU_ACT_PRED:
+            assert(false && "TODO: equality of predicates");
+            break;
+
+        case BRU_ACT_SAVE:    /* fallthrough */
+        case BRU_ACT_BACKREF: /* fallthrough */
+        case BRU_ACT_INC:     /* fallthrough */
+        case BRU_ACT_MEMOSET: /* fallthrough */
+        case BRU_ACT_MEMOCHK: /* fallthrough */
+        case BRU_ACT_EPSSET:  /* fallthrough */
+        case BRU_ACT_EPSCHK: return a1->k == a2->k;
+
+        case BRU_ACT_SET: return a1->k == a2->k && a1->val == a2->val;
+
+        case BRU_ACT_CMP:
+            return a1->k == a2->k && a1->val == a2->val && a1->ord == a2->ord;
+
+        case BRU_ACT_WRITE: return a1->c == a2->c;
+
+        case BRU_ACT_NACTIONS: /* fallthrough */
+        default: assert(false && "unreachable"); break;
+    }
+}
+
 BruActionType bru_smir_action_type(const BruAction *self) { return self->type; }
 
 size_t bru_smir_action_get_num(const BruAction *self)
 {
-    return BRU_ACT_MEMO <= self->type && self->type <= BRU_ACT_EPSSET ? self->k
-                                                                      : 0;
+    return BRU_ACT_SAVE <= self->type && self->type <= BRU_ACT_MEMOCHK ? self->k
+                                                                       : 0;
 }
 
 void bru_smir_action_print(const BruAction *self, FILE *stream)
@@ -530,8 +602,9 @@ void bru_smir_action_print(const BruAction *self, FILE *stream)
     char *s;
 
     switch (self->type) {
-        case BRU_ACT_BEGIN: fprintf(stream, "begin"); break;
-        case BRU_ACT_END: fprintf(stream, "end"); break;
+        case BRU_ACT_BEGIN: fputs("begin", stream); break;
+        case BRU_ACT_END: fputs("end", stream); break;
+
         case BRU_ACT_CHAR:
             fprintf(stream, "char %.*s", stc_utf8_nbytes(self->ch), self->ch);
             break;
@@ -540,10 +613,37 @@ void bru_smir_action_print(const BruAction *self, FILE *stream)
             fprintf(stream, "pred %s", s);
             free(s);
             break;
-        case BRU_ACT_MEMO: fprintf(stream, "memo %zu", self->k); break;
+
         case BRU_ACT_SAVE: fprintf(stream, "save %zu", self->k); break;
-        case BRU_ACT_EPSCHK: fprintf(stream, "epschk %zu", self->k); break;
+        case BRU_ACT_BACKREF: fprintf(stream, "backref %zu", self->k); break;
+        case BRU_ACT_INC: fprintf(stream, "inc %zu", self->k); break;
+        case BRU_ACT_SET:
+            fprintf(stream, "set %zu, " BRU_CNTR_FMT, self->k, self->val);
+            break;
+        case BRU_ACT_CMP:
+            switch (self->ord) {
+                case BRU_LT: fputs("cmplt ", stream); break;
+                case BRU_LE: fputs("cmple ", stream); break;
+                case BRU_EQ: fputs("cmpeq ", stream); break;
+                case BRU_NE: fputs("cmpne ", stream); break;
+                case BRU_GE: fputs("cmpge ", stream); break;
+                case BRU_GT: fputs("cmpgt ", stream); break;
+            }
+            fprintf(stream, "%zu, " BRU_CNTR_FMT, self->k, self->val);
+            break;
+
         case BRU_ACT_EPSSET: fprintf(stream, "epsset %zu", self->k); break;
+        case BRU_ACT_EPSCHK: fprintf(stream, "epschk %zu", self->k); break;
+        case BRU_ACT_MEMOSET: fprintf(stream, "memoset %zu", self->k); break;
+        case BRU_ACT_MEMOCHK: fprintf(stream, "memochk %zu", self->k); break;
+        case BRU_ACT_WRITE:
+            fprintf(stream,
+                    self->c == '0' ? "write0"
+                                   : (self->c == '1' ? "write1" : "write %c"),
+                    self->c);
+            break;
+
+        case BRU_ACT_NACTIONS: assert(false && "unreachable"); break;
     }
 }
 
@@ -561,13 +661,12 @@ BruActionList *bru_smir_action_list_clone(const BruActionList *self)
     BruActionList *clone;
 
     BRU_DLL_INIT(clone);
-    bru_smir_action_list_clone_into(self, clone);
+    bru_smir_action_list_copy(self, clone);
 
     return clone;
 }
 
-void bru_smir_action_list_clone_into(const BruActionList *self,
-                                     BruActionList       *clone)
+void bru_smir_action_list_copy(const BruActionList *self, BruActionList *dst)
 {
     BruActionList       *al;
     const BruActionList *tmp;
@@ -575,7 +674,7 @@ void bru_smir_action_list_clone_into(const BruActionList *self,
     for (tmp = self->next; tmp != self; tmp = tmp->next) {
         al      = malloc(sizeof(*al));
         al->act = bru_smir_action_clone(tmp->act);
-        BRU_DLL_PUSH_BACK(clone, al);
+        BRU_DLL_PUSH_BACK(dst, al);
     }
 }
 
@@ -604,8 +703,7 @@ size_t bru_smir_action_list_len(const BruActionList *self)
 
     if (!self) return 0;
 
-    for (len = 0, iter = self->next; iter != self; len++, iter = iter->next)
-        ;
+    for (len = 0, iter = self->next; iter != self; len++, iter = iter->next);
 
     return len;
 }
@@ -648,9 +746,9 @@ void bru_smir_action_list_prepend(BruActionList *self, BruActionList *acts)
     acts->next = acts->prev = acts;
 }
 
-BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self)
+BruActionListIter *bru_smir_action_list_iter(const BruActionList *self)
 {
-    BruActionListIterator *iter = malloc(sizeof(*iter));
+    BruActionListIter *iter = malloc(sizeof(*iter));
 
     iter->sentinel = self;
     iter->current  = NULL;
@@ -658,38 +756,60 @@ BruActionListIterator *bru_smir_action_list_iter(const BruActionList *self)
     return iter;
 }
 
-const BruAction *bru_smir_action_list_iterator_next(BruActionListIterator *self)
+const BruAction *bru_smir_action_list_iter_next(BruActionListIter *self)
 {
+    BruActionList *al = self->current;
+
     if (self->current == self->sentinel) return NULL;
     self->current = self->current ? self->current->next : self->sentinel->next;
+    if (al && al->act == NULL) {
+        // marked for removal in bru_smir_action_list_iterator_remove
+        free(al);
+    }
     if (self->current == self->sentinel) return NULL;
 
     return self->current->act;
 }
 
-const BruAction *bru_smir_action_list_iterator_prev(BruActionListIterator *self)
+const BruAction *bru_smir_action_list_iter_prev(BruActionListIter *self)
 {
+    BruActionList *al = self->current;
+
     if (self->current == self->sentinel) return NULL;
     self->current = self->current ? self->current->prev : self->sentinel->prev;
+    if (al && al->act == NULL) {
+        // marked for removal in bru_smir_action_list_iterator_remove
+        free(al);
+    }
     if (self->current == self->sentinel) return NULL;
 
     return self->current->act;
 }
 
-void bru_smir_action_list_iterator_remove(BruActionListIterator *self)
+void bru_smir_action_list_iter_remove(BruActionListIter *self)
 {
     BruActionList *al;
 
-    if (!self->current || self->current == self->sentinel) return;
+    if (!self->current || self->current->act == NULL ||
+        self->current == self->sentinel)
+        return;
 
     al             = self->current;
     al->prev->next = al->next;
     al->next->prev = al->prev;
-    self->current  = al->prev == self->sentinel ? NULL : al->prev;
 
-    al->prev = al->next = NULL;
     bru_smir_action_free(al->act);
-    free(al);
+    al->act = NULL;
+}
+
+void bru_smir_action_list_iter_free(BruActionListIter *self)
+{
+    if (self->current != self->sentinel && self->current &&
+        self->current->act == NULL)
+        // marked for removal in bru_smir_action_list_iterator_remove
+        free(self->current);
+
+    free(self);
 }
 
 void bru_smir_action_list_print(const BruActionList *self, FILE *stream)
@@ -743,10 +863,10 @@ void *bru_smir_get_post_meta(BruStateMachine *self, bru_state_id sid)
 
 void bru_smir_reorder_states(BruStateMachine *self, bru_state_id *sid_ordering)
 {
-    BruState     *states;
-    bru_trans_id *out;
-    bru_state_id  sid, dst;
-    size_t        i, n, nstates;
+    StcVec(BruState) states;
+    bru_trans_id    *out;
+    bru_state_id     sid, dst;
+    size_t           i, n, nstates;
 
     if (!sid_ordering) return;
 
@@ -762,399 +882,11 @@ void bru_smir_reorder_states(BruStateMachine *self, bru_state_id *sid_ordering)
     }
 
     // reorder the states in the states array
-    stc_vec_init(states, nstates);
-    if (nstates) stc_vec_len_unsafe(states) = nstates;
+    stc_vec_init(&states, nstates);
+    if (nstates) stc_vec_len(states) = nstates;
     for (sid = 1; sid <= nstates; sid++)
         states[sid_ordering[sid - 1] - 1] = self->states[sid - 1];
 
     stc_vec_free(self->states);
     self->states = states;
-}
-
-/* --- SMIR compilation ----------------------------------------------------- */
-
-#define RESERVE(bytes, n)               \
-    do {                                \
-        stc_vec_reserve(bytes, n);      \
-        stc_vec_len_unsafe(bytes) += n; \
-    } while (0)
-
-#define PC(insts) ((insts) + stc_vec_len_unsafe(insts))
-
-#define SET_OFFSET(insts, offset_idx, idx)         \
-    *((bru_offset_t *) ((insts) + (offset_idx))) = \
-        (bru_offset_t) (idx) - ((offset_idx) + sizeof(bru_offset_t))
-
-/* --- Type definitions ----------------------------------------------------- */
-
-typedef struct {
-    bru_offset_t entry; /**< where the state is compiled in the program       */
-    bru_offset_t exit;  /**< the to-be-filled outgoing transition offsets     */
-    size_t transitions; /**< where the transitions start                      */
-} BruStateBlock;
-
-typedef struct {
-    bru_regex_id rid; /**< the regex identifier for the mapping               */
-    bru_len_t    idx; /**< the index the regex identifier is mapped to        */
-} BruRidToIdx;
-
-typedef struct {
-    BruRidToIdx *thread_map;           /**< stc_vec for thread mapping        */
-    BruRidToIdx *memoisation_map;      /**< stc_vec for memoisation mapping   */
-    bru_len_t    next_thread_idx;      /**< next index for thread map         */
-    bru_len_t    next_memoisation_idx; /**< next index for memoisation map    */
-
-    // TODO: counter memory
-} BruMemoryMaps; // map RIDs to memory indices
-
-/* --- Helper function definitions ------------------------------------------ */
-
-static size_t count_bytes_actions(const BruActionList *acts)
-{
-    BruActionList *n;
-    size_t         size;
-
-    if (!acts) return 0;
-
-    for (n = acts->next, size = 0; n != acts; n = n->next) {
-        switch (n->act->type) {
-            case BRU_ACT_BEGIN: size++; break;
-            case BRU_ACT_END: size++; break;
-
-            case BRU_ACT_CHAR:
-                size++;
-                size += sizeof(const char *);
-                break;
-
-            case BRU_ACT_PRED:
-                size++;
-                size += sizeof(bru_len_t);
-                break;
-
-            case BRU_ACT_MEMO:
-                size++;
-                size += sizeof(bru_len_t);
-                break;
-
-            case BRU_ACT_EPSCHK:
-                size++;
-                size += sizeof(bru_len_t);
-                break;
-
-            case BRU_ACT_SAVE:
-                size++;
-                size += sizeof(bru_len_t);
-                break;
-
-            case BRU_ACT_EPSSET:
-                size++;
-                size += sizeof(bru_len_t);
-                break;
-        }
-    }
-
-    return size;
-}
-
-static bru_byte_t *compile_actions(bru_byte_t          *pc,
-                                   BruProgram          *prog,
-                                   const BruActionList *acts,
-                                   BruMemoryMaps       *mmaps)
-{
-#define GET_IDX(mmap, next_idx, idx_inc, uid)                         \
-    do {                                                              \
-        for (idx = 0, len = stc_vec_len_unsafe(mmap);                 \
-             idx < len && (mmap)[idx].rid != (uid); idx++)            \
-            ;                                                         \
-        if (idx == len) {                                             \
-            idx         = (next_idx);                                 \
-            (next_idx) += (idx_inc);                                  \
-            stc_vec_push_back(mmap, ((BruRidToIdx){ (uid), (idx) })); \
-        } else {                                                      \
-            idx = (mmap)[idx].idx;                                    \
-        }                                                             \
-    } while (0)
-
-    BruActionList *n;
-    size_t         idx, len;
-
-    if (!acts) return pc;
-
-    for (n = acts->next; n != acts; n = n->next) {
-        switch (n->act->type) {
-            case BRU_ACT_BEGIN: BRU_BCWRITE(pc, BRU_BEGIN); break;
-            case BRU_ACT_END: BRU_BCWRITE(pc, BRU_END); break;
-
-            case BRU_ACT_CHAR:
-                BRU_BCWRITE(pc, BRU_CHAR);
-                BRU_MEMWRITE(pc, const char *, n->act->ch);
-                break;
-
-            case BRU_ACT_PRED:
-                BRU_BCWRITE(pc, BRU_PRED);
-                BRU_MEMWRITE(pc, bru_len_t, stc_vec_len_unsafe(prog->aux));
-                BRU_MEMCPY(prog->aux, n->act->pred,
-                           sizeof(*n->act->pred) +
-                               n->act->pred->len *
-                                   sizeof(*n->act->pred->intervals));
-                break;
-
-            case BRU_ACT_MEMO:
-                BRU_BCWRITE(pc, BRU_MEMO);
-                GET_IDX(mmaps->memoisation_map, mmaps->next_memoisation_idx, 1,
-                        n->act->k);
-                BRU_MEMWRITE(pc, bru_len_t, idx);
-                break;
-
-            case BRU_ACT_EPSCHK:
-                BRU_BCWRITE(pc, BRU_EPSCHK);
-                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx,
-                        sizeof(const char *), n->act->k);
-                BRU_MEMWRITE(pc, bru_len_t, idx);
-                break;
-
-            case BRU_ACT_SAVE:
-                BRU_BCWRITE(pc, BRU_SAVE);
-                BRU_MEMWRITE(pc, bru_len_t, n->act->k);
-                if ((n->act->k / 2) + 1 > prog->ncaptures)
-                    prog->ncaptures = (n->act->k / 2) + 1;
-                break;
-
-            case BRU_ACT_EPSSET:
-                BRU_BCWRITE(pc, BRU_EPSSET);
-                GET_IDX(mmaps->thread_map, mmaps->next_thread_idx,
-                        sizeof(const char *), n->act->k);
-                BRU_MEMWRITE(pc, bru_len_t, idx);
-                break;
-        }
-    }
-
-    return pc;
-
-#undef GET_IDX
-}
-
-static size_t
-count_bytes_transition(BruStateMachine *sm, bru_trans_id tid, int count_jmp)
-{
-    size_t size;
-
-    size = count_bytes_actions(bru_smir_trans_get_actions(sm, tid));
-    if (count_jmp) {
-        size++;
-        size += sizeof(bru_offset_t);
-    }
-
-    return size;
-}
-
-static bru_byte_t *compile_transition(BruStateMachine *sm,
-                                      bru_byte_t      *pc,
-                                      BruProgram      *prog,
-                                      bru_trans_id     tid,
-                                      int              compile_jmp,
-                                      BruStateBlock   *state_blocks,
-                                      BruMemoryMaps   *mmaps)
-{
-    const BruActionList *acts;
-    bru_state_id         dst;
-    bru_offset_t         jmp_target_idx;
-    bru_offset_t         offset_idx;
-
-    acts = bru_smir_trans_get_actions(sm, tid);
-    dst  = bru_smir_get_dst(sm, tid);
-
-    pc = compile_actions(pc, prog, acts, mmaps);
-
-    if (compile_jmp) {
-        BRU_BCWRITE(pc, BRU_JMP);
-        offset_idx = pc - prog->insts;
-        jmp_target_idx =
-            BRU_IS_FINAL_STATE(dst)
-                ? state_blocks[bru_smir_get_num_states(sm) + 1].entry
-                : state_blocks[dst].entry;
-        BRU_MEMWRITE(pc, bru_offset_t,
-                     jmp_target_idx - (offset_idx + sizeof(bru_offset_t)));
-    }
-
-    return pc;
-}
-
-static size_t count_bytes_transitions(BruStateMachine *sm,
-                                      bru_trans_id    *out,
-                                      size_t           n,
-                                      bru_state_id     sid)
-{
-    size_t i, nstates, size = 0;
-    int    count_jmp;
-
-    nstates = bru_smir_get_num_states(sm);
-    for (i = 0; i < n - 1; i++)
-        if (bru_smir_trans_get_num_actions(sm, out[i]))
-            size += count_bytes_transition(sm, out[i], TRUE);
-
-    // count bytes of last transition
-    count_jmp = bru_smir_get_dst(sm, out[i]) != ((sid + 1) % (nstates + 1));
-    if (n == 1 || bru_smir_trans_get_num_actions(sm, out[i]))
-        size += count_bytes_transition(sm, out[i], count_jmp);
-
-    return size;
-}
-
-static void compile_transitions(BruStateMachine *sm,
-                                BruProgram      *prog,
-                                bru_state_id     sid,
-                                BruStateBlock   *state_blocks,
-                                BruMemoryMaps   *mmaps)
-{
-    bru_trans_id *out;
-    bru_byte_t   *pc;
-    bru_state_id  dst;
-    size_t        n, i, nstates;
-    bru_offset_t  offset_idx;
-    int           compile_jmp;
-
-    nstates = bru_smir_get_num_states(sm);
-    out     = bru_smir_get_out_transitions(sm, sid, &n);
-    if (!n) goto cleanup;
-
-    offset_idx = state_blocks[sid].exit;
-    pc         = prog->insts + state_blocks[sid].transitions;
-    for (i = 0; i < n - 1; offset_idx += sizeof(bru_offset_t), i++) {
-        if (bru_smir_trans_get_num_actions(sm, out[i])) {
-            SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
-            pc = compile_transition(sm, pc, prog, out[i], TRUE, state_blocks,
-                                    mmaps);
-        } else {
-            dst = bru_smir_get_dst(sm, out[i]);
-            if (!dst) dst = nstates + 1;
-            SET_OFFSET(prog->insts, offset_idx, state_blocks[dst].entry);
-        }
-    }
-
-    // compile last transition
-    compile_jmp = bru_smir_get_dst(sm, out[i]) != ((sid + 1) % (nstates + 1));
-    if (n > 1) {
-        if (bru_smir_trans_get_num_actions(sm, out[i])) {
-            SET_OFFSET(prog->insts, offset_idx, pc - prog->insts);
-            compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks,
-                               mmaps);
-        } else {
-            dst = bru_smir_get_dst(sm, out[i]);
-            if (!dst) dst = nstates + 1;
-            SET_OFFSET(prog->insts, offset_idx, state_blocks[dst].entry);
-        }
-    } else if (n == 1) {
-        compile_transition(sm, pc, prog, out[i], compile_jmp, state_blocks,
-                           mmaps);
-    }
-
-cleanup:
-    if (out) free(out);
-}
-
-static void compile_state(BruStateMachine *sm,
-                          BruProgram      *prog,
-                          bru_state_id     sid,
-                          bru_compile_f   *pre,
-                          bru_compile_f   *post,
-                          BruStateBlock   *state_blocks,
-                          BruMemoryMaps   *mmaps)
-{
-    bru_trans_id        *out;
-    const BruActionList *acts;
-    size_t               n, size;
-
-    state_blocks[sid].entry = stc_vec_len_unsafe(prog->insts);
-
-    if (pre) pre(bru_smir_get_pre_meta(sm, sid), prog);
-    if (bru_smir_state_get_num_actions(sm, sid)) {
-        acts = bru_smir_state_get_actions(sm, sid);
-        size = count_bytes_actions(acts);
-        RESERVE(prog->insts, size);
-        compile_actions(prog->insts + stc_vec_len_unsafe(prog->insts) - size,
-                        prog, acts, mmaps);
-    }
-    if (post) post(bru_smir_get_post_meta(sm, sid), prog);
-
-    out = bru_smir_get_out_transitions(sm, sid, &n);
-    switch (n) {
-        case 0:
-            state_blocks[sid].exit        = 0;
-            state_blocks[sid].transitions = stc_vec_len_unsafe(prog->insts);
-            goto cleanup;
-
-        case 1:
-            state_blocks[sid].exit        = stc_vec_len_unsafe(prog->insts);
-            state_blocks[sid].transitions = state_blocks[sid].exit;
-            break;
-
-        default:
-            if (n == 2) {
-                BRU_BCPUSH(prog->insts, BRU_SPLIT);
-            } else {
-                BRU_BCPUSH(prog->insts, BRU_TSWITCH);
-                BRU_MEMPUSH(prog->insts, bru_len_t, n);
-            }
-            state_blocks[sid].exit = stc_vec_len_unsafe(prog->insts);
-            RESERVE(prog->insts, n * sizeof(bru_offset_t));
-            state_blocks[sid].transitions = stc_vec_len_unsafe(prog->insts);
-            break;
-    }
-
-    size = count_bytes_transitions(sm, out, n, sid);
-    if (size) RESERVE(prog->insts, size);
-
-cleanup:
-    if (out) free(out);
-}
-
-static void compile_initial(BruStateMachine *sm,
-                            BruProgram      *prog,
-                            BruStateBlock   *state_blocks,
-                            BruMemoryMaps   *mmaps)
-{
-    compile_state(sm, prog, BRU_INITIAL_STATE_ID, NULL, NULL, state_blocks,
-                  mmaps);
-}
-
-/* --- API function definitions --------------------------------------------- */
-
-BruProgram *bru_smir_compile_with_meta(BruStateMachine *sm,
-                                       bru_compile_f   *pre,
-                                       bru_compile_f   *post)
-{
-    BruProgram    *prog  = bru_program_default(sm->regex);
-    BruMemoryMaps  mmaps = { 0 };
-    BruStateBlock *state_blocks;
-    size_t         n, sid;
-
-    stc_vec_default_init(mmaps.thread_map);
-    stc_vec_default_init(mmaps.memoisation_map);
-
-    n            = bru_smir_get_num_states(sm);
-    state_blocks = malloc((n + 2) * sizeof(*state_blocks));
-
-    // compile `initial .. states .. final` states
-    // and store entry, exit, and transitions offsets
-    compile_initial(sm, prog, state_blocks, &mmaps);
-    for (sid = 1; sid <= n; sid++)
-        compile_state(sm, prog, sid, pre, post, state_blocks, &mmaps);
-    state_blocks[sid].entry = stc_vec_len_unsafe(prog->insts);
-    state_blocks[sid].exit  = 0;
-    BRU_BCPUSH(prog->insts, BRU_MATCH);
-
-    // compile out transitions for each state
-    for (sid = 0; sid <= n; sid++)
-        compile_transitions(sm, prog, sid, state_blocks, &mmaps);
-
-    prog->thread_mem_len = mmaps.next_thread_idx;
-    prog->nmemo_insts    = stc_vec_len_unsafe(mmaps.memoisation_map);
-
-    // cleanup
-    stc_vec_free(mmaps.thread_map);
-    stc_vec_free(mmaps.memoisation_map);
-    free(state_blocks);
-
-    return prog;
 }

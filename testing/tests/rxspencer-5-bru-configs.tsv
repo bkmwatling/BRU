@@ -1,0 +1,5 @@
+# regular expression test set
+# Lines are four fields, separated by one tab. "" stands
+# for an empty field. First field is an RE.  Second field is flags.  If
+# C flag given, regcomp() is expected to fail, and the third field is the
+# error name (minus the leading REG_).
